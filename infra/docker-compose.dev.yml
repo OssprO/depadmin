@@ -1,0 +1,24 @@
+# Local development services. Production lives in infra/docker-compose.yml (phase 5).
+name: depadmin-dev
+
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: depadmin
+      POSTGRES_PASSWORD: depadmin
+      POSTGRES_DB: depadmin
+    ports:
+      # Localhost only, and 5433 by default so it never clashes with a system Postgres.
+      - '127.0.0.1:${DB_PORT:-5433}:5432'
+    volumes:
+      # Postgres 18 images keep data under a versioned subfolder of this path.
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U depadmin -d depadmin']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  db-data:
