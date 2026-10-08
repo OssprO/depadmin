@@ -13,37 +13,44 @@ Mobile-first web app to manage maintenance fees for a 10-unit building ("Edifici
 
 **Working mode:** one phase per PR. Explain the reasoning behind a design before implementing, include tests, and wait for the user's approval before starting the next phase.
 
-**Current state:** phase 0 has not started. Both packages are still close to their scaffolds. Phase 0 will switch the backend from Jest to Vitest and add `packages/shared`, root scripts and Docker, so update the commands below when that lands.
+**Current state:** phase 0 (foundations) is done on branch `chore/fase-0-fundaciones`. No business code exists yet; phase 1 starts the pure domain under `backend/src/shared-kernel` and `backend/src/modules`.
 
 ## Layout & tooling
 
-pnpm workspace monorepo with `backend/` (NestJS 11) and `frontend/` (React 19 + Vite + Tailwind v4 + shadcn/ui). `packages/shared` (Zod schemas shared by both sides) is planned. Don't add Nx or Turborepo. The root `package.json` has no scripts yet, so run commands with `pnpm --filter <pkg>`.
+pnpm 11 workspace: `backend/` (`@depadmin/backend`, NestJS 12 in ESM), `frontend/` (`@depadmin/frontend`, React 19 + Vite 8 + Tailwind v4 + shadcn/ui) and `packages/shared/` (`@depadmin/shared`, Zod contracts). TypeScript 6.0 everywhere, with strict options in `tsconfig.base.json`. Don't add Nx or Turborepo.
 
 ```bash
-pnpm install                                   # from repo root
+pnpm install          # also builds @depadmin/shared (root postinstall)
+pnpm db:up            # Postgres 18 on 127.0.0.1:5433 (not 5432: the host may run its own Postgres)
+pnpm dev              # shared (tsc watch) + API :3000 + web :5173; Vite proxies /api to the API
+pnpm lint             # ESLint for the whole repo, including the hexagonal boundary rule
+pnpm format           # Prettier
+pnpm typecheck
+pnpm test             # Vitest unit tests in every package (*.spec.ts / *.spec.tsx next to code)
+pnpm test:e2e         # backend/test/*.e2e-spec.ts (supertest)
+pnpm build
 
-# backend (NestJS, listens on PORT or 3000)
-pnpm --filter backend start:dev                # watch mode
-pnpm --filter backend build
-pnpm --filter backend lint                     # eslint --fix
-pnpm --filter backend format                   # prettier
-pnpm --filter backend test                     # unit tests: src/**/*.spec.ts (Jest for now)
-pnpm --filter backend test -- src/app.controller.spec.ts   # single file
-pnpm --filter backend test -- -t "test name"               # single test by name
-pnpm --filter backend test:e2e                 # test/*.e2e-spec.ts (supertest)
-
-# frontend (Vite)
-pnpm --filter frontend dev
-pnpm --filter frontend build                   # tsc -b && vite build
-pnpm --filter frontend lint
+# single package / single test
+pnpm --filter @depadmin/backend test -- src/platform/config/env.spec.ts
+pnpm --filter @depadmin/frontend test -- -t "offers a retry"
 ```
+
+CI (`.github/workflows/ci.yml`) runs format:check, lint, typecheck, test, test:e2e and build. Husky runs lint-staged on commit, and commitlint enforces Conventional Commits.
+
+### Gotchas
+
+- **Backend imports:** relative imports need a `.js` extension (ESM). Don't use `import type` for classes injected through constructors, because Nest DI relies on `emitDecoratorMetadata`. For the same reason the backend has no `verbatimModuleSyntax` or `consistent-type-imports`.
+- **Changing `packages/shared`:** rebuild it (`pnpm --filter @depadmin/shared build`, or keep `pnpm dev` running). Consumers import its `dist/`.
+- **Adding shadcn components:** run `pnpm exec shadcn add <component>` from `frontend/`. The `@/*` alias must stay in `frontend/tsconfig.json`; without it, shadcn writes to a literal `frontend/@/` folder with a broken `cn` import.
+- **Dependencies with install scripts:** pnpm 11 fails the install until the package is listed under `allowBuilds` in `pnpm-workspace.yaml`.
+- **Shared HTTP setup:** `configureApp()` in `backend/src/platform/http/` holds the global prefix and other HTTP setup, and e2e tests use it too. Put new global HTTP setup there, not in `main.ts`.
+- **Env vars:** new environment variables must be added to the Zod schema in `backend/src/platform/config/env.ts` and to `backend/.env.example`.
 
 ## Architecture rules
 
-- **Backend:** hexagonal modules under `backend/src/modules/<module>/{domain,application,infrastructure,http}`, plus `shared-kernel/` and `platform/`.
+- **Backend:** hexagonal modules under `backend/src/modules/<module>/{domain,application,infrastructure,http}`, plus `<module>.module.ts`, `shared-kernel/` and `platform/`. `eslint.config.js` (`hexagonalPolicies`) enforces this layout. `domain/` and `shared-kernel/` cannot import any package or Node API.
   - `domain/` is plain TypeScript. It never imports Nest, Prisma or another module.
   - Modules talk to each other only through use cases or queries, never through each other's repositories.
-  - These boundaries are checked by `eslint-plugin-boundaries`.
 - Each use case is one class. A write use case runs inside a `UnitOfWork` transaction that also writes its `AuditLog` entries.
 - Domain errors are mapped to RFC 9457 Problem Details by a global filter.
 - **Money** is integer centavos wrapped in a `Money` value object. Never use floats.
