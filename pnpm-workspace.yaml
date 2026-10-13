@@ -1,0 +1,11 @@
+packages:
+  - backend
+  - frontend
+  - packages/*
+
+# pnpm blocks dependency build scripts unless they are listed here.
+# These postinstalls only verify or repair native binaries that already arrive
+# through optionalDependencies, so they can stay disabled.
+allowBuilds:
+  esbuild: false
+  unrs-resolver: false
