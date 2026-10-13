@@ -85,6 +85,25 @@ const hexagonalPolicies = [
     allow: { to: { element: { types: { anyOf: ['domain', 'http'] }, captured: sameModule } } },
   },
 
+  // A Nest module wires its own layers; other modules are reached through their Nest module.
+  {
+    from: { element: { type: 'composition' } },
+    disallow: {
+      to: { element: { types: { anyOf: ['domain', 'application', 'infrastructure', 'http'] } } },
+    },
+  },
+  {
+    from: { element: { type: 'composition' } },
+    allow: {
+      to: {
+        element: {
+          types: { anyOf: ['domain', 'application', 'infrastructure', 'http'] },
+          captured: sameModule,
+        },
+      },
+    },
+  },
+
   // Cross-cutting platform code must not depend on business modules.
   {
     from: { element: { type: 'platform' } },
@@ -99,7 +118,12 @@ const hexagonalPolicies = [
 ];
 
 export default defineConfig([
-  globalIgnores(['**/dist', '**/coverage', '**/node_modules']),
+  globalIgnores([
+    '**/dist',
+    '**/coverage',
+    '**/node_modules',
+    'backend/src/platform/prisma/generated',
+  ]),
 
   js.configs.recommended,
   tseslint.configs.recommendedTypeChecked,
@@ -149,10 +173,12 @@ export default defineConfig([
           partialMatch: false,
           capture: ['module'],
         },
+        // Element patterns match folders, so this one matches the module root. It must come
+        // after the layers: the first matching descriptor wins, leaving it only the files at
+        // the root, i.e. <module>.module.ts.
         {
           type: 'composition',
-          pattern: 'backend/src/modules/*/*.module.ts',
-          partialMatch: false,
+          pattern: 'backend/src/modules/*',
           capture: ['module'],
         },
         { type: 'platform', pattern: 'backend/src/platform/**', partialMatch: false },
