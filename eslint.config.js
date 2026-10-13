@@ -157,9 +157,25 @@ export default defineConfig([
         },
         { type: 'platform', pattern: 'backend/src/platform/**', partialMatch: false },
       ],
+      // Specs may import test tooling (vitest) even when they sit next to domain code.
+      'boundaries/ignore': ['backend/**/*.spec.ts'],
       'import/resolver': { typescript: { project: 'backend/tsconfig.json' }, node: true },
     },
     rules: {
+      // Value objects print themselves through toString() (e.g. `${month}` → "2026-08").
+      '@typescript-eslint/restrict-template-expressions': [
+        'error',
+        {
+          allowNumber: true,
+          allow: [
+            { from: 'lib', name: ['Error', 'URL', 'URLSearchParams'] },
+            {
+              from: 'file',
+              name: ['Money', 'YearMonth', 'LocalDate', 'UnitNumber', 'YearMonthRange'],
+            },
+          ],
+        },
+      ],
       'boundaries/dependencies': [
         'error',
         { default: 'allow', checkAllOrigins: true, policies: hexagonalPolicies },
