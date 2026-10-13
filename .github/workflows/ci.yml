@@ -27,7 +27,7 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
 
-      # Also builds @depadmin/shared through the root postinstall.
+      # Also builds @depadmin/shared and generates the Prisma Client (root postinstall).
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm format:check
@@ -36,5 +36,7 @@ jobs:
       - run: pnpm test
       # Fails if the backend domain drops below 90% coverage.
       - run: pnpm --filter @depadmin/backend test:cov
+      # Starts PostgreSQL 18 with Testcontainers (Docker is preinstalled on the runner).
+      - run: pnpm test:int
       - run: pnpm test:e2e
       - run: pnpm build
