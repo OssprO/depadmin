@@ -10,5 +10,13 @@
     "strictPropertyInitialization": false,
     "noEmit": true
   },
-  "include": ["src", "test", "vitest.config.ts", "vitest.config.e2e.ts"]
+  "include": [
+    "src",
+    "test",
+    "prisma",
+    "prisma.config.ts",
+    "vitest.config.ts",
+    "vitest.config.e2e.ts",
+    "vitest.config.int.ts"
+  ]
 }

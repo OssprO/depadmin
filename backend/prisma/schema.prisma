@@ -1,0 +1,170 @@
+// Persistence model. Conventions (docs/adr/0012-persistencia.md):
+// - Money is integer centavos (Int).
+// - Calendar dates are DATE. Months (YearMonth) are DATE on the first day of the month,
+//   enforced by CHECK constraints in the migration.
+// - Tables and columns are snake_case; the domain never sees these types.
+// - Constraints Prisma cannot express (CHECKs, exclusion constraints, the audit trigger)
+//   live in the migration SQL.
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/platform/prisma/generated"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MovementCategory {
+  UNIT_PAYMENT
+  OTHER_INCOME
+  GARBAGE
+  CLEANING
+  OTHER_EXPENSE
+
+  @@map("movement_category")
+}
+
+enum DelegationReason {
+  SKIPPED_SHIFT
+  INACTIVE_UNIT
+  OTHER
+
+  @@map("delegation_reason")
+}
+
+enum ChargeType {
+  MAINTENANCE_FEE
+  SHIFT_SKIP_PENALTY
+
+  @@map("charge_type")
+}
+
+enum RateName {
+  MAINTENANCE_FEE
+  CLEANING_PER_VISIT
+  GARBAGE_WEEKLY
+  SHIFT_SKIP_PENALTY
+
+  @@map("rate_name")
+}
+
+model Unit {
+  number Int @id
+
+  inactivePeriods  UnitInactivePeriod[]
+  movements        CashMovement[]
+  charges          Charge[]
+  delegationsGiven ShiftDelegation[]    @relation("original")
+  delegationsTaken ShiftDelegation[]    @relation("delegate")
+
+  @@map("unit")
+}
+
+model UnitInactivePeriod {
+  id         String    @id @db.Uuid
+  unitNumber Int       @map("unit_number")
+  fromMonth  DateTime  @map("from_month") @db.Date
+  toMonth    DateTime? @map("to_month") @db.Date
+
+  unit Unit @relation(fields: [unitNumber], references: [number])
+
+  @@index([unitNumber])
+  @@map("unit_inactive_period")
+}
+
+model ShiftDelegation {
+  id           String           @id @db.Uuid
+  fromMonth    DateTime         @map("from_month") @db.Date
+  toMonth      DateTime         @map("to_month") @db.Date
+  originalUnit Int              @map("original_unit")
+  delegateUnit Int              @map("delegate_unit")
+  reason       DelegationReason
+  cancelledAt  DateTime?        @map("cancelled_at") @db.Timestamptz
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz
+
+  original Unit @relation("original", fields: [originalUnit], references: [number])
+  delegate Unit @relation("delegate", fields: [delegateUnit], references: [number])
+
+  @@index([fromMonth])
+  @@map("shift_delegation")
+}
+
+model RateChange {
+  rate          RateName
+  effectiveFrom DateTime @map("effective_from") @db.Date
+  amount        Int
+
+  @@id([rate, effectiveFrom])
+  @@map("rate_change")
+}
+
+/// Singleton row: the cut-over month and the cash on hand at its start.
+model ReportingStart {
+  id             Int      @id @default(1) @db.SmallInt
+  month          DateTime @db.Date
+  openingBalance Int      @map("opening_balance")
+
+  @@map("reporting_start")
+}
+
+model CashMovement {
+  id          String           @id @db.Uuid
+  date        DateTime         @db.Date
+  category    MovementCategory
+  amount      Int
+  description String?
+  unitNumber  Int?             @map("unit_number")
+  removedAt   DateTime?        @map("removed_at") @db.Timestamptz
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+
+  unit Unit? @relation(fields: [unitNumber], references: [number], onDelete: Restrict)
+
+  @@index([date])
+  @@index([unitNumber, date])
+  @@map("cash_movement")
+}
+
+model Charge {
+  unitNumber Int        @map("unit_number")
+  month      DateTime   @db.Date
+  type       ChargeType
+  amount     Int
+
+  unit Unit @relation(fields: [unitNumber], references: [number])
+
+  @@id([unitNumber, month, type])
+  @@index([month])
+  @@map("charge")
+}
+
+/// A month exists once opened. All snapshot columns are null while open and set when closed.
+model MonthlyReport {
+  month          DateTime  @id @db.Date
+  closedAt       DateTime? @map("closed_at") @db.Timestamptz
+  openingBalance Int?      @map("opening_balance")
+  income         Int?
+  expense        Int?
+  closingBalance Int?      @map("closing_balance")
+
+  @@map("monthly_report")
+}
+
+/// Append-only: a trigger rejects UPDATE, DELETE and TRUNCATE (see the migration).
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  occurredAt DateTime @default(now()) @map("occurred_at") @db.Timestamptz
+  actorId    String   @map("actor_id")
+  action     String
+  entity     String
+  entityId   String   @map("entity_id")
+  /// [{ field, before, after }]
+  changes    Json
+
+  @@index([entity, entityId])
+  @@index([occurredAt])
+  @@map("audit_log")
+}
