@@ -15,4 +15,4 @@ Prisma, usado **solo** dentro de los adaptadores `infrastructure/` de cada módu
 - Migraciones declarativas y un cliente tipado sin escribir SQL repetitivo.
 - TypeORM se descartó porque sus entidades con decoradores invitan a mezclar persistencia y dominio.
 - Lo que Prisma no expresa (el trigger de solo inserción de la bitácora, checks específicos) va como SQL dentro de las migraciones.
-- La regla de ESLint impide importar `@prisma/*` fuera de `infrastructure/`.
+- La regla de ESLint impide importar `@prisma/*` desde `application/`, y el dominio no puede importar ningún paquete. Los detalles de la fase 2 están en el ADR-0012.
