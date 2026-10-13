@@ -8,11 +8,12 @@
   },
   "scripts": {
     "prepare": "husky",
-    "postinstall": "pnpm --filter @depadmin/shared build",
+    "postinstall": "pnpm --filter @depadmin/shared build && pnpm --filter @depadmin/backend db:generate",
     "dev": "pnpm --recursive --parallel dev",
     "build": "pnpm --recursive build",
     "typecheck": "pnpm --recursive typecheck",
     "test": "pnpm --recursive test",
+    "test:int": "pnpm --filter @depadmin/backend test:int",
     "test:e2e": "pnpm --recursive test:e2e",
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix",

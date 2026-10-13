@@ -18,6 +18,8 @@ Administración de las cuotas de mantenimiento del **Edificio Correspondencia 63
 pnpm install                       # instala todo y compila @depadmin/shared
 cp backend/.env.example backend/.env
 pnpm db:up                         # Postgres 18 en localhost:5433
+pnpm --filter @depadmin/backend db:migrate   # aplica las migraciones
+pnpm --filter @depadmin/backend db:seed      # 10 deptos y tarifas iniciales
 pnpm dev                           # API en :3000 y web en :5173
 ```
 
@@ -33,6 +35,7 @@ Abre <http://localhost:5173>. La tarjeta _Estado del sistema_ confirma que el fr
 | `pnpm format`                 | Prettier en todo el repo                                            |
 | `pnpm typecheck`              | TypeScript en los tres paquetes                                     |
 | `pnpm test`                   | Pruebas unitarias (Vitest)                                          |
+| `pnpm test:int`               | Pruebas de integración contra PostgreSQL real (requiere Docker)     |
 | `pnpm test:e2e`               | Pruebas e2e de la API                                               |
 | `pnpm db:up` / `pnpm db:down` | Levanta o detiene la base de datos local                            |
 

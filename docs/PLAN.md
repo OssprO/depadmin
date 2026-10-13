@@ -172,10 +172,10 @@ Todo sin base de datos ni HTTP, solo lógica y pruebas.
 
 ### Fase 2: Persistencia
 
-- `schema.prisma` y la migración inicial según la sección 4, con índices y restricciones (unicidad de cargo por depto y mes, checks de montos ≥ 0).
+- `schema.prisma` y la migración inicial según la sección 4, con índices y restricciones (unicidad de cargo por depto, mes y tipo; checks de montos; exclusión de traslapes). Las asignaciones de pagos se derivan al leer y no tienen tabla (ADR-0012).
 - Adaptadores de repositorio y mappers Prisma ↔ dominio; `UnitOfWork` sobre `$transaction`.
 - Trigger y permisos de solo inserción para `audit_log`.
-- Seed: 10 deptos, superadmin, configuración inicial y ancla de turnos.
+- Seed: 10 deptos y tarifas iniciales. El superadmin se crea en la fase 3, junto con la tabla de usuarios; el saldo inicial, en la carga inicial (fase 11).
 - Pruebas de integración con Testcontainers.
 
 **Conceptos:** mapeo entre persistencia y dominio, migraciones, transacciones, pruebas contra una BD real.

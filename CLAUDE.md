@@ -13,7 +13,7 @@ Mobile-first web app to manage maintenance fees for a 10-unit building ("Edifici
 
 **Working mode:** one phase per PR. Explain the reasoning behind a design before implementing, include tests, and wait for the user's approval before starting the next phase.
 
-**Current state:** phase 0 (foundations) is on branch `chore/fase-0-fundaciones`. Phase 1 (pure domain, no DB or HTTP) is on `feat/fase-1-dominio`: `shared-kernel` plus the `domain/` folders of `units`, `shifts`, `identity`, `settings`, `cashbook`, `billing` and `reports`. No application, infrastructure or http layers exist yet; persistence starts in phase 2.
+**Current state:** each phase has its own branch: `chore/fase-0-fundaciones` (foundations), `feat/fase-1-dominio` (pure domain) and `feat/fase-2-persistencia` (Prisma schema and migration, a repository adapter per module, `UnitOfWork`, seed). No use cases (`application/`) or HTTP endpoints exist yet beyond `/api/health`.
 
 ## Layout & tooling
 
@@ -27,16 +27,22 @@ pnpm lint             # ESLint for the whole repo, including the hexagonal bound
 pnpm format           # Prettier
 pnpm typecheck
 pnpm test             # Vitest unit tests in every package (*.spec.ts / *.spec.tsx next to code)
+pnpm test:int         # *.int-spec.ts: Prisma adapters against PostgreSQL 18 in Testcontainers (needs Docker)
 pnpm test:e2e         # backend/test/*.e2e-spec.ts (supertest)
 pnpm --filter @depadmin/backend test:cov   # domain coverage; fails under 90% (CI runs it)
 pnpm build
+
+# database (from backend/, or with pnpm --filter @depadmin/backend)
+pnpm db:migrate       # prisma migrate dev: create/apply migrations on the dev DB
+pnpm db:seed          # 10 deptos + initial rates (idempotent)
+pnpm db:generate      # regenerate the Prisma Client (also runs on install)
 
 # single package / single test
 pnpm --filter @depadmin/backend test -- src/platform/config/env.spec.ts
 pnpm --filter @depadmin/frontend test -- -t "offers a retry"
 ```
 
-CI (`.github/workflows/ci.yml`) runs format:check, lint, typecheck, test, domain coverage, test:e2e and build. Husky runs lint-staged on commit, and commitlint enforces Conventional Commits.
+CI (`.github/workflows/ci.yml`) runs format:check, lint, typecheck, test, domain coverage, test:int, test:e2e and build. Husky runs lint-staged on commit, and commitlint enforces Conventional Commits.
 
 ### Gotchas
 
@@ -47,6 +53,8 @@ CI (`.github/workflows/ci.yml`) runs format:check, lint, typecheck, test, domain
 - **Shared HTTP setup:** `configureApp()` in `backend/src/platform/http/` holds the global prefix and other HTTP setup, and e2e tests use it too. Put new global HTTP setup there, not in `main.ts`.
 - **Domain tests:** assert errors by code with `toThrow(withCode('MONTH_CLOSED'))` from `backend/test/support/domain-error.ts`. Shared test builders for a module go in `domain/testing.ts`, which is excluded from the build and from coverage. `*.spec.ts` files are exempt from the boundary rule so they can import vitest.
 - **Domain dates:** use `LocalDate` and `YearMonth` from the shared kernel, never `Date`. Calendar math in `shared-kernel/calendar.ts` doesn't depend on the host time zone, and "today" comes from the `Clock` port.
+- **Prisma 7:** the config is in `backend/prisma.config.ts` (it loads `.env` itself). The client is generated into `backend/src/platform/prisma/generated/`, which is gitignored and excluded from lint, so run `pnpm db:generate` after editing `schema.prisma`. CHECKs, exclusion constraints and the audit triggers live as hand-written SQL in the migration, and Prisma's diff ignores them, so add new ones by hand (`prisma migrate dev --create-only`, then edit). Prisma refuses `migrate reset` when an AI agent runs it, so ask the user to run it.
+- **Repositories:** a domain declares the port and its DI token (e.g. `UNIT_REPOSITORY` in `units/domain/unit-repository.ts`). The adapter in `infrastructure/` uses `PrismaDatabase.db`, which joins the current `UnitOfWork.run()` transaction through AsyncLocalStorage. Conversions such as `toDbMonth` live in `platform/prisma/db-values.ts`. Integration specs call `useTestDatabase()` from `backend/test/support/database.ts`, which truncates everything except `audit_log` and reseeds the ten units before each test.
 - **Env vars:** new environment variables must be added to the Zod schema in `backend/src/platform/config/env.ts` and to `backend/.env.example`.
 
 ## Architecture rules
