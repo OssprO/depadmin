@@ -4,8 +4,15 @@ packages:
   - packages/*
 
 # pnpm blocks dependency build scripts unless they are listed here.
-# These postinstalls only verify or repair native binaries that already arrive
-# through optionalDependencies, so they can stay disabled.
 allowBuilds:
+  # Downloads the schema engine binary that `prisma migrate` needs.
+  '@prisma/engines': true
+  # The rest only verify or repair native binaries that already arrive through
+  # optionalDependencies, print notices, or build optional native add-ons that
+  # Testcontainers' SSH transport does not need locally.
   esbuild: false
   unrs-resolver: false
+  prisma: false
+  protobufjs: false
+  ssh2: false
+  cpu-features: false
