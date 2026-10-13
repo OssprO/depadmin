@@ -150,6 +150,24 @@ describe('ShiftScheduler', () => {
     });
   });
 
+  describe('assertIsHandover', () => {
+    it('accepts a skip that starts the next period, for one or both months', () => {
+      expect(() =>
+        scheduler.assertIsHandover(delegation('2026-10..2026-11', 502, 501)),
+      ).not.toThrow();
+      expect(() => scheduler.assertIsHandover(delegation('2026-10', 502, 401))).not.toThrow();
+    });
+
+    it('rejects handovers in the middle of a period or with another reason', () => {
+      expect(() => scheduler.assertIsHandover(delegation('2026-11', 502, 501))).toThrow(
+        withCode('HANDOVER_INVALID'),
+      );
+      expect(() =>
+        scheduler.assertIsHandover(delegation('2026-10..2026-11', 502, 501, 'OTHER')),
+      ).toThrow(withCode('HANDOVER_INVALID'));
+    });
+  });
+
   describe('ShiftDelegation', () => {
     it('rejects self-delegation and open-ended ranges', () => {
       expect(() => delegation('2026-10..2026-11', 502, 502)).toThrow(

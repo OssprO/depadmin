@@ -36,9 +36,10 @@ Aplicación web mobile-first para digitalizar y centralizar la administración d
 | Dueño      | Todos los reportes, histórico completo, estado de cuenta de todos los deptos (transparencia total) | Solo en los meses de su turno (ver ventana de escritura) |
 | Superadmin | Todo                                                                                               | Siempre, sin restricción de turno                        |
 
-- **Ventana de escritura:** un dueño escribe en un mes solo si su depto tiene el turno de ese mes (o recibe su delegación), desde el día 1 del mes hasta el **día 5 natural del mes siguiente**. Ejemplo: si agosto y septiembre son del 501, el 501 puede registrar movimientos de septiembre hasta el 5 de octubre; a partir del 6 de octubre solo el superadmin puede hacerlo. El depto que recibe el turno el 1 de octubre (502) no tiene acceso a septiembre.
+- **Ventana de escritura y entrega:** un dueño escribe en los meses de su turno (o de una delegación que recibe) desde el día 1 de cada mes y mientras conserve el turno, más un **periodo de gracia de 5 días naturales** al terminar. Ejemplo: si agosto y septiembre son del 501, el 501 puede corregir agosto durante septiembre, y ambos meses hasta el 5 de octubre. A partir del 6 de octubre solo el superadmin puede hacerlo. El depto que recibe el turno (502) no tiene acceso a los meses anteriores.
+- La gracia existe porque en esos días se hace la **entrega** al siguiente administrador (llaves, talonario y carpeta de recibos). En ese plazo, el administrador saliente revisa que todo cuadre, **cierra él mismo sus meses** y decide el siguiente turno: se lo entrega al depto que sigue, o ese depto no lo toma y lo cubre el saliente u otro depto que él asigne. En ese caso, el depto que no tomó el turno paga la multa por cada mes. El superadmin puede hacer cualquiera de estas acciones en cualquier momento, y solo él puede reabrir un mes cerrado.
 - Todo cambio a un registro (pago, gasto, ajuste manual, traspaso de turno) queda registrado en una **bitácora de auditoría** inmutable: usuario, fecha/hora, tabla/campo afectado, valor anterior, valor nuevo.
-- El traspaso de turno/delegación es **manual**: lo asigna el superadmin explícitamente. Durante el periodo delegado, **tanto el depto original como el depto delegado** tienen permiso de escritura (además del superadmin, que siempre lo tiene). Todo traspaso queda registrado en la bitácora.
+- El traspaso de turno/delegación es **manual**: lo registra el administrador saliente durante la entrega, o el superadmin en cualquier momento. Durante el periodo delegado, **tanto el depto original como el depto delegado** tienen permiso de escritura (además del superadmin, que siempre lo tiene). Todo traspaso queda registrado en la bitácora.
 
 ## 4. Modelo de negocio / reglas
 
@@ -50,8 +51,8 @@ Aplicación web mobile-first para digitalizar y centralizar la administración d
 
 - Cada turno dura 2 meses.
 - Orden de rotación: **fijo, descendente según posición física de los deptos**: 501→502→401→402→301→302→201→202→101→102→(repite).
-- Un depto puede optar por no tomar su turno, pagando una penalización de **$500 (multa fija) + $700 (cuota mensual regular, que se sigue debiendo de todas formas) = $1,200 total** por el periodo que se salta. En la app la multa se registra como un cargo de $500 y la cuota sigue su curso normal. _Nota: en el reporte de ejemplo aparece $1,000 para el depto 301 — confirmado que fue un error de captura del dueño anterior; el valor correcto de referencia es $1,200._
-- Cuando un depto no toma su turno, delega en otro (comúnmente el depto adyacente) mediante acuerdo verbal; en la app esto se resuelve con un traspaso manual asignado por el superadmin. Durante el periodo delegado, tanto el depto que delega como el depto que recibe la delegación tienen permiso de escritura, además del superadmin.
+- Un depto puede optar por no tomar su turno, pagando una penalización **por cada mes** que no toma: **$500 (multa fija) + $700 (cuota mensual regular, que se sigue debiendo de todas formas) = $1,200 por mes**, es decir $2,400 si omite los dos meses del turno. En la app la multa se registra como un cargo de $500 por mes y la cuota sigue su curso normal. _Nota: en el reporte de ejemplo aparece $1,000 para el depto 301 — confirmado que fue un error de captura del dueño anterior; el valor correcto de referencia es $1,200._
+- Cuando un depto no toma su turno, delega en otro (comúnmente el depto adyacente) mediante acuerdo verbal; en la app esto se resuelve con un traspaso que registra el administrador saliente durante la entrega, o el superadmin. Durante el periodo delegado, tanto el depto que delega como el depto que recibe la delegación tienen permiso de escritura, además del superadmin.
 
 ### 4.3 Estados de pago por depto y mes
 
@@ -74,7 +75,7 @@ Cada depto, cada mes, puede estar en una combinación de estos estados (no son e
 
 - La pantalla principal de quien está en turno es una **lista de movimientos del mes**. Cada renglón es un ingreso (pago de depto u **otro ingreso**, como cooperaciones extraordinarias o reembolsos) o un egreso (basura, limpieza u otro).
 - El reporte mensual se obtiene directamente de esa lista: saldo inicial + ingresos − egresos.
-- Mientras el mes está abierto, los renglones se pueden editar o borrar; la bitácora registra cada cambio. Al cerrar el mes, la lista queda congelada y solo el superadmin puede reabrirla.
+- Mientras el mes está abierto, los renglones se pueden editar o borrar; la bitácora registra cada cambio. Al cerrar el mes (lo hace el administrador saliente dentro de su ventana, o el superadmin), la lista queda congelada y solo el superadmin puede reabrirla. Un renglón no cambia de mes al editarlo: se borra y se captura en el mes correcto.
 
 ### 4.5 Widget visual de calendario ("blueprint" del edificio)
 

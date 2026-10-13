@@ -8,7 +8,8 @@ import {
 
 /**
  * Why another depto covers the shift:
- * - `SKIPPED_SHIFT`: the scheduled depto chose not to take it (it pays the skip penalty).
+ * - `SKIPPED_SHIFT`: the scheduled depto chose not to take it; it pays the skip penalty for
+ *   every delegated month, whoever covers (the outgoing administrator or another depto).
  * - `INACTIVE_UNIT`: the scheduled depto is inactive, so the superadmin assigns a cover.
  * - `OTHER`: any other agreed handover.
  */

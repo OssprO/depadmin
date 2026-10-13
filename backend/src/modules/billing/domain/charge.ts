@@ -54,3 +54,17 @@ export function missingMaintenanceFees(
     .map((unit) => Charge.create(unit, month, 'MAINTENANCE_FEE', fee))
     .filter((charge) => !charged.has(charge.key));
 }
+
+/**
+ * Penalties for a skipped shift: one per month the depto did not take, on top of its regular
+ * fee ($500 + $700 = $1,200 per month at the initial rates).
+ */
+export function shiftSkipPenalties(
+  unit: UnitNumber,
+  skippedMonths: readonly YearMonth[],
+  penaltyFor: (month: YearMonth) => Money,
+): Charge[] {
+  return skippedMonths.map((month) =>
+    Charge.create(unit, month, 'SHIFT_SKIP_PENALTY', penaltyFor(month)),
+  );
+}

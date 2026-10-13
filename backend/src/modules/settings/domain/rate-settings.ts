@@ -11,7 +11,7 @@ export const INITIAL_RATES: Rates = {
   maintenanceFee: Money.ofPesos(700),
   cleaningPerVisit: Money.ofPesos(270),
   garbageWeekly: Money.ofPesos(150),
-  // The $1,200 of the spec is this fine plus the regular $700 fee, which is charged anyway.
+  // Per skipped month; with the regular $700 fee it makes the spec's $1,200 per month.
   shiftSkipPenalty: Money.ofPesos(500),
 };
 

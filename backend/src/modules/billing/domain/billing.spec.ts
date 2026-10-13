@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { withCode } from '../../../../test/support/domain-error.js';
 import { LocalDate, Money, UnitNumber, YearMonth } from '../../../shared-kernel/index.js';
 import { AccountStatement } from './account-statement.js';
-import { Charge, type ChargeType, missingMaintenanceFees } from './charge.js';
+import { Charge, type ChargeType, missingMaintenanceFees, shiftSkipPenalties } from './charge.js';
 import { allocatePayments, type UnitPayment } from './payment-allocation.js';
 
 const depto = UnitNumber.of(301);
@@ -41,6 +41,25 @@ describe('Charge', () => {
     expect(
       missingMaintenanceFees(month, units, pesos(700), [first[0] as Charge]).map((c) => c.key),
     ).toEqual(['302:2026-09:MAINTENANCE_FEE']);
+  });
+});
+
+describe('shiftSkipPenalties', () => {
+  it('charges the penalty once per skipped month', () => {
+    const months = [YearMonth.parse('2026-10'), YearMonth.parse('2026-11')];
+    const penalties = shiftSkipPenalties(depto, months, () => pesos(500));
+    expect(penalties.map((c) => `${c.key}=${c.amount.toString()}`)).toEqual([
+      '301:2026-10:SHIFT_SKIP_PENALTY=500.00',
+      '301:2026-11:SHIFT_SKIP_PENALTY=500.00',
+    ]);
+  });
+
+  it('adds up to $1,200 per month with the regular fee', () => {
+    const october = YearMonth.parse('2026-10');
+    const charges = [fee('2026-10'), ...shiftSkipPenalties(depto, [october], () => pesos(500))];
+    expect(AccountStatement.build(depto, charges, []).outstandingBalance.toString()).toBe(
+      '1200.00',
+    );
   });
 });
 

@@ -95,28 +95,29 @@ Los componentes de UI no contienen reglas de negocio. Los cálculos de dinero y 
 
 ## 3. Glosario (dominio → código)
 
-| Negocio                        | Código                                                               |
-| ------------------------------ | -------------------------------------------------------------------- |
-| Depto                          | `Unit`                                                               |
-| Dueño                          | `Owner` (usuario con rol `OWNER`)                                    |
-| Superadmin                     | rol `SUPERADMIN`                                                     |
-| Turno / Gobierno               | `Shift`                                                              |
-| Traspaso / Delegación          | `ShiftDelegation`                                                    |
-| Cuota de mantenimiento         | `MaintenanceFee` (un tipo de `Charge`)                               |
-| Multa por no tomar turno       | `ShiftSkipPenalty` (un tipo de `Charge`)                             |
-| Movimiento (renglón del libro) | `CashMovement` (dirección `IN`/`OUT` y categoría)                    |
-| Pago de depto / Abono          | `CashMovement` de categoría `UNIT_PAYMENT` + `PaymentAllocation`     |
-| Otro ingreso                   | `CashMovement` de categoría `OTHER_INCOME`                           |
-| Adeudo                         | `outstandingBalance` (derivado)                                      |
-| Adelanto                       | `creditBalance` / cargos futuros ya cubiertos (derivado)             |
-| Estado de cuenta               | `AccountStatement`                                                   |
-| Egreso                         | `CashMovement` de categoría `GARBAGE`, `CLEANING` u `OTHER_EXPENSE`  |
-| Visita de limpieza             | `CashMovement` de categoría `CLEANING` (una por visita)              |
-| Libro del mes (la lista)       | `MonthlyCashbook` (vista de lectura)                                 |
-| Reporte mensual                | `MonthlyReport`                                                      |
-| Bitácora                       | `AuditLog`                                                           |
-| Ventana de escritura           | `WriteAccessPolicy.windowFor` (del día 1 al día 5 del mes siguiente) |
-| Tarifas                        | `RateSettings` (una `RateTimeline` por tarifa)                       |
+| Negocio                        | Código                                                                        |
+| ------------------------------ | ----------------------------------------------------------------------------- |
+| Depto                          | `Unit`                                                                        |
+| Dueño                          | `Owner` (usuario con rol `OWNER`)                                             |
+| Superadmin                     | rol `SUPERADMIN`                                                              |
+| Turno / Gobierno               | `Shift`                                                                       |
+| Traspaso / Delegación          | `ShiftDelegation`                                                             |
+| Cuota de mantenimiento         | `MaintenanceFee` (un tipo de `Charge`)                                        |
+| Multa por no tomar turno       | `ShiftSkipPenalty` (un tipo de `Charge`)                                      |
+| Movimiento (renglón del libro) | `CashMovement` (dirección `IN`/`OUT` y categoría)                             |
+| Pago de depto / Abono          | `CashMovement` de categoría `UNIT_PAYMENT` + `PaymentAllocation`              |
+| Otro ingreso                   | `CashMovement` de categoría `OTHER_INCOME`                                    |
+| Adeudo                         | `outstandingBalance` (derivado)                                               |
+| Adelanto                       | `creditBalance` / cargos futuros ya cubiertos (derivado)                      |
+| Estado de cuenta               | `AccountStatement`                                                            |
+| Egreso                         | `CashMovement` de categoría `GARBAGE`, `CLEANING` u `OTHER_EXPENSE`           |
+| Visita de limpieza             | `CashMovement` de categoría `CLEANING` (una por visita)                       |
+| Libro del mes (la lista)       | `MonthlyCashbook` (vista de lectura)                                          |
+| Reporte mensual                | `MonthlyReport`                                                               |
+| Bitácora                       | `AuditLog`                                                                    |
+| Ventana de escritura           | `WriteAccessPolicy.windowFor` (mientras dure el turno, más 5 días de entrega) |
+| Entrega del turno              | `ShiftDelegation` registrada por el saliente (`assertCanHandOver`)            |
+| Tarifas                        | `RateSettings` (una `RateTimeline` por tarifa)                                |
 
 ---
 
@@ -161,7 +162,7 @@ Todo sin base de datos ni HTTP, solo lógica y pruebas.
 - `shared-kernel`: `Money`, `YearMonth`, `LocalDate`, `YearMonthRange`, `UnitNumber`, `Clock`, `DomainError`.
 - `units`: `Unit` con su historial de inactividad.
 - `shifts`: servicio `ShiftScheduler`, que calcula el turno de cualquier mes a partir del ancla (2026-08 → 501), el orden fijo, los deptos inactivos y las delegaciones. Se prueba exhaustivamente: meses pasados y futuros, ciclos completos, delegaciones e inactividad.
-- `identity`: política `WriteAccessPolicy` (superadmin, depto en turno, depto delegado, ventana de escritura de 5 días).
+- `identity`: política `WriteAccessPolicy` (superadmin, depto en turno, depto delegado, ventana de escritura con 5 días de gracia al terminar el turno, cierre y entrega).
 - `cashbook`: `CashMovement` y sus categorías, reglas de base de caja, totales del mes, reglas de edición según el estado del mes.
 - `billing`: `Charge`, asignación FIFO de pagos, `AccountStatement` (adeudo, adelanto, parcial).
 - `settings`: `RateSettings` con vigencias. Reglas de basura y limpieza (montos sugeridos y resumen semanal de limpieza).
@@ -208,8 +209,8 @@ Va antes de las funcionalidades de escritura para que todas la usen desde el pri
 
 ### Fase 6: Turnos, delegaciones y blueprint
 
-- API: calendario de turnos (rango de meses), turno actual, crear o cancelar una delegación (solo superadmin), marcar un depto activo o inactivo (solo superadmin).
-- Multa por no tomar turno: al registrar una delegación por omisión se genera el cargo de $1,200 en el libro.
+- API: calendario de turnos (rango de meses), turno actual, registrar la entrega del turno (el administrador saliente dentro de su ventana, o el superadmin), crear o cancelar cualquier delegación y marcar un depto activo o inactivo (solo superadmin).
+- Multa por no tomar turno: al registrar una delegación por omisión se genera un cargo de $500 por cada mes delegado (más la cuota normal: $1,200 por mes). Si se cancela, se retiran esos cargos.
 - Frontend: widget blueprint de 2×5 en el dashboard (depto en turno resaltado, delegación diferenciada), vista de calendario y pantallas de administración.
 
 **Conceptos:** aritmética de ciclos sobre fechas, cálculo con excepciones.
@@ -243,7 +244,7 @@ Todo vive dentro de la misma lista; esta fase solo agrega atajos para lo que se 
 
 ### Fase 9: Reporte mensual e histórico
 
-- Ciclo de vida del mes sobre la lista de la fase 7: abrir (se toma el saldo inicial del mes anterior y se generan los cargos), cerrar (se congela la lista y se guarda la foto, con una advertencia si quedan renglones de basura pendientes) y reabrir (solo superadmin, con recálculo en cascada y auditoría).
+- Ciclo de vida del mes sobre la lista de la fase 7: abrir (se toma el saldo inicial del mes anterior y se generan los cargos), cerrar (lo hace el administrador saliente dentro de su ventana o el superadmin; se congela la lista y se guarda la foto, con una advertencia si quedan renglones de basura pendientes) y reabrir (solo superadmin, con recálculo en cascada y auditoría).
 - Dashboard: saldo actual, ingresos y egresos del mes, deptos con adeudo y blueprint.
 - Histórico navegable por mes: cada mes cerrado se ve como su lista congelada más el resumen.
 
@@ -271,15 +272,15 @@ Todo vive dentro de la misma lista; esta fase solo agrega atajos para lo que se 
 
 Cada una tiene un valor por defecto para no bloquear el avance. Se confirman en la fase indicada.
 
-| #   | Pregunta                                                                                                                                                                      | Valor por defecto                                                                                                              | Fase |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ---- |
-| 1   | Si un depto está **inactivo**, ¿la rotación lo salta y todos los turnos siguientes se recorren, o su periodo lo cubre otro depto sin mover el resto?                          | **Respondida:** no se recorre; el superadmin asigna quién cubre con una delegación. Mientras tanto, solo escribe el superadmin | 1    |
-| 2   | **Ventana de cierre:** el reporte de septiembre suele cerrarse en los primeros días de octubre, cuando el turno ya cambió. ¿Quién puede escribir en un mes que sigue abierto? | **Respondida:** el depto en turno de ese mes, solo hasta el día 5 del mes siguiente; después, solo el superadmin               | 1    |
-| 3   | ¿Los cargos de cuota se generan el día 1 de cada mes aunque nadie abra el reporte?                                                                                            | Se generan al abrir el reporte, con un job diario de respaldo que lo hace solo                                                 | 7    |
-| 4   | ¿Qué día de la semana se paga la basura?                                                                                                                                      | Se sugiere el domingo y el usuario lo ajusta                                                                                   | 8    |
-| 5   | ¿Quieres adjuntar fotos de comprobantes en los egresos? Implica almacenar archivos en el VPS y respaldarlos.                                                                  | No en la primera versión                                                                                                       | 8    |
-| 6   | Necesito **uno o dos PDFs reales** del reporte actual para replicar su formato.                                                                                               | —                                                                                                                              | 10   |
-| 7   | Mes de corte, saldo de caja y adeudos o adelantos vigentes por depto para la carga inicial.                                                                                   | —                                                                                                                              | 11   |
-| 8   | Dominio y subdominio, y acceso SSH al VPS (distribución y si ya tiene Docker).                                                                                                | —                                                                                                                              | 5    |
-| 9   | ¿Los dueños pueden cambiar su propia contraseña? ¿Hay recuperación por email?                                                                                                 | Cambio propio sí; sin email: el superadmin resetea                                                                             | 3    |
-| 10  | ¿Puede haber varios usuarios por depto (por ejemplo, pareja o inquilino con solo lectura)?                                                                                    | Un usuario por depto, como dice la spec                                                                                        | 2    |
+| #   | Pregunta                                                                                                                                                                      | Valor por defecto                                                                                                                                                               | Fase |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 1   | Si un depto está **inactivo**, ¿la rotación lo salta y todos los turnos siguientes se recorren, o su periodo lo cubre otro depto sin mover el resto?                          | **Respondida:** no se recorre; el superadmin asigna quién cubre con una delegación. Mientras tanto, solo escribe el superadmin                                                  | 1    |
+| 2   | **Ventana de cierre:** el reporte de septiembre suele cerrarse en los primeros días de octubre, cuando el turno ya cambió. ¿Quién puede escribir en un mes que sigue abierto? | **Respondida:** el depto en turno, mientras conserve el turno y 5 días más (la entrega). En ese plazo cierra sus meses y decide el siguiente turno; después, solo el superadmin | 1    |
+| 3   | ¿Los cargos de cuota se generan el día 1 de cada mes aunque nadie abra el reporte?                                                                                            | Se generan al abrir el reporte, con un job diario de respaldo que lo hace solo                                                                                                  | 7    |
+| 4   | ¿Qué día de la semana se paga la basura?                                                                                                                                      | Se sugiere el domingo y el usuario lo ajusta                                                                                                                                    | 8    |
+| 5   | ¿Quieres adjuntar fotos de comprobantes en los egresos? Implica almacenar archivos en el VPS y respaldarlos.                                                                  | No en la primera versión                                                                                                                                                        | 8    |
+| 6   | Necesito **uno o dos PDFs reales** del reporte actual para replicar su formato.                                                                                               | —                                                                                                                                                                               | 10   |
+| 7   | Mes de corte, saldo de caja y adeudos o adelantos vigentes por depto para la carga inicial.                                                                                   | —                                                                                                                                                                               | 11   |
+| 8   | Dominio y subdominio, y acceso SSH al VPS (distribución y si ya tiene Docker).                                                                                                | —                                                                                                                                                                               | 5    |
+| 9   | ¿Los dueños pueden cambiar su propia contraseña? ¿Hay recuperación por email?                                                                                                 | Cambio propio sí; sin email: el superadmin resetea                                                                                                                              | 3    |
+| 10  | ¿Puede haber varios usuarios por depto (por ejemplo, pareja o inquilino con solo lectura)?                                                                                    | Un usuario por depto, como dice la spec                                                                                                                                         | 2    |
