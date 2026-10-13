@@ -2,7 +2,7 @@
 
 ## Edificio Correspondencia 63
 
-**Versión:** 0.3
+**Versión:** 0.4
 **Estado:** reglas de negocio confirmadas y stack definido. El plan de trabajo detallado vive en `docs/PLAN.md` y reemplaza a la sección 11.
 
 ---
@@ -31,11 +31,12 @@ Aplicación web mobile-first para digitalizar y centralizar la administración d
 
 ## 3. Roles y permisos
 
-| Rol        | Lectura                                                                                            | Escritura                                            |
-| ---------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| Dueño      | Todos los reportes, histórico completo, estado de cuenta de todos los deptos (transparencia total) | Solo si su depto es el turno activo del mes en curso |
-| Superadmin | Todo                                                                                               | Siempre, sin restricción de turno                    |
+| Rol        | Lectura                                                                                            | Escritura                                                |
+| ---------- | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Dueño      | Todos los reportes, histórico completo, estado de cuenta de todos los deptos (transparencia total) | Solo en los meses de su turno (ver ventana de escritura) |
+| Superadmin | Todo                                                                                               | Siempre, sin restricción de turno                        |
 
+- **Ventana de escritura:** un dueño escribe en un mes solo si su depto tiene el turno de ese mes (o recibe su delegación), desde el día 1 del mes hasta el **día 5 natural del mes siguiente**. Ejemplo: si agosto y septiembre son del 501, el 501 puede registrar movimientos de septiembre hasta el 5 de octubre; a partir del 6 de octubre solo el superadmin puede hacerlo. El depto que recibe el turno el 1 de octubre (502) no tiene acceso a septiembre.
 - Todo cambio a un registro (pago, gasto, ajuste manual, traspaso de turno) queda registrado en una **bitácora de auditoría** inmutable: usuario, fecha/hora, tabla/campo afectado, valor anterior, valor nuevo.
 - El traspaso de turno/delegación es **manual**: lo asigna el superadmin explícitamente. Durante el periodo delegado, **tanto el depto original como el depto delegado** tienen permiso de escritura (además del superadmin, que siempre lo tiene). Todo traspaso queda registrado en la bitácora.
 
@@ -49,7 +50,7 @@ Aplicación web mobile-first para digitalizar y centralizar la administración d
 
 - Cada turno dura 2 meses.
 - Orden de rotación: **fijo, descendente según posición física de los deptos**: 501→502→401→402→301→302→201→202→101→102→(repite).
-- Un depto puede optar por no tomar su turno, pagando una penalización de **$500 (multa fija) + $700 (cuota mensual regular, que se sigue debiendo de todas formas) = $1,200 total** por el periodo que se salta. _Nota: en el reporte de ejemplo aparece $1,000 para el depto 301 — confirmado que fue un error de captura del dueño anterior; el valor correcto de referencia es $1,200._
+- Un depto puede optar por no tomar su turno, pagando una penalización de **$500 (multa fija) + $700 (cuota mensual regular, que se sigue debiendo de todas formas) = $1,200 total** por el periodo que se salta. En la app la multa se registra como un cargo de $500 y la cuota sigue su curso normal. _Nota: en el reporte de ejemplo aparece $1,000 para el depto 301 — confirmado que fue un error de captura del dueño anterior; el valor correcto de referencia es $1,200._
 - Cuando un depto no toma su turno, delega en otro (comúnmente el depto adyacente) mediante acuerdo verbal; en la app esto se resuelve con un traspaso manual asignado por el superadmin. Durante el periodo delegado, tanto el depto que delega como el depto que recibe la delegación tienen permiso de escritura, además del superadmin.
 
 ### 4.3 Estados de pago por depto y mes
@@ -60,7 +61,7 @@ Cada depto, cada mes, puede estar en una combinación de estos estados (no son e
 - **Adeudo**: debe uno o más meses anteriores (se registra el detalle: qué meses y monto total).
 - **Adelanto**: pagó por anticipado uno o más meses futuros.
 - **Pago parcial**: sí aplica. Se registra como un abono que reduce el saldo del adeudo sin marcarlo como liquidado — el sistema debe permitir montos que no cubran el adeudo completo. _(Valor por defecto, ajustable si en la práctica se necesita otro comportamiento.)_
-- **Depto inactivo**: si un depto llegara a quedarse sin dueño/responsable activo (ej. en disputa, en venta), el superadmin puede marcarlo como **inactivo** temporalmente. Un depto inactivo se excluye del cálculo de turnos y no genera cobros mientras dure ese estado. _(Valor por defecto, ajustable.)_
+- **Depto inactivo**: si un depto llegara a quedarse sin dueño/responsable activo (ej. en disputa, en venta), el superadmin puede marcarlo como **inactivo** temporalmente. Un depto inactivo no genera cobros mientras dure ese estado. **El calendario de turnos no se recorre:** si a un depto inactivo le toca turno, el superadmin asigna qué depto lo cubre mediante una delegación (sin multa, porque no es una omisión). Mientras no la asigne, el periodo queda "sin responsable" y solo el superadmin puede escribir en él. _(Confirmado.)_
 
 ### 4.4 Egresos recurrentes
 

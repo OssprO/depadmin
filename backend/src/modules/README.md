@@ -1,6 +1,6 @@
 # Módulos de negocio
 
-Cada módulo (`identity`, `units`, `shifts`, `cashbook`, `billing`, `reports`, `audit`) sigue la misma estructura hexagonal:
+Cada módulo (`identity`, `units`, `shifts`, `settings`, `cashbook`, `billing`, `reports`, `audit`) sigue la misma estructura hexagonal:
 
 ```
 modules/<módulo>/

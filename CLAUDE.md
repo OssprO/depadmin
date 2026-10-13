@@ -13,7 +13,7 @@ Mobile-first web app to manage maintenance fees for a 10-unit building ("Edifici
 
 **Working mode:** one phase per PR. Explain the reasoning behind a design before implementing, include tests, and wait for the user's approval before starting the next phase.
 
-**Current state:** phase 0 (foundations) is done on branch `chore/fase-0-fundaciones`. No business code exists yet; phase 1 starts the pure domain under `backend/src/shared-kernel` and `backend/src/modules`.
+**Current state:** phase 0 (foundations) is on branch `chore/fase-0-fundaciones`. Phase 1 (pure domain, no DB or HTTP) is on `feat/fase-1-dominio`: `shared-kernel` plus the `domain/` folders of `units`, `shifts`, `identity`, `settings`, `cashbook`, `billing` and `reports`. No application, infrastructure or http layers exist yet; persistence starts in phase 2.
 
 ## Layout & tooling
 
@@ -28,6 +28,7 @@ pnpm format           # Prettier
 pnpm typecheck
 pnpm test             # Vitest unit tests in every package (*.spec.ts / *.spec.tsx next to code)
 pnpm test:e2e         # backend/test/*.e2e-spec.ts (supertest)
+pnpm --filter @depadmin/backend test:cov   # domain coverage; fails under 90% (CI runs it)
 pnpm build
 
 # single package / single test
@@ -35,7 +36,7 @@ pnpm --filter @depadmin/backend test -- src/platform/config/env.spec.ts
 pnpm --filter @depadmin/frontend test -- -t "offers a retry"
 ```
 
-CI (`.github/workflows/ci.yml`) runs format:check, lint, typecheck, test, test:e2e and build. Husky runs lint-staged on commit, and commitlint enforces Conventional Commits.
+CI (`.github/workflows/ci.yml`) runs format:check, lint, typecheck, test, domain coverage, test:e2e and build. Husky runs lint-staged on commit, and commitlint enforces Conventional Commits.
 
 ### Gotchas
 
@@ -44,6 +45,8 @@ CI (`.github/workflows/ci.yml`) runs format:check, lint, typecheck, test, test:e
 - **Adding shadcn components:** run `pnpm exec shadcn add <component>` from `frontend/`. The `@/*` alias must stay in `frontend/tsconfig.json`; without it, shadcn writes to a literal `frontend/@/` folder with a broken `cn` import.
 - **Dependencies with install scripts:** pnpm 11 fails the install until the package is listed under `allowBuilds` in `pnpm-workspace.yaml`.
 - **Shared HTTP setup:** `configureApp()` in `backend/src/platform/http/` holds the global prefix and other HTTP setup, and e2e tests use it too. Put new global HTTP setup there, not in `main.ts`.
+- **Domain tests:** assert errors by code with `toThrow(withCode('MONTH_CLOSED'))` from `backend/test/support/domain-error.ts`. Shared test builders for a module go in `domain/testing.ts`, which is excluded from the build and from coverage. `*.spec.ts` files are exempt from the boundary rule so they can import vitest.
+- **Domain dates:** use `LocalDate` and `YearMonth` from the shared kernel, never `Date`. Calendar math in `shared-kernel/calendar.ts` doesn't depend on the host time zone, and "today" comes from the `Clock` port.
 - **Env vars:** new environment variables must be added to the Zod schema in `backend/src/platform/config/env.ts` and to `backend/.env.example`.
 
 ## Architecture rules
@@ -58,15 +61,15 @@ CI (`.github/workflows/ci.yml`) runs format:check, lint, typecheck, test, test:e
 
 ## Domain rules that drive architecture
 
-- **Write permission depends on time.** Superadmin can always write. A dueño can write only while their depto holds the turno, or receives a delegation of it, for the report's month. This check is a domain `WriteAccessPolicy` called from use cases, not only an HTTP guard.
-- **The shift is computed, not stored per month.** The anchor is 2026-08 → depto 501, with fixed rotation 501→502→401→402→301→302→201→202→101→102 and 2 months per shift. Inactive deptos are skipped based on their `UnitStatusPeriod` history. A `ShiftDelegation` overrides a period, and both the original and the delegated depto can write during it.
+- **Write permission depends on time.** Superadmin can always write. A dueño can write a month only if their depto is responsible for that month (it holds the turno or receives a delegation of it), and only from day 1 of the month through day 5 of the next month (`WRITE_GRACE_DAYS`). The depto that takes the turno next has no access to the previous month. This check is the domain `WriteAccessPolicy`, called from use cases, not only an HTTP guard. Whether the month is open is a separate check that `MonthlyCashbook` enforces.
+- **The shift is computed, not stored per month.** The anchor is 2026-08 → depto 501, with fixed rotation 501→502→401→402→301→302→201→202→101→102 and 2 months per shift. The calendar never shifts for inactive deptos: an inactive depto's period has no responsible units until the superadmin assigns a cover with a `ShiftDelegation` (reason `INACTIVE_UNIT`, no penalty). A delegation stays within one scheduled period and overrides the months it covers. During it, both the original and the delegated depto can write while they are active. `ShiftScheduler` gets unit status through the `UnitAvailability` port, because domains never import other modules.
 - **One monthly cashbook (`CashMovement`) holds every income and expense row:** `UNIT_PAYMENT`, `OTHER_INCOME`, `GARBAGE`, `CLEANING` and `OTHER_EXPENSE`. Its list view is the turn admin's main screen, and the monthly report is the opening balance plus that month's rows. Add, edit and remove go through one set of use cases, with a validation strategy per category.
 - **Rows are cash-basis:** the row's date sets its month. Garbage is one $150 row per week, suggested as pending until it is confirmed. Cleaning is one row per visit. Weekly grouping is only a payout summary.
-- **Billing:** monthly `Charge`s (fee, skip penalty) are covered oldest-first by `UNIT_PAYMENT` rows through `PaymentAllocation`. Adeudo, adelanto and partial payments are derived, never stored.
+- **Billing:** monthly `Charge`s (fee, plus a $500 skip penalty; the spec's $1,200 is that penalty plus the regular fee) are keyed by depto, month and type. `UNIT_PAYMENT` rows cover them oldest-first through `allocatePayments`, a pure function recomputed from scratch after any edit. Adeudo, adelanto and partial payments are derived in `AccountStatement` and never stored.
 - **Editing:** rows can be edited or soft-deleted while the month is open, with audit, and allocations are recomputed. A closed month is frozen.
-- **The monthly report** is opened, closed (which stores a snapshot) and reopened only by the superadmin, which recalculates later closed months in cascade. A month's closing balance becomes the next month's opening balance.
+- **The monthly report** is opened, closed (which stores a snapshot) and reopened only by the superadmin. `ReportLedger` opens and closes months in order. An open month's balances are live, from the previous month's closing balance; a closed month answers with its snapshot. Re-closing a reopened month restates the later closed months, stopping at the first open one.
 - **The audit log is append-only and enforced in the database** by a trigger plus revoked UPDATE/DELETE grants.
-- **The rate settings** (fee, cleaning rate, garbage amount, penalty) have effective dates, so changing them never rewrites past months.
+- **The rate settings** (`RateSettings` in the `settings` module: fee, cleaning rate, garbage amount, penalty) have effective dates. Changes are only appended after the latest one, so they never rewrite past months.
 
 ## Frontend conventions
 
