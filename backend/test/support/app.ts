@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import { ThrottlerStorage, ThrottlerStorageService } from '@nestjs/throttler';
 import { afterAll, beforeAll, beforeEach, inject } from 'vitest';
 import { PrismaDatabase } from '../../src/platform/prisma/prisma-database.js';
+import { CLOCK, type Clock } from '../../src/shared-kernel/index.js';
 
 export const TEST_JWT_SECRET = 'integration-secret-that-is-at-least-32-characters';
 
@@ -22,9 +23,13 @@ class ResettableThrottlerStorage implements ThrottlerStorage {
 
 /**
  * The whole API, configured as in production, on the integration database. Pair it with
- * `useTestDatabase()`, which empties the tables before each test.
+ * `useTestDatabase()`, which empties the tables before each test. Pass a clock (e.g. a
+ * `FixedClock`) to pin "today" for rules that depend on the date.
  */
-export function useTestApp(): { readonly app: NestExpressApplication; database: PrismaDatabase } {
+export function useTestApp(options: { clock?: Clock } = {}): {
+  readonly app: NestExpressApplication;
+  database: PrismaDatabase;
+} {
   const context = {} as { app: NestExpressApplication; database: PrismaDatabase };
   const throttler = new ResettableThrottlerStorage();
 
@@ -35,10 +40,11 @@ export function useTestApp(): { readonly app: NestExpressApplication; database: 
     // Imported only now: the config module validates the environment when it loads.
     const { AppModule } = await import('../../src/app.module.js');
     const { configureApp } = await import('../../src/platform/http/configure-app.js');
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+    const builder = Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(ThrottlerStorage)
-      .useValue(throttler)
-      .compile();
+      .useValue(throttler);
+    if (options.clock) builder.overrideProvider(CLOCK).useValue(options.clock);
+    const moduleRef = await builder.compile();
     context.app = configureApp(
       moduleRef.createNestApplication<NestExpressApplication>({ logger: false }),
     );
