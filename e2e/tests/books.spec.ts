@@ -8,7 +8,9 @@ function buildingMonth(): string {
     .slice(0, 7);
 }
 
-test('starts the books, opens the month and records a payment', async ({ page }) => {
+test('starts the books, opens the month and records a payment, garbage and cleaning', async ({
+  page,
+}) => {
   await page.goto('/book');
   await page.getByLabel('Usuario').fill(SUPERADMIN.username);
   await page.getByLabel('Contraseña').fill(SUPERADMIN.password);
@@ -37,6 +39,21 @@ test('starts the books, opens the month and records a payment', async ({ page })
   const row = page.getByRole('button', { name: new RegExp(`Pago Depto ${unit}`) });
   await expect(row).toContainText(/cubre/);
   await expect(page.getByText('Saldo actual').locator('..')).toContainText('$5,700.00');
+
+  // The month's first garbage week has always begun by the 1st, so one is pending.
+  const pending = page.getByRole('region', { name: 'Basura por confirmar' });
+  await pending
+    .getByRole('button', { name: /^Confirmar semana/ })
+    .first()
+    .click();
+  await expect(page.getByText('Saldo actual').locator('..')).toContainText('$5,550.00');
+
+  // Mark today's cleaning visit on the calendar.
+  await page.getByRole('button', { name: /Marcar visitas/ }).click();
+  await page.locator('button[aria-pressed="false"]:not([disabled])').last().click();
+  await page.getByRole('button', { name: 'Registrar 1 visita · $270.00' }).click();
+  await expect(page.getByRole('region', { name: 'Limpieza por semana' })).toContainText('1 visita');
+  await expect(page.getByText('Saldo actual').locator('..')).toContainText('$5,280.00');
 
   await page.getByRole('link', { name: 'Más' }).click();
   await page.getByRole('link', { name: /Estados de cuenta/ }).click();
