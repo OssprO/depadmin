@@ -9,6 +9,7 @@ import {
   type UnitOfWork,
   trackChanges,
   ValidationError,
+  WriteAccessPolicy,
 } from '../../../shared-kernel/index.js';
 import {
   PASSWORD_HASHER,
@@ -19,7 +20,6 @@ import {
   type SecretGenerator,
   USER_REPOSITORY,
   type UserRepository,
-  WriteAccessPolicy,
 } from '../domain/index.js';
 import { findUser } from './find-user.js';
 import { USER_AUDIT, UserAuditAction } from './user-audit.js';

@@ -4,6 +4,7 @@ import {
   creationOf,
   diffSnapshots,
   Redacted,
+  removalOf,
   trackChanges,
 } from './audit-trail.js';
 
@@ -97,5 +98,20 @@ describe('creationOf', () => {
       { field: 'active', before: null, after: true },
       { field: 'secret', redacted: true },
     ]);
+  });
+});
+
+describe('removalOf', () => {
+  it('lists every field to nothing', () => {
+    const account: Account = { id: 'a-1', name: 'A', active: false, secret: null };
+
+    expect(removalOf(ACCOUNT, 'ACCOUNT_DELETED', account)).toMatchObject({
+      action: 'ACCOUNT_DELETED',
+      entityId: 'a-1',
+      changes: [
+        { field: 'name', before: 'A', after: null },
+        { field: 'active', before: false, after: null },
+      ],
+    });
   });
 });

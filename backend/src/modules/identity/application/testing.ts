@@ -1,10 +1,9 @@
 // In-memory adapters for the identity use case specs. Excluded from the build.
 import { FakeUnitOfWork, RecordingAuditTrail } from '../../../../test/support/audit-trail.js';
+import { FixedClock } from '../../../../test/support/clock.js';
 import {
   type Actor,
-  type Clock,
-  Instant,
-  LocalDate,
+  type Instant,
   type UnitNumber,
   type UnitOfWork,
 } from '../../../shared-kernel/index.js';
@@ -127,22 +126,6 @@ export const fakeAccessTokens: AccessTokenService = {
     Promise.resolve({ token: `access-for-${actor.userId}`, expiresInSeconds: 900 }),
   verify: () => Promise.resolve(null),
 };
-
-export class FixedClock implements Clock {
-  constructor(public instant = Instant.ofEpochMillis(Date.parse('2026-10-13T12:00:00Z'))) {}
-
-  today(): LocalDate {
-    return LocalDate.parse(this.instant.toString().slice(0, 10));
-  }
-
-  now(): Instant {
-    return this.instant;
-  }
-
-  advanceDays(days: number): void {
-    this.instant = this.instant.plusDays(days);
-  }
-}
 
 export const immediateUnitOfWork: UnitOfWork = { run: (work) => work() };
 

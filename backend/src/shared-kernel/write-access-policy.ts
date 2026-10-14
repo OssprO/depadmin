@@ -1,11 +1,8 @@
-import {
-  type Actor,
-  ForbiddenError,
-  LocalDate,
-  type UnitNumber,
-  ValidationError,
-  type YearMonth,
-} from '../../../shared-kernel/index.js';
+import type { Actor } from './actor.js';
+import { ForbiddenError, ValidationError } from './domain-error.js';
+import { LocalDate } from './local-date.js';
+import type { UnitNumber } from './unit-number.js';
+import type { YearMonth } from './year-month.js';
 
 /** Calendar days after a shift ends during which the outgoing depto can still act on it. */
 export const WRITE_GRACE_DAYS = 5;
@@ -15,7 +12,7 @@ const MAX_STREAK_MONTHS = 120;
 
 /**
  * Port: whether a depto answers for a month (it holds the shift or receives a delegation of
- * it). The application layer answers it from the shifts module.
+ * it). The shifts module answers it (`LoadShiftResponsibility`).
  */
 export interface ShiftResponsibility {
   isResponsible(unit: UnitNumber, month: YearMonth): boolean;

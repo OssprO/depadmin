@@ -99,12 +99,17 @@ export function creationOf<T>(subject: AuditSubject<T>, action: string, item: T)
   return describe(subject, action, item, null, subject.snapshot(item));
 }
 
+/** Describes an entity that is deleted outright: every field, to nothing. */
+export function removalOf<T>(subject: AuditSubject<T>, action: string, item: T): AuditedChange {
+  return describe(subject, action, item, subject.snapshot(item), null);
+}
+
 function describe<T>(
   subject: AuditSubject<T>,
   action: string,
   item: T,
   before: AuditSnapshot | null,
-  after: AuditSnapshot,
+  after: AuditSnapshot | null,
 ): AuditedChange {
   return {
     action,
