@@ -42,7 +42,7 @@ describe('describeEntry', () => {
     );
 
     expect(text).toMatchObject({ title: 'SOMETHING_NEW', subject: 'gadget 502' });
-    expect(text.changes).toEqual([{ field: 'size', text: '— → 3' }]);
+    expect(text.changes).toEqual([{ field: 'size', text: '3' }]);
   });
 });
 

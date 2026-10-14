@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { dayKey, formatDay, formatDuration, formatTime } from './format';
+import {
+  addMonths,
+  dayKey,
+  formatDay,
+  formatDuration,
+  formatMoney,
+  formatMonth,
+  formatMonthRange,
+  formatTime,
+} from './format';
 
 describe('formatDuration', () => {
   it.each([
@@ -26,5 +35,24 @@ describe('building clock', () => {
 
   it('shows the building’s time on a 24-hour clock', () => {
     expect(formatTime(lateEvening)).toBe('21:30');
+  });
+});
+
+describe('months and money', () => {
+  it('names months in Spanish', () => {
+    expect(formatMonth('2026-10')).toBe('octubre 2026');
+    expect(formatMonthRange('2026-10', '2026-11')).toBe('oct–nov 2026');
+    expect(formatMonthRange('2026-12', '2027-01')).toBe('dic 2026 – ene 2027');
+    expect(formatMonthRange('2026-10', '2026-10')).toBe('oct 2026');
+  });
+
+  it('moves across years', () => {
+    expect(addMonths('2026-12', 1)).toBe('2027-01');
+    expect(addMonths('2026-01', -1)).toBe('2025-12');
+    expect(addMonths('2026-08', 12)).toBe('2027-08');
+  });
+
+  it('shows centavos as pesos', () => {
+    expect(formatMoney(50000)).toBe('$500.00');
   });
 });
