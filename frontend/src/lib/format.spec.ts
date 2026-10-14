@@ -1,15 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addDays,
   addMonths,
   buildingToday,
   dayKey,
+  dayOfWeek,
   formatDay,
   formatDuration,
   formatLocalDate,
   formatMoney,
   formatMonth,
   formatMonthRange,
+  formatShortDate,
   formatTime,
+  formatWeek,
   parsePesos,
   pesosInput,
 } from './format';
@@ -86,5 +90,17 @@ describe('pesos in forms', () => {
 describe('calendar dates', () => {
   it('names a date without shifting it to another time zone', () => {
     expect(formatLocalDate('2026-10-03')).toBe('sábado, 3 de octubre');
+  });
+
+  it('moves by days across months and years', () => {
+    expect(addDays('2026-09-28', 6)).toBe('2026-10-04');
+    expect(addDays('2027-01-01', -1)).toBe('2026-12-31');
+    expect(['2026-09-28', '2026-10-04'].map(dayOfWeek)).toEqual([1, 7]);
+  });
+
+  it('names a week by its days', () => {
+    expect(formatShortDate('2026-09-28')).toBe('28 sep');
+    expect(formatWeek('2026-10-05')).toBe('5–11 oct');
+    expect(formatWeek('2026-09-28')).toBe('28 sep – 4 oct');
   });
 });

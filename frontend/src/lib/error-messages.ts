@@ -52,6 +52,11 @@ const MESSAGES: Record<string, string> = {
   MOVEMENT_UNIT_REQUIRED: 'Elige el depto que pagó.',
   MOVEMENT_UNIT_NOT_ALLOWED: 'Este tipo de movimiento no lleva depto.',
   MOVEMENT_DESCRIPTION_REQUIRED: 'Describe el movimiento.',
+  MOVEMENT_WEEK_REQUIRED: 'Elige la semana de basura que se paga.',
+  MOVEMENT_WEEK_NOT_ALLOWED: 'Solo la basura lleva semana.',
+  MOVEMENT_WEEK_INVALID: 'La semana se indica por su lunes.',
+  GARBAGE_WEEK_PAID: 'Esa semana de basura ya está pagada.',
+  CLEANING_VISIT_RECORDED: 'Uno de esos días ya tiene su visita de limpieza.',
 };
 
 const GENERIC = 'Algo salió mal. Inténtalo de nuevo.';

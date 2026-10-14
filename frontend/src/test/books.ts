@@ -1,5 +1,6 @@
 import type { AccountSummary, Movement, MonthlyReport } from '@depadmin/shared';
 import { UNIT_NUMBERS } from '@depadmin/shared';
+import { addDays } from '@/lib/format';
 
 const accounts = (owing: Partial<Record<number, number>> = {}): AccountSummary[] =>
   UNIT_NUMBERS.map((unit) => ({ unit, outstanding: owing[unit] ?? 0, credit: 0 }));
@@ -11,6 +12,7 @@ export const paymentRow: Movement = {
   amount: 140000,
   unit: 401,
   description: null,
+  week: null,
   coverage: [
     { month: '2026-09', type: 'MAINTENANCE_FEE', amount: 70000, settles: true },
     { month: '2026-10', type: 'MAINTENANCE_FEE', amount: 70000, settles: true },
@@ -24,6 +26,18 @@ export const cleaningRow: Movement = {
   amount: 27000,
   unit: null,
   description: null,
+  week: null,
+  coverage: [],
+};
+
+export const garbageRow: Movement = {
+  id: '7f4e3d2c-1b0a-4f9e-8d7c-7b6a5f4e3d2c',
+  date: '2026-10-04',
+  category: 'GARBAGE',
+  amount: 15000,
+  unit: null,
+  description: null,
+  week: '2026-09-28',
   coverage: [],
 };
 
@@ -50,6 +64,20 @@ export function octoberReport(overrides: Partial<MonthlyReport> = {}): MonthlyRe
     canOpen: false,
     suggestions: { maintenanceFee: 70000, cleaningPerVisit: 27000, garbageWeekly: 15000 },
     accounts: accounts({ 302: 70000, 102: 140000 }),
+    // On 14 October three of the weeks have begun and none is paid; the last one is to come.
+    garbageWeeks: [
+      ['2026-09-28', 'PENDING', '2026-10-04'],
+      ['2026-10-05', 'PENDING', '2026-10-11'],
+      ['2026-10-12', 'PENDING', '2026-10-14'],
+      ['2026-10-19', 'UPCOMING', '2026-10-14'],
+    ].map(([week = '', status, suggestedDate = '']) => ({
+      week,
+      payday: addDays(week, 6),
+      status: status as 'PENDING' | 'UPCOMING',
+      paidBy: null,
+      suggestedDate,
+    })),
+    cleaningPayouts: [{ weekStart: '2026-09-28', dates: ['2026-10-04'], total: 27000 }],
     ...overrides,
   };
 }

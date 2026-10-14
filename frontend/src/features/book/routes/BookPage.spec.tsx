@@ -2,7 +2,7 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { connectSession } from '@/lib/http';
-import { octoberReport, paymentRow } from '@/test/books';
+import { garbageRow, octoberReport, paymentRow } from '@/test/books';
 import { fakeApi, owner501, sessionFor, superadmin } from '@/test/fake-api';
 import { renderApp } from '@/test/render-app';
 
@@ -10,6 +10,19 @@ const october =
   (report = octoberReport()) =>
   () =>
     Response.json(report);
+
+// The week of 28 September is paid by `garbageRow`; the next two are pending.
+const paidFirstWeek = (() => {
+  const report = octoberReport({ movements: [paymentRow, garbageRow] });
+  const [first, ...rest] = report.garbageWeeks;
+  return {
+    ...report,
+    garbageWeeks: [
+      { ...first!, status: 'PAID' as const, paidBy: { id: garbageRow.id, date: garbageRow.date } },
+      ...rest,
+    ],
+  };
+})();
 
 describe('BookPage', () => {
   afterEach(() => {
@@ -81,6 +94,7 @@ describe('BookPage', () => {
       amount: 70000,
       unit: 302,
       description: null,
+      week: null,
     });
     await vi.waitFor(() => expect(screen.queryByLabelText('Depto')).not.toBeInTheDocument());
   });
@@ -146,6 +160,108 @@ describe('BookPage', () => {
     await vi.waitFor(() =>
       expect(api.callsTo(`DELETE /api/movements/${paymentRow.id}`)).toHaveLength(1),
     );
+  });
+
+  it('suggests the pending garbage weeks and confirms one in a tap', async () => {
+    const api = fakeApi({
+      'POST /api/auth/refresh': sessionFor(superadmin),
+      'GET /api/months/2026-10': october(paidFirstWeek),
+      'POST /api/movements': () => Response.json({ id: garbageRow.id }, { status: 201 }),
+    });
+    renderApp('/book/2026-10');
+
+    const pending = await screen.findByRole('region', { name: 'Basura por confirmar' });
+    expect(within(pending).getAllByRole('listitem')).toHaveLength(2);
+    expect(within(pending).getByText('$150.00 el 11 oct')).toBeInTheDocument();
+    // A confirmed row says which week it paid.
+    expect(screen.getByText('semana 28 sep – 4 oct')).toBeInTheDocument();
+
+    await userEvent.click(
+      within(pending).getByRole('button', { name: 'Confirmar semana 5–11 oct' }),
+    );
+    await vi.waitFor(() => expect(api.callsTo('POST /api/movements')).toHaveLength(1));
+    expect(api.callsTo('POST /api/movements')[0]?.body).toEqual({
+      date: '2026-10-11',
+      category: 'GARBAGE',
+      amount: 15000,
+      unit: null,
+      description: null,
+      week: '2026-10-05',
+    });
+  });
+
+  it('opens a pending week in the form to adjust the date before saving', async () => {
+    const api = fakeApi({
+      'POST /api/auth/refresh': sessionFor(superadmin),
+      'GET /api/months/2026-10': october(),
+      'POST /api/movements': () => Response.json({ id: garbageRow.id }, { status: 201 }),
+    });
+    renderApp('/book/2026-10');
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Semana 5–11 oct: ajustar antes de confirmar' }),
+    );
+    expect(await screen.findByRole('radio', { name: 'Basura' })).toBeChecked();
+    expect(screen.getByLabelText('Semana que se paga')).toHaveValue('2026-10-05');
+    expect(screen.getByLabelText('Fecha')).toHaveValue('2026-10-11');
+    expect(screen.getByLabelText('Importe ($)')).toHaveValue('150');
+    await userEvent.clear(screen.getByLabelText('Fecha'));
+    await userEvent.type(screen.getByLabelText('Fecha'), '2026-10-12');
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    await vi.waitFor(() =>
+      expect(api.callsTo('POST /api/movements')[0]?.body).toMatchObject({
+        date: '2026-10-12',
+        week: '2026-10-05',
+      }),
+    );
+  });
+
+  it('shows pending garbage without actions to whoever cannot write', async () => {
+    fakeApi({
+      'POST /api/auth/refresh': sessionFor(owner501),
+      'GET /api/months/2026-10': october(octoberReport({ canWrite: false })),
+    });
+    renderApp('/book/2026-10');
+
+    const pending = await screen.findByRole('region', { name: 'Basura por confirmar' });
+    expect(within(pending).queryByRole('button')).not.toBeInTheDocument();
+    const cleaning = screen.getByRole('region', { name: 'Limpieza por semana' });
+    expect(within(cleaning).queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('marks several cleaning visits on the month’s calendar', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-14T18:00:00Z'));
+    const api = fakeApi({
+      'POST /api/auth/refresh': sessionFor(superadmin),
+      'GET /api/months/2026-10': october(),
+      'POST /api/movements/cleaning-visits': () =>
+        Response.json({ ids: [paymentRow.id, garbageRow.id] }, { status: 201 }),
+    });
+    renderApp('/book/2026-10');
+
+    const cleaning = await screen.findByRole('region', { name: 'Limpieza por semana' });
+    expect(within(cleaning).getByText('Semana 28 sep – 4 oct')).toBeInTheDocument();
+    expect(within(cleaning).getByText('1 visita: 4 oct')).toBeInTheDocument();
+    await userEvent.click(within(cleaning).getByRole('button', { name: /Marcar visitas/ }));
+
+    expect(
+      await screen.findByRole('button', { name: 'domingo, 4 de octubre, ya registrada' }),
+    ).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'jueves, 15 de octubre' })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'lunes, 5 de octubre' }));
+    await userEvent.click(screen.getByRole('button', { name: 'miércoles, 7 de octubre' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Registrar 2 visitas · $540.00' }));
+
+    await vi.waitFor(() =>
+      expect(api.callsTo('POST /api/movements/cleaning-visits')).toHaveLength(1),
+    );
+    expect(api.callsTo('POST /api/movements/cleaning-visits')[0]?.body).toEqual({
+      dates: ['2026-10-05', '2026-10-07'],
+      amount: 27000,
+    });
+    vi.useRealTimers();
   });
 
   it('opens the month for whoever can', async () => {
