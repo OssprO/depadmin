@@ -1,5 +1,11 @@
 import type { AuditLogEntry, AuditValue, DelegationReason, FieldChange } from '@depadmin/shared';
-import { formatLocalDate, formatMoney, formatMonth, formatWeek } from '@/lib/format';
+import {
+  formatLocalDate,
+  formatMoney,
+  formatMonth,
+  formatMonthShort,
+  formatWeek,
+} from '@/lib/format';
 import { CATEGORIES } from '../book/labels';
 import { REASONS } from '../shifts/labels';
 
@@ -11,6 +17,8 @@ const ACTIONS: Record<string, string> = {
   USER_PASSWORD_RESET: 'Contraseña temporal generada',
   UNIT_DEACTIVATED: 'Depto marcado inactivo',
   UNIT_REACTIVATED: 'Depto reactivado',
+  UNIT_OWNER_RENAMED: 'Propietario actualizado',
+  OPENING_BALANCE_SET: 'Carga inicial',
   SHIFT_DELEGATION_CREATED: 'Turno delegado',
   SHIFT_DELEGATION_CANCELLED: 'Delegación cancelada',
   CHARGE_ADDED: 'Cargo agregado',
@@ -34,6 +42,7 @@ export const ENTITIES: Record<string, string> = {
   unit: 'Depto',
   user: 'Usuario',
   reporting_start: 'Inicio',
+  opening_balance: 'Saldo inicial del depto',
 };
 
 const FIELDS: Record<string, Record<string, string>> = {
@@ -44,7 +53,8 @@ const FIELDS: Record<string, Record<string, string>> = {
     password: 'Contraseña',
     mustChangePassword: 'Debe cambiar la contraseña',
   },
-  unit: { inactivePeriods: 'Inactivo' },
+  unit: { ownerName: 'Propietario', inactivePeriods: 'Inactivo' },
+  opening_balance: { debts: 'Adeudos', credit: 'Adelanto' },
   shift_delegation: {
     months: 'Meses',
     originalUnit: 'Depto en turno',
@@ -90,6 +100,18 @@ function formatMonths(value: string): string {
     .join('; ');
 }
 
+/** "2025-08 MAINTENANCE_FEE 60000, …" → "ago 2025 cuota $600.00; …". */
+function formatDebts(value: string): string {
+  return value
+    .split(', ')
+    .map((debt) => {
+      const [month = '', type = '', centavos = '0'] = debt.split(' ');
+      const what = type === 'SHIFT_SKIP_PENALTY' ? 'multa' : 'cuota';
+      return `${formatMonthShort(month)} ${month.slice(0, 4)} ${what} ${formatMoney(Number(centavos))}`;
+    })
+    .join('; ');
+}
+
 const money = (value: string | number) => (typeof value === 'number' ? formatMoney(value) : value);
 
 /** Field values that read better than their stored form. */
@@ -118,6 +140,7 @@ const VALUES: Record<string, Record<string, (value: string | number) => string>>
     closingBalance: money,
   },
   reporting_start: { month: (v) => formatMonth(String(v)), openingBalance: money },
+  opening_balance: { debts: (v) => formatDebts(String(v)), credit: money },
 };
 
 export interface ChangeLine {

@@ -44,6 +44,13 @@ const MESSAGES: Record<string, string> = {
   MONTH_NOT_OPENED: 'Ese mes no se ha abierto.',
   MONTH_CLOSED: 'Ese mes está cerrado; solo el superadmin puede reabrirlo.',
   MONTH_OUT_OF_ORDER: 'Los meses se abren en orden.',
+  OWNER_NAME_TOO_LONG: 'El nombre es demasiado largo.',
+  OPENING_CHARGE_NOT_BEFORE_START: 'Los adeudos iniciales son de meses anteriores al inicio.',
+  OPENING_CHARGE_DUPLICATED: 'Ese mes y concepto están repetidos.',
+  OPENING_CREDIT_INVALID: 'El adelanto no puede ser negativo.',
+  OPENING_BALANCE_LOCKED: 'El primer mes ya se cerró; reábrelo para cambiar la carga inicial.',
+  OPENING_BALANCES_SET:
+    'Ya hay adeudos o adelantos iniciales: vacíalos antes de cambiar el primer mes.',
   MONTH_IN_PROGRESS: 'El mes todavía no termina; se cierra a partir del día 1 siguiente.',
   MONTH_ALREADY_CLOSED: 'Ese mes ya estaba cerrado.',
   PREVIOUS_MONTH_OPEN: 'Los meses se cierran en orden: cierra primero el anterior.',

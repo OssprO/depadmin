@@ -1,4 +1,4 @@
-import { BuildingsIcon, FlagIcon, UsersThreeIcon } from '@phosphor-icons/react';
+import { BuildingsIcon, FlagIcon, ScalesIcon, UsersThreeIcon } from '@phosphor-icons/react';
 import { MenuEntry, MenuList } from '@/components/MenuList';
 
 /** The superadmin's tools. */
@@ -17,13 +17,19 @@ export function AdminPage() {
           to="/admin/units"
           icon={<BuildingsIcon />}
           title="Deptos"
-          description="Activos e inactivos"
+          description="Propietarios, activos e inactivos"
         />
         <MenuEntry
           to="/admin/start"
           icon={<FlagIcon />}
           title="Inicio de la contabilidad"
           description="Primer mes y efectivo en caja"
+        />
+        <MenuEntry
+          to="/admin/opening"
+          icon={<ScalesIcon />}
+          title="Carga inicial"
+          description="Adeudos y adelantos de cada depto al empezar"
         />
       </MenuList>
     </div>

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatMonth } from '@/lib/format';
 import { unitsQueryOptions } from '../api';
+import { OwnerNameSheet } from '../components/OwnerNameSheet';
 import { UnitStatusSheet } from '../components/UnitStatusSheet';
 
 function history(unit: Unit): string | null {
@@ -24,9 +25,10 @@ export function UnitsPage() {
       <h1 className="font-heading text-lg font-bold">Deptos</h1>
       <Card>
         <CardHeader>
-          <CardTitle>Activos e inactivos</CardTitle>
+          <CardTitle>Propietarios y estado</CardTitle>
           <CardDescription>
-            Un depto sin dueño activo no paga cuota y su turno lo cubre quien asignes.
+            El nombre aparece en el reporte mensual. Un depto sin dueño activo no paga cuota y su
+            turno lo cubre quien asignes.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -51,6 +53,12 @@ export function UnitsPage() {
                       ) : (
                         <Badge variant="secondary">Inactivo</Badge>
                       )}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className={unit.ownerName ? '' : 'text-muted-foreground'}>
+                        {unit.ownerName ?? 'Sin nombre de propietario'}
+                      </span>
+                      <OwnerNameSheet unit={unit} />
                     </span>
                     {history(unit) && (
                       <span className="text-muted-foreground">Inactivo {history(unit)}</span>
