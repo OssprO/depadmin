@@ -1,6 +1,6 @@
 # Plan de trabajo — DepAdmin (Edificio Correspondencia 63)
 
-**Versión:** 1.3 · **Fecha:** 2026-10-13 · **Base:** `docs/SPEC.md` v0.4
+**Versión:** 1.4 · **Fecha:** 2026-10-14 · **Base:** `docs/SPEC.md` v0.4
 
 Este plan reemplaza a la sección 11 de la spec. Cada fase termina en algo que se puede correr, probar y revisar. Modo de trabajo: Claude explica el porqué de cada decisión, implementa con pruebas y entrega la fase como un PR. Tú revisas y apruebas antes de pasar a la siguiente.
 
@@ -200,9 +200,11 @@ Todo sin base de datos ni HTTP, solo lógica y pruebas.
 
 Va antes de las funcionalidades de escritura para que todas la usen desde el primer día.
 
-- Puerto `AuditTrail` y adaptador Prisma. Los casos de uso registran cambios a nivel de campo (antes y después) dentro de su transacción, mediante un decorador o clase base de caso de uso (DRY).
-- Endpoint de consulta paginado y filtrable; pantalla de bitácora (solo lectura).
-- Auditar también el cambio y el reseteo de contraseñas de la fase 3 (sin guardar hashes en la bitácora).
+- Puerto `AuditTrail` en el shared kernel y adaptador Prisma en el módulo `audit`. Los casos de uso registran los cambios a nivel de campo (antes y después) dentro de su transacción.
+  - DRY por composición: cada entidad declara una vez cómo se ve en la bitácora (`AuditSubject`) y el caso de uso usa `trackChanges(...)` más `audit.record(...)`. Un decorador no ve el estado anterior, y una clase base complica la inyección en Nest. Detalle en el ADR-0014.
+  - Los campos secretos (`Redacted`) solo registran que cambiaron.
+- Endpoint `GET /api/audit-log` paginado por cursor y filtrable por tipo, registro y quién actuó. Pantalla _Bitácora_ (solo lectura, para todos los usuarios), con los filtros en la URL.
+- Auditar también el cambio y el reseteo de contraseñas de la fase 3 (sin hashes ni contraseñas temporales en la bitácora).
 
 **Conceptos:** trazabilidad, inmutabilidad, por qué se audita en la capa de aplicación y no con un interceptor HTTP.
 
