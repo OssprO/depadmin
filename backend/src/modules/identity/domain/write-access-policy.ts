@@ -1,11 +1,11 @@
 import {
+  type Actor,
   ForbiddenError,
   LocalDate,
   type UnitNumber,
   ValidationError,
   type YearMonth,
 } from '../../../shared-kernel/index.js';
-import type { Actor } from './actor.js';
 
 /** Calendar days after a shift ends during which the outgoing depto can still act on it. */
 export const WRITE_GRACE_DAYS = 5;

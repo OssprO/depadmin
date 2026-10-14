@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { withCode } from '../../../../test/support/domain-error.js';
-import { LocalDate, UnitNumber, YearMonth } from '../../../shared-kernel/index.js';
-import type { Actor } from './actor.js';
+import { type Actor, LocalDate, UnitNumber, YearMonth } from '../../../shared-kernel/index.js';
 import { type ShiftResponsibility, WriteAccessPolicy } from './write-access-policy.js';
 
 const policy = new WriteAccessPolicy();
