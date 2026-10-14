@@ -34,6 +34,20 @@ test('keeps last month’s books, closes them, downloads the PDF and shows the h
   await page.getByRole('button', { name: 'Guardar' }).click();
   await expect(page.getByRole('status')).toHaveText('Guardado.');
 
+  // The owner's name for the report, and an adelanto 502 had paid before the books.
+  await page.goto('/admin/units');
+  await page.getByRole('button', { name: 'Propietario del Depto 502' }).click();
+  await page.getByLabel('Nombre').fill('Propietaria de prueba');
+  await page.getByRole('button', { name: 'Guardar' }).click();
+  await expect(page.getByText('Propietaria de prueba')).toBeVisible();
+  await page.goto('/admin/opening');
+  await page.getByRole('button', { name: 'Editar Depto 502' }).click();
+  await page.getByLabel('Adelanto ($)').fill('700');
+  await page.getByRole('button', { name: 'Guardar' }).click();
+  await expect(
+    page.getByText('Depto 502').locator('..').getByText('adelanto $700.00'),
+  ).toBeVisible();
+
   // Opening this month opens last month first.
   await page.getByRole('link', { name: 'Libro' }).click();
   await page.getByRole('button', { name: 'Abrir el mes' }).click();

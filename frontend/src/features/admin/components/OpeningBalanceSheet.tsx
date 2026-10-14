@@ -128,37 +128,25 @@ export function OpeningBalanceSheet({ balance, start, onClose }: OpeningBalanceS
             {debts.length === 0 && <p className="text-muted-foreground">No debía nada.</p>}
             <ul className="flex flex-col gap-3">
               {debts.map((debt, index) => (
-                <li key={debt.key} className="grid grid-cols-[1fr_auto] gap-2 border-b pb-3">
-                  <div className="flex flex-col gap-2">
-                    <Input
-                      type="month"
-                      aria-label={`Mes del adeudo ${index + 1}`}
-                      max={lastMonth}
-                      value={debt.month}
-                      onChange={(event) => change(debt.key, { month: event.target.value })}
-                    />
-                    <NativeSelect
-                      className="w-full"
-                      aria-label={`Concepto del adeudo ${index + 1}`}
-                      value={debt.type}
-                      onChange={(event) =>
-                        change(debt.key, { type: event.target.value as ChargeType })
-                      }
-                    >
-                      {Object.entries(TYPES).map(([type, label]) => (
-                        <NativeSelectOption key={type} value={type}>
-                          {label}
-                        </NativeSelectOption>
-                      ))}
-                    </NativeSelect>
-                    <Input
-                      inputMode="decimal"
-                      aria-label={`Importe del adeudo ${index + 1} ($)`}
-                      value={debt.amount}
-                      aria-invalid={Number.isNaN(parsePesos(debt.amount))}
-                      onChange={(event) => change(debt.key, { amount: event.target.value })}
-                    />
-                  </div>
+                <li
+                  key={debt.key}
+                  className="grid grid-cols-[1fr_6rem_auto] items-center gap-2 border-b pb-3"
+                >
+                  <Input
+                    type="month"
+                    aria-label={`Mes del adeudo ${index + 1}`}
+                    max={lastMonth}
+                    value={debt.month}
+                    onChange={(event) => change(debt.key, { month: event.target.value })}
+                  />
+                  <Input
+                    inputMode="decimal"
+                    placeholder="$"
+                    aria-label={`Importe del adeudo ${index + 1} ($)`}
+                    value={debt.amount}
+                    aria-invalid={debt.amount !== '' && Number.isNaN(parsePesos(debt.amount))}
+                    onChange={(event) => change(debt.key, { amount: event.target.value })}
+                  />
                   <Button
                     variant="ghost"
                     size="icon-sm"
@@ -167,6 +155,21 @@ export function OpeningBalanceSheet({ balance, start, onClose }: OpeningBalanceS
                   >
                     <XIcon />
                   </Button>
+                  <NativeSelect
+                    className="col-span-2 w-full"
+                    size="sm"
+                    aria-label={`Concepto del adeudo ${index + 1}`}
+                    value={debt.type}
+                    onChange={(event) =>
+                      change(debt.key, { type: event.target.value as ChargeType })
+                    }
+                  >
+                    {Object.entries(TYPES).map(([type, label]) => (
+                      <NativeSelectOption key={type} value={type}>
+                        {label}
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
                 </li>
               ))}
             </ul>
