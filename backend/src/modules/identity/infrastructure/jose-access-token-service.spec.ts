@@ -3,7 +3,7 @@ import { SignJWT } from 'jose';
 import { describe, expect, it } from 'vitest';
 import type { Env } from '../../../platform/config/env.js';
 import { type Actor, UnitNumber } from '../../../shared-kernel/index.js';
-import { FixedClock } from '../application/testing.js';
+import { FixedClock } from '../../../../test/support/clock.js';
 import { ACCESS_TOKEN_LIFETIME_SECONDS } from '../domain/index.js';
 import { JoseAccessTokenService } from './jose-access-token-service.js';
 

@@ -1,11 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { Actor } from '../../../shared-kernel/index.js';
-import {
-  USER_REPOSITORY,
-  type User,
-  type UserRepository,
-  WriteAccessPolicy,
-} from '../domain/index.js';
+import { type Actor, WriteAccessPolicy } from '../../../shared-kernel/index.js';
+import { USER_REPOSITORY, type User, type UserRepository } from '../domain/index.js';
 import { findUser } from './find-user.js';
 
 @Injectable()

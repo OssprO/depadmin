@@ -63,8 +63,8 @@ test('gives an owner access with a temporary password they must replace', async 
   await page.getByRole('button', { name: 'Guardar contraseña' }).click();
 
   await expect(page.getByRole('heading', { name: 'Hola, Depto 501' })).toBeVisible();
-  // Owners have no user management.
-  await expect(page.getByRole('link', { name: 'Usuarios' })).toHaveCount(0);
+  // Owners have no admin tools.
+  await expect(page.getByRole('link', { name: 'Admin' })).toHaveCount(0);
   await page.goto('/admin/users');
   await expect(page.getByRole('heading', { name: 'Hola, Depto 501' })).toBeVisible();
 

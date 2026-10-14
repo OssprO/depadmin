@@ -1,8 +1,9 @@
 import {
+  CalendarDotsIcon,
   ClockCounterClockwiseIcon,
   HouseIcon,
   UserCircleIcon,
-  UsersThreeIcon,
+  WrenchIcon,
 } from '@phosphor-icons/react';
 import { Link, type LinkProps, Outlet } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
@@ -49,9 +50,10 @@ export function AppLayout() {
         >
           <div className="mx-auto flex max-w-md">
             <NavItem to="/" icon={<HouseIcon />} label="Inicio" />
+            <NavItem to="/shifts" icon={<CalendarDotsIcon />} label="Turnos" />
             <NavItem to="/audit" icon={<ClockCounterClockwiseIcon />} label="Bitácora" />
             {user.role === 'SUPERADMIN' && (
-              <NavItem to="/admin/users" icon={<UsersThreeIcon />} label="Usuarios" />
+              <NavItem to="/admin" icon={<WrenchIcon />} label="Admin" />
             )}
             <NavItem to="/account" icon={<UserCircleIcon />} label="Cuenta" />
           </div>

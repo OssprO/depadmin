@@ -43,3 +43,59 @@ export function formatDay(iso: string): string {
 export function formatTime(iso: string): string {
   return timeFormat.format(new Date(iso));
 }
+
+const MONTHS = [
+  'enero',
+  'febrero',
+  'marzo',
+  'abril',
+  'mayo',
+  'junio',
+  'julio',
+  'agosto',
+  'septiembre',
+  'octubre',
+  'noviembre',
+  'diciembre',
+];
+
+function parseMonth(month: string): { year: number; name: string } {
+  const [year = '', number = ''] = month.split('-');
+  return { year: Number(year), name: MONTHS[Number(number) - 1] ?? month };
+}
+
+/** "2026-10" → "octubre 2026". */
+export function formatMonth(month: string): string {
+  const { year, name } = parseMonth(month);
+  return `${name} ${year}`;
+}
+
+/** "2026-10" → "oct". */
+export function formatMonthShort(month: string): string {
+  return parseMonth(month).name.slice(0, 3);
+}
+
+/** "2026-10".."2026-11" → "oct–nov 2026"; across years, "dic 2026 – ene 2027". */
+export function formatMonthRange(from: string, to: string): string {
+  const start = parseMonth(from);
+  const end = parseMonth(to);
+  if (from === to) return `${start.name.slice(0, 3)} ${start.year}`;
+  if (start.year === end.year) {
+    return `${start.name.slice(0, 3)}–${end.name.slice(0, 3)} ${end.year}`;
+  }
+  return `${start.name.slice(0, 3)} ${start.year} – ${end.name.slice(0, 3)} ${end.year}`;
+}
+
+/** "YYYY-MM" plus `months` (negative to go back). */
+export function addMonths(month: string, months: number): string {
+  const [year = 0, number = 1] = month.split('-').map(Number);
+  const index = year * 12 + (number - 1) + months;
+  return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}`;
+}
+
+const pesos = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
+
+/** Centavos as pesos, e.g. 50000 → "$500.00". */
+export function formatMoney(centavos: number): string {
+  return pesos.format(centavos / 100);
+}

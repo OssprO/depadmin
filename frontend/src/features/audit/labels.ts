@@ -1,4 +1,6 @@
-import type { AuditLogEntry, AuditValue, FieldChange } from '@depadmin/shared';
+import type { AuditLogEntry, AuditValue, DelegationReason, FieldChange } from '@depadmin/shared';
+import { formatMoney, formatMonth } from '@/lib/format';
+import { REASONS } from '../shifts/labels';
 
 // Spanish text for the audit log. Codes come from the backend's use cases; an unknown one
 // is shown as is, so a newer API never breaks the screen.
@@ -6,10 +8,19 @@ import type { AuditLogEntry, AuditValue, FieldChange } from '@depadmin/shared';
 const ACTIONS: Record<string, string> = {
   USER_PASSWORD_CHANGED: 'Contraseña cambiada',
   USER_PASSWORD_RESET: 'Contraseña temporal generada',
+  UNIT_DEACTIVATED: 'Depto marcado inactivo',
+  UNIT_REACTIVATED: 'Depto reactivado',
+  SHIFT_DELEGATION_CREATED: 'Turno delegado',
+  SHIFT_DELEGATION_CANCELLED: 'Delegación cancelada',
+  CHARGE_ADDED: 'Cargo agregado',
+  CHARGE_REMOVED: 'Cargo retirado',
 };
 
 /** The kinds of entity, in the order the filter offers them. */
 export const ENTITIES: Record<string, string> = {
+  shift_delegation: 'Delegación',
+  charge: 'Cargo',
+  unit: 'Depto',
   user: 'Usuario',
 };
 
@@ -20,6 +31,46 @@ const FIELDS: Record<string, Record<string, string>> = {
     unit: 'Depto',
     password: 'Contraseña',
     mustChangePassword: 'Debe cambiar la contraseña',
+  },
+  unit: { inactivePeriods: 'Inactivo' },
+  shift_delegation: {
+    months: 'Meses',
+    originalUnit: 'Depto en turno',
+    delegateUnit: 'Depto que cubre',
+    reason: 'Motivo',
+    active: 'Vigente',
+  },
+  charge: { unit: 'Depto', month: 'Mes', type: 'Tipo', amount: 'Importe' },
+};
+
+const CHARGE_TYPES: Record<string, string> = {
+  MAINTENANCE_FEE: 'Cuota de mantenimiento',
+  SHIFT_SKIP_PENALTY: 'Multa por no tomar turno',
+};
+
+/** "2026-10..2026-11" → "octubre 2026 a noviembre 2026"; an open range, "desde …". */
+function formatMonths(value: string): string {
+  return value
+    .split(', ')
+    .map((range) => {
+      const [from = '', to = ''] = range.split('..');
+      if (!to) return `desde ${formatMonth(from)}`;
+      return from === to ? formatMonth(from) : `${formatMonth(from)} a ${formatMonth(to)}`;
+    })
+    .join('; ');
+}
+
+/** Field values that read better than their stored form. */
+const VALUES: Record<string, Record<string, (value: string | number) => string>> = {
+  unit: { inactivePeriods: (v) => formatMonths(String(v)) },
+  shift_delegation: {
+    months: (v) => formatMonths(String(v)),
+    reason: (v) => REASONS[v as DelegationReason] ?? String(v),
+  },
+  charge: {
+    month: (v) => formatMonth(String(v)),
+    type: (v) => CHARGE_TYPES[v] ?? String(v),
+    amount: (v) => (typeof v === 'number' ? formatMoney(v) : v),
   },
 };
 
@@ -49,15 +100,16 @@ export function describeEntry(entry: AuditLogEntry): EntryText {
 
 function describeChange(entity: string, change: FieldChange): ChangeLine {
   const field = FIELDS[entity]?.[change.field] ?? change.field;
-  const text =
-    'redacted' in change
-      ? 'cambiada'
-      : `${formatValue(change.before)} → ${formatValue(change.after)}`;
-  return { field, text };
+  if ('redacted' in change) return { field, text: 'cambiada' };
+  const format = (value: AuditValue) => formatValue(value, VALUES[entity]?.[change.field]);
+  // A creation or removal has nothing on one side: show just the value.
+  if (change.before === null) return { field, text: format(change.after) };
+  if (change.after === null) return { field, text: `${format(change.before)} → —` };
+  return { field, text: `${format(change.before)} → ${format(change.after)}` };
 }
 
-function formatValue(value: AuditValue): string {
+function formatValue(value: AuditValue, format?: (value: string | number) => string): string {
   if (value === null) return '—';
   if (typeof value === 'boolean') return value ? 'Sí' : 'No';
-  return String(value);
+  return format ? format(value) : String(value);
 }

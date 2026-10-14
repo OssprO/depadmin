@@ -8,12 +8,15 @@ import {
   type RouterHistory,
 } from '@tanstack/react-router';
 import { AccountPage } from '@/features/account/routes/AccountPage';
+import { AdminPage } from '@/features/admin/routes/AdminPage';
+import { UnitsPage } from '@/features/admin/routes/UnitsPage';
 import { UsersPage } from '@/features/admin/routes/UsersPage';
 import { auditFiltersFrom } from '@/features/audit/filters';
 import { AuditLogPage } from '@/features/audit/routes/AuditLogPage';
 import { ChangePasswordPage } from '@/features/auth/routes/ChangePasswordPage';
 import { LoginPage } from '@/features/auth/routes/LoginPage';
 import { HomePage } from '@/features/dashboard/routes/HomePage';
+import { ShiftsPage } from '@/features/shifts/routes/ShiftsPage';
 import { safeRedirect } from '@/lib/safe-redirect';
 import type { SessionStore } from '@/lib/session';
 import { AppLayout } from './AppLayout';
@@ -80,13 +83,38 @@ const changePasswordRoute = createRoute({
   component: ChangePasswordPage,
 });
 
-const usersRoute = createRoute({
+const shiftsRoute = createRoute({
   getParentRoute: () => appRoute,
-  path: '/admin/users',
+  path: '/shifts',
+  component: ShiftsPage,
+});
+
+/** The superadmin's tools. */
+const adminRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/admin',
   beforeLoad: ({ context }) => {
     if (context.user.role !== 'SUPERADMIN') throw redirect({ to: '/' });
   },
+  component: Outlet,
+});
+
+const adminIndexRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/',
+  component: AdminPage,
+});
+
+const usersRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/users',
   component: UsersPage,
+});
+
+const unitsRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/units',
+  component: UnitsPage,
 });
 
 /** Its filters live in the URL, so they survive a reload and the back button. */
@@ -107,7 +135,14 @@ const auditRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
-  appRoute.addChildren([homeRoute, auditRoute, accountRoute, changePasswordRoute, usersRoute]),
+  appRoute.addChildren([
+    homeRoute,
+    shiftsRoute,
+    auditRoute,
+    accountRoute,
+    changePasswordRoute,
+    adminRoute.addChildren([adminIndexRoute, usersRoute, unitsRoute]),
+  ]),
 ]);
 
 export function createAppRouter(context: RouterContext, history?: RouterHistory) {
