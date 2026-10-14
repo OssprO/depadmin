@@ -1,10 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
   type Actor,
+  AUDIT_TRAIL,
+  type AuditTrail,
   CLOCK,
   type Clock,
   UNIT_OF_WORK,
   type UnitOfWork,
+  trackChanges,
   ValidationError,
 } from '../../../shared-kernel/index.js';
 import {
@@ -19,6 +22,7 @@ import {
   WriteAccessPolicy,
 } from '../domain/index.js';
 import { findUser } from './find-user.js';
+import { USER_AUDIT, UserAuditAction } from './user-audit.js';
 
 /**
  * The superadmin gives a user a temporary password (to hand over in person or by chat). It
@@ -35,6 +39,7 @@ export class ResetPassword {
     @Inject(PASSWORD_HASHER) private readonly hasher: PasswordHasher,
     @Inject(SECRET_GENERATOR) private readonly secrets: SecretGenerator,
     @Inject(UNIT_OF_WORK) private readonly unitOfWork: UnitOfWork,
+    @Inject(AUDIT_TRAIL) private readonly audit: AuditTrail,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
@@ -47,11 +52,13 @@ export class ResetPassword {
       );
     }
     const user = await findUser(this.users, userId);
+    const tracked = trackChanges(USER_AUDIT, user);
     const temporaryPassword = this.secrets.temporaryPassword();
     user.resetPassword(await this.hasher.hash(temporaryPassword));
 
     await this.unitOfWork.run(async () => {
       await this.users.save(user);
+      await this.audit.record(actor, tracked.change(UserAuditAction.PASSWORD_RESET));
       await this.refreshTokens.revokeAllOf(user.id, this.clock.now());
     });
     return { temporaryPassword };

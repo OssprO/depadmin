@@ -199,15 +199,21 @@ model MonthlyReport {
 }
 
 /// Append-only: a trigger rejects UPDATE, DELETE and TRUNCATE (see the migration).
+/// Who acted and what was touched are copied in, not referenced: the log must read the
+/// same years later, whatever happens to the users and rows it mentions.
 model AuditLog {
-  id         BigInt   @id @default(autoincrement())
-  occurredAt DateTime @default(now()) @map("occurred_at") @db.Timestamptz
-  actorId    String   @map("actor_id")
-  action     String
-  entity     String
-  entityId   String   @map("entity_id")
-  /// [{ field, before, after }]
-  changes    Json
+  id          BigInt   @id @default(autoincrement())
+  occurredAt  DateTime @default(now()) @map("occurred_at") @db.Timestamptz
+  actorId     String   @map("actor_id")
+  actorRole   Role     @map("actor_role")
+  /// The owner's depto; null for the superadmin.
+  actorUnit   Int?     @map("actor_unit")
+  action      String
+  entity      String
+  entityId    String   @map("entity_id")
+  entityLabel String   @map("entity_label")
+  /// [{ field, before, after }] or [{ field, redacted: true }]
+  changes     Json
 
   @@index([entity, entityId])
   @@index([occurredAt])

@@ -67,4 +67,17 @@ test('gives an owner access with a temporary password they must replace', async 
   await expect(page.getByRole('link', { name: 'Usuarios' })).toHaveCount(0);
   await page.goto('/admin/users');
   await expect(page.getByRole('heading', { name: 'Hola, Depto 501' })).toBeVisible();
+
+  // Both changes are in the audit log, which owners can read too, with no password in it.
+  await page.getByRole('link', { name: 'Bitácora' }).click();
+  const changed = page.getByRole('listitem').filter({ hasText: 'Contraseña cambiada' });
+  const reset = page.getByRole('listitem').filter({ hasText: 'Contraseña temporal generada' });
+  await expect(changed).toContainText('Depto 501 · Usuario 501');
+  await expect(reset).toContainText('Superadmin · Usuario 501');
+  await expect(page.locator('main')).not.toContainText(temporaryPassword);
+
+  await page.getByLabel('Quién').selectOption('Superadmin');
+  await expect(page).toHaveURL(/actor=superadmin/);
+  await expect(changed).toHaveCount(0);
+  await expect(reset).toBeVisible();
 });

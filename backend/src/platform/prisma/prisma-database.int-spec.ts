@@ -34,7 +34,15 @@ describe('PrismaDatabase (unit of work)', () => {
 describe('audit_log is append-only', () => {
   const insert = () =>
     ctx.database.client.auditLog.create({
-      data: { actorId: 'admin', action: 'TEST', entity: 'unit', entityId: '101', changes: [] },
+      data: {
+        actorId: 'admin',
+        actorRole: 'SUPERADMIN',
+        action: 'TEST',
+        entity: 'unit',
+        entityId: '101',
+        entityLabel: '101',
+        changes: [],
+      },
     });
 
   it('accepts inserts', async () => {

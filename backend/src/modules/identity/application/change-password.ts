@@ -1,10 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
   type Actor,
+  AUDIT_TRAIL,
+  type AuditTrail,
   CLOCK,
   type Clock,
   UNIT_OF_WORK,
   type UnitOfWork,
+  trackChanges,
   ValidationError,
 } from '../../../shared-kernel/index.js';
 import {
@@ -17,6 +20,7 @@ import {
 } from '../domain/index.js';
 import { findUser } from './find-user.js';
 import { type IssuedSession, SessionIssuer } from './session-issuer.js';
+import { USER_AUDIT, UserAuditAction } from './user-audit.js';
 
 export interface ChangePasswordCommand {
   readonly currentPassword: string;
@@ -34,6 +38,7 @@ export class ChangePassword {
     @Inject(REFRESH_TOKEN_REPOSITORY) private readonly refreshTokens: RefreshTokenRepository,
     @Inject(PASSWORD_HASHER) private readonly hasher: PasswordHasher,
     @Inject(UNIT_OF_WORK) private readonly unitOfWork: UnitOfWork,
+    @Inject(AUDIT_TRAIL) private readonly audit: AuditTrail,
     @Inject(CLOCK) private readonly clock: Clock,
     private readonly sessions: SessionIssuer,
   ) {}
@@ -47,10 +52,12 @@ export class ChangePassword {
     if (newPassword === currentPassword) {
       throw new ValidationError('PASSWORD_UNCHANGED', 'The new password equals the current one');
     }
+    const tracked = trackChanges(USER_AUDIT, user);
     user.changePassword(await this.hasher.hash(newPassword));
 
     return this.unitOfWork.run(async () => {
       await this.users.save(user);
+      await this.audit.record(actor, tracked.change(UserAuditAction.PASSWORD_CHANGED));
       await this.refreshTokens.revokeAllOf(user.id, this.clock.now());
       return this.sessions.start(user);
     });
