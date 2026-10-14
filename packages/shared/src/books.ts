@@ -135,7 +135,7 @@ export type GarbageWeekStatus = z.infer<typeof garbageWeekStatusSchema>;
 export const garbageWeekSchema = z.object({
   /** Monday. */
   week: localDateSchema,
-  /** Sunday, the suggested payday; it decides which month lists the week. */
+  /** Saturday, the suggested payday; it decides which month lists the week. */
   payday: localDateSchema,
   status: garbageWeekStatusSchema,
   /** The row that pays for it, which may be dated in another month. */
@@ -183,7 +183,7 @@ export const monthlyReportSchema = z.object({
     })
     .nullable(),
   accounts: z.array(accountSummarySchema),
-  /** The month's garbage weeks: the ones whose Sunday falls in it. */
+  /** The month's garbage weeks: the ones whose Saturday falls in it. */
   garbageWeeks: z.array(garbageWeekSchema),
   /** Weekly cleaning payouts for the weeks that touch the month. */
   cleaningPayouts: z.array(cleaningPayoutSchema),

@@ -25,7 +25,10 @@ export function suggestedAmount(category: MovementCategory, rates: SuggestionRat
 }
 
 // Garbage: one fixed payment per calendar week (spec 4.3). Weeks run Monday to Sunday and the
-// suggested payday is the Sunday (PLAN question 4); the user adjusts the real date.
+// suggested payday is the Saturday (PLAN question 4); the user adjusts the real date.
+
+/** ISO day of the week the garbage is paid: Saturday. */
+export const GARBAGE_PAYDAY = 6;
 
 export type GarbageWeekStatus = 'PAID' | 'PENDING' | 'UPCOMING';
 
@@ -36,7 +39,7 @@ export type GarbageWeekStatus = 'PAID' | 'PENDING' | 'UPCOMING';
 export interface GarbageWeek {
   /** Monday. */
   readonly week: LocalDate;
-  /** Sunday, the suggested payday; it decides which month lists the week. */
+  /** Saturday, the suggested payday; it decides which month lists the week. */
   readonly payday: LocalDate;
   /** Paid by a live row (in any month); pending once the week has begun; upcoming before. */
   readonly status: GarbageWeekStatus;
@@ -45,15 +48,13 @@ export interface GarbageWeek {
   readonly suggestedDate: LocalDate;
 }
 
-/** Mondays of the weeks whose payday (Sunday) falls in the month: four or five of them. */
+/** Mondays of the weeks whose payday (Saturday) falls in the month: four or five of them. */
 export function garbageWeeksOf(month: YearMonth): LocalDate[] {
   const first = LocalDate.firstOf(month);
   const last = LocalDate.lastOf(month);
   const weeks: LocalDate[] = [];
-  for (let payday = first.plusDays(7 - first.dayOfWeek); !payday.isAfter(last);) {
-    weeks.push(payday.plusDays(-6));
-    payday = payday.plusDays(7);
-  }
+  let payday = first.plusDays((GARBAGE_PAYDAY - first.dayOfWeek + 7) % 7);
+  for (; !payday.isAfter(last); payday = payday.plusDays(7)) weeks.push(payday.startOfWeek());
   return weeks;
 }
 
@@ -67,7 +68,7 @@ export function garbageSchedule(
   garbageRows: readonly CashMovement[],
 ): GarbageWeek[] {
   return garbageWeeksOf(month).map((week) => {
-    const payday = week.plusDays(6);
+    const payday = week.plusDays(GARBAGE_PAYDAY - 1);
     const paidBy =
       garbageRows.find((row) => !row.isRemoved && row.details.week?.equals(week)) ?? null;
     const status: GarbageWeekStatus = paidBy

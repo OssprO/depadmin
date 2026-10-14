@@ -141,6 +141,7 @@ describe('GetMonthlyReport', () => {
       ['2026-10-05', 'PENDING'],
       ['2026-10-12', 'UPCOMING'],
       ['2026-10-19', 'UPCOMING'],
+      ['2026-10-26', 'UPCOMING'],
     ]);
     expect(before.totals.byCategory.GARBAGE).toEqual(pesos(0));
     expect(before.cleaningPayouts.map((p) => [String(p.weekStart), p.total])).toEqual([

@@ -211,7 +211,7 @@ describe('books API', () => {
     const [first] = (await month(owner502, '2026-10')).garbageWeeks;
     expect(first).toEqual({
       week: '2026-09-28',
-      payday: '2026-10-04',
+      payday: '2026-10-03',
       status: 'PENDING',
       paidBy: null,
       suggestedDate: '2026-10-02',

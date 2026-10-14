@@ -172,7 +172,7 @@ describe('BookPage', () => {
 
     const pending = await screen.findByRole('region', { name: 'Basura por confirmar' });
     expect(within(pending).getAllByRole('listitem')).toHaveLength(2);
-    expect(within(pending).getByText('$150.00 el 11 oct')).toBeInTheDocument();
+    expect(within(pending).getByText('$150.00 el 10 oct')).toBeInTheDocument();
     // A confirmed row says which week it paid.
     expect(screen.getByText('semana 28 sep – 4 oct')).toBeInTheDocument();
 
@@ -181,7 +181,7 @@ describe('BookPage', () => {
     );
     await vi.waitFor(() => expect(api.callsTo('POST /api/movements')).toHaveLength(1));
     expect(api.callsTo('POST /api/movements')[0]?.body).toEqual({
-      date: '2026-10-11',
+      date: '2026-10-10',
       category: 'GARBAGE',
       amount: 15000,
       unit: null,
@@ -203,7 +203,7 @@ describe('BookPage', () => {
     );
     expect(await screen.findByRole('radio', { name: 'Basura' })).toBeChecked();
     expect(screen.getByLabelText('Semana que se paga')).toHaveValue('2026-10-05');
-    expect(screen.getByLabelText('Fecha')).toHaveValue('2026-10-11');
+    expect(screen.getByLabelText('Fecha')).toHaveValue('2026-10-10');
     expect(screen.getByLabelText('Importe ($)')).toHaveValue('150');
     await userEvent.clear(screen.getByLabelText('Fecha'));
     await userEvent.type(screen.getByLabelText('Fecha'), '2026-10-12');
