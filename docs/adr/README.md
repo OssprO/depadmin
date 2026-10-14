@@ -16,5 +16,6 @@ Cada ADR documenta una decisión: el contexto, lo que se decidió y sus consecue
 | [0010](0010-convenciones-dominio.md)   | Dinero en centavos, código en inglés, base de caja | Aceptado |
 | [0011](0011-nest12-esm-eslint.md)      | NestJS 12 en ESM, ESLint como único linter         | Aceptado |
 | [0012](0012-persistencia.md)           | Convenciones de persistencia (Prisma 7)            | Aceptado |
+| [0013](0013-identidad-y-sesion.md)     | Identidad, sesión y autorización                   | Aceptado |
 
 Plantilla: copia cualquier ADR y conserva las secciones _Contexto_, _Decisión_ y _Consecuencias_.

@@ -13,7 +13,7 @@ Mobile-first web app to manage maintenance fees for a 10-unit building ("Edifici
 
 **Working mode:** one phase per PR. Explain the reasoning behind a design before implementing, include tests, and wait for the user's approval before starting the next phase.
 
-**Current state:** each phase has its own branch: `chore/fase-0-fundaciones` (foundations), `feat/fase-1-dominio` (pure domain) and `feat/fase-2-persistencia` (Prisma schema and migration, a repository adapter per module, `UnitOfWork`, seed). No use cases (`application/`) or HTTP endpoints exist yet beyond `/api/health`.
+**Current state:** phases 0–2 are merged into `develop` (foundations, pure domain, persistence). Phase 3 (`feat/fase-3-identidad`) adds identity and sessions end to end: login, refresh rotation, logout, password change and superadmin resets in the API, and the routed mobile shell in the SPA (login, home, account, user management). Business use cases (`application/`) exist only in `identity` so far.
 
 ## Layout & tooling
 
@@ -28,13 +28,14 @@ pnpm format           # Prettier
 pnpm typecheck
 pnpm test             # Vitest unit tests in every package (*.spec.ts / *.spec.tsx next to code)
 pnpm test:int         # *.int-spec.ts: Prisma adapters against PostgreSQL 18 in Testcontainers (needs Docker)
-pnpm test:e2e         # backend/test/*.e2e-spec.ts (supertest)
+pnpm test:e2e         # backend/test/*.e2e-spec.ts (supertest, no database)
+pnpm test:browser     # e2e/: Playwright on a Pixel 7 viewport against the built stack (run pnpm build first)
 pnpm --filter @depadmin/backend test:cov   # domain coverage; fails under 90% (CI runs it)
 pnpm build
 
 # database (from backend/, or with pnpm --filter @depadmin/backend)
 pnpm db:migrate       # prisma migrate dev: create/apply migrations on the dev DB
-pnpm db:seed          # 10 deptos + initial rates (idempotent)
+pnpm db:seed          # 10 deptos, their owner accounts, the superadmin (SUPERADMIN_* env) and rates; idempotent
 pnpm db:generate      # regenerate the Prisma Client (also runs on install)
 
 # single package / single test
@@ -42,7 +43,7 @@ pnpm --filter @depadmin/backend test -- src/platform/config/env.spec.ts
 pnpm --filter @depadmin/frontend test -- -t "offers a retry"
 ```
 
-CI (`.github/workflows/ci.yml`) runs format:check, lint, typecheck, test, domain coverage, test:int, test:e2e and build. Husky runs lint-staged on commit, and commitlint enforces Conventional Commits.
+CI (`.github/workflows/ci.yml`) runs format:check, lint, typecheck, test, domain and application coverage, test:int, test:e2e, build and test:browser. Husky runs lint-staged on commit, and commitlint enforces Conventional Commits.
 
 ### Gotchas
 
@@ -55,6 +56,11 @@ CI (`.github/workflows/ci.yml`) runs format:check, lint, typecheck, test, domain
 - **Domain dates:** use `LocalDate` and `YearMonth` from the shared kernel, never `Date`. Calendar math in `shared-kernel/calendar.ts` doesn't depend on the host time zone, and "today" comes from the `Clock` port.
 - **Prisma 7:** the config is in `backend/prisma.config.ts` (it loads `.env` itself). The client is generated into `backend/src/platform/prisma/generated/`, which is gitignored and excluded from lint, so run `pnpm db:generate` after editing `schema.prisma`. CHECKs, exclusion constraints and the audit triggers live as hand-written SQL in the migration, and Prisma's diff ignores them, so add new ones by hand (`prisma migrate dev --create-only`, then edit). Prisma refuses `migrate reset` when an AI agent runs it, so ask the user to run it.
 - **Repositories:** a domain declares the port and its DI token (e.g. `UNIT_REPOSITORY` in `units/domain/unit-repository.ts`). The adapter in `infrastructure/` uses `PrismaDatabase.db`, which joins the current `UnitOfWork.run()` transaction through AsyncLocalStorage. Conversions such as `toDbMonth` live in `platform/prisma/db-values.ts`. Integration specs call `useTestDatabase()` from `backend/test/support/database.ts`, which truncates everything except `audit_log` and reseeds the ten units before each test.
+- **Authentication is on by default:** a global guard requires a Bearer access token on every route. Mark public routes with `@Public()` and read the caller with `@CurrentActor()` (both in `platform/http/auth.ts`). Authorization (superadmin only, write windows) belongs in the use case through domain policies, never in a guard.
+- **HTTP errors:** throw `DomainError` subclasses; `ProblemDetailsFilter` turns them into RFC 9457 responses with the error `code` (validation 422, conflict 409, unauthenticated 401, forbidden 403, not found 404). Validate request parts with `new ZodValidationPipe(schema)` using the shared contracts (400 `VALIDATION_FAILED`). Add a Spanish message for every new code in `frontend/src/lib/error-messages.ts`.
+- **Errors inside a transaction:** a use case that must persist something and still fail (e.g. revoking a session on refresh-token reuse) returns an outcome from `unitOfWork.run()` and throws after it; throwing inside rolls the write back.
+- **Time:** `Clock` (token `CLOCK`, provided globally by `platform/clock`) gives `today()` in America/Mexico_City and `now()` as an `Instant`. Use `Instant` for expiries, never `Date`, in domain and application code.
+- **API integration specs:** `useTestApp()` from `backend/test/support/app.ts` boots the real `AppModule` on the Testcontainers database (pair it with `useTestDatabase()`); it resets the login rate limiter before each test.
 - **Env vars:** new environment variables must be added to the Zod schema in `backend/src/platform/config/env.ts` and to `backend/.env.example`.
 
 ## Architecture rules
@@ -82,5 +88,6 @@ CI (`.github/workflows/ci.yml`) runs format:check, lint, typecheck, test, domain
 ## Frontend conventions
 
 - `@/*` resolves to `frontend/src/*`. Code is organized by feature under `src/features/<feature>/` (`api.ts` for Query hooks, `components/`, `routes/`).
-- Routing and data use TanStack Router and TanStack Query. Forms use react-hook-form with the Zod schemas from `packages/shared`.
+- Routing and data use TanStack Router and TanStack Query. The route tree is declared in code in `app/router.tsx` (screens stay in `features/<feature>/routes/`), and guards live in `beforeLoad`. Forms use react-hook-form with the Zod schemas from `packages/shared`.
+- **Session:** `lib/session.ts` keeps the user and the access token in memory only; the refresh token is an httpOnly cookie. Call the API through `getJson`/`sendJson` in `lib/http.ts`, which attach the token and refresh once on a 401. Components read the user with `useCurrentUser()`. Tests render the whole app with `renderApp(path)` and stub the API with `fakeApi()` (`src/test/`).
 - shadcn style `base-lyra` is built on **Base UI (`@base-ui/react`), not Radix**, and uses **Phosphor icons**. Add components with `pnpm dlx shadcn add <component>` from `frontend/`. Tailwind v4 is configured through `@tailwindcss/vite`, with theme tokens in `src/index.css` and no `tailwind.config`.
