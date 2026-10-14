@@ -59,7 +59,7 @@ describe('accounts', () => {
     await userEvent.click(owing);
     expect(await screen.findByRole('heading', { name: 'Depto 102' })).toBeInTheDocument();
     // Newest first.
-    expect(screen.getAllByRole('listitem')[0]).toHaveTextContent('octubre 2026');
+    expect((await screen.findAllByRole('listitem'))[0]).toHaveTextContent('octubre 2026');
     expect(screen.getByText('Falta $350.00')).toBeInTheDocument();
     expect(screen.getByText('Pendiente')).toBeInTheDocument();
   });

@@ -4,28 +4,15 @@ import {
   createRootRouteWithContext,
   createRoute,
   createRouter,
+  lazyRouteComponent,
   notFound,
   Outlet,
   redirect,
   type RouterHistory,
 } from '@tanstack/react-router';
-import { AccountStatementPage } from '@/features/accounts/routes/AccountStatementPage';
-import { AccountsPage } from '@/features/accounts/routes/AccountsPage';
-import { AccountPage } from '@/features/account/routes/AccountPage';
-import { AdminPage } from '@/features/admin/routes/AdminPage';
-import { OpeningBalancesPage } from '@/features/admin/routes/OpeningBalancesPage';
-import { ReportingStartPage } from '@/features/admin/routes/ReportingStartPage';
-import { UnitsPage } from '@/features/admin/routes/UnitsPage';
-import { UsersPage } from '@/features/admin/routes/UsersPage';
 import { auditFiltersFrom } from '@/features/audit/filters';
-import { AuditLogPage } from '@/features/audit/routes/AuditLogPage';
-import { ChangePasswordPage } from '@/features/auth/routes/ChangePasswordPage';
 import { LoginPage } from '@/features/auth/routes/LoginPage';
-import { BookPage } from '@/features/book/routes/BookPage';
-import { HistoryPage } from '@/features/book/routes/HistoryPage';
 import { HomePage } from '@/features/dashboard/routes/HomePage';
-import { MorePage } from '@/features/more/routes/MorePage';
-import { ShiftsPage } from '@/features/shifts/routes/ShiftsPage';
 import { buildingToday } from '@/lib/format';
 import { safeRedirect } from '@/lib/safe-redirect';
 import type { SessionStore } from '@/lib/session';
@@ -38,6 +25,60 @@ export interface RouterContext {
 }
 
 const CHANGE_PASSWORD = '/account/password';
+
+// Every screen but the first ones (login, home) loads on demand, in its own chunk: the
+// phone downloads the book's code when the book is opened. Hovering or touching a link
+// preloads it (defaultPreload: 'intent').
+const AccountPage = lazyRouteComponent(
+  () => import('@/features/account/routes/AccountPage'),
+  'AccountPage',
+);
+const AccountStatementPage = lazyRouteComponent(
+  () => import('@/features/accounts/routes/AccountStatementPage'),
+  'AccountStatementPage',
+);
+const AccountsPage = lazyRouteComponent(
+  () => import('@/features/accounts/routes/AccountsPage'),
+  'AccountsPage',
+);
+const AdminPage = lazyRouteComponent(
+  () => import('@/features/admin/routes/AdminPage'),
+  'AdminPage',
+);
+const AuditLogPage = lazyRouteComponent(
+  () => import('@/features/audit/routes/AuditLogPage'),
+  'AuditLogPage',
+);
+const BookPage = lazyRouteComponent(() => import('@/features/book/routes/BookPage'), 'BookPage');
+const ChangePasswordPage = lazyRouteComponent(
+  () => import('@/features/auth/routes/ChangePasswordPage'),
+  'ChangePasswordPage',
+);
+const HistoryPage = lazyRouteComponent(
+  () => import('@/features/book/routes/HistoryPage'),
+  'HistoryPage',
+);
+const MorePage = lazyRouteComponent(() => import('@/features/more/routes/MorePage'), 'MorePage');
+const OpeningBalancesPage = lazyRouteComponent(
+  () => import('@/features/admin/routes/OpeningBalancesPage'),
+  'OpeningBalancesPage',
+);
+const ReportingStartPage = lazyRouteComponent(
+  () => import('@/features/admin/routes/ReportingStartPage'),
+  'ReportingStartPage',
+);
+const ShiftsPage = lazyRouteComponent(
+  () => import('@/features/shifts/routes/ShiftsPage'),
+  'ShiftsPage',
+);
+const UnitsPage = lazyRouteComponent(
+  () => import('@/features/admin/routes/UnitsPage'),
+  'UnitsPage',
+);
+const UsersPage = lazyRouteComponent(
+  () => import('@/features/admin/routes/UsersPage'),
+  'UsersPage',
+);
 
 // The route tree is declared in code, in one place, while each screen lives in its feature
 // folder. Guards run in `beforeLoad`, before anything renders. They are about navigation
