@@ -5,6 +5,7 @@ import { FakeMonthLedger } from '../../../../test/support/month-ledger.js';
 import { type Actor, UnitNumber, YearMonth, YearMonthRange } from '../../../shared-kernel/index.js';
 import { Unit } from '../domain/index.js';
 import { ListUnits, UnitStatuses } from './list-units.js';
+import { RenameUnitOwner } from './rename-unit-owner.js';
 import { SetUnitStatus } from './set-unit-status.js';
 import { InMemoryUnitRepository } from './testing.js';
 
@@ -17,6 +18,7 @@ describe('units', () => {
   let units: InMemoryUnitRepository;
   let audit: RecordingAuditTrail;
   let setStatus: SetUnitStatus;
+  let rename: RenameUnitOwner;
   let ledger: FakeMonthLedger;
 
   beforeEach(() => {
@@ -25,6 +27,33 @@ describe('units', () => {
     audit = new RecordingAuditTrail(unitOfWork);
     ledger = new FakeMonthLedger();
     setStatus = new SetUnitStatus(units, unitOfWork, audit, ledger);
+    rename = new RenameUnitOwner(units, unitOfWork, audit);
+  });
+
+  describe('RenameUnitOwner', () => {
+    it('lets the superadmin set the owner’s name, audited only when it changes', async () => {
+      await rename.execute(admin, u(301), 'Raúl Brindis Hernández');
+      await rename.execute(admin, u(301), ' Raúl Brindis Hernández ');
+
+      expect((await units.findByNumber(u(301)))?.ownerName).toBe('Raúl Brindis Hernández');
+      expect(audit.entries.map((e) => e.change)).toEqual([
+        expect.objectContaining({
+          action: 'UNIT_OWNER_RENAMED',
+          changes: [{ field: 'ownerName', before: null, after: 'Raúl Brindis Hernández' }],
+        }),
+      ]);
+      expect(new UnitStatuses(await units.findAll()).ownerOf(u(301))).toBe(
+        'Raúl Brindis Hernández',
+      );
+    });
+
+    it('is for the superadmin, on an existing depto', async () => {
+      await expect(rename.execute(owner, u(501), 'Yo')).rejects.toThrow(
+        withCode('SUPERADMIN_ONLY'),
+      );
+      const empty = new RenameUnitOwner(new InMemoryUnitRepository(), new FakeUnitOfWork(), audit);
+      await expect(empty.execute(admin, u(501), 'X')).rejects.toThrow(withCode('UNIT_NOT_FOUND'));
+    });
   });
 
   describe('SetUnitStatus', () => {

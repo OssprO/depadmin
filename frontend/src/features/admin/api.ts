@@ -1,4 +1,8 @@
 import {
+  type OpeningBalanceRequest,
+  openingBalanceSchema,
+  openingBalancesSchema,
+  type RenameOwnerRequest,
   passwordResetResponseSchema,
   type ReportingStart,
   reportingStartResponseSchema,
@@ -44,6 +48,19 @@ export function useSetUnitStatus() {
   });
 }
 
+/** The owner's name shows in the monthly report and the audit log. */
+export function useRenameOwner() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ unit, ...body }: RenameOwnerRequest & { unit: number }) =>
+      sendJson('PUT', `/units/${unit}/owner`, body, unitSchema),
+    onSuccess: () =>
+      Promise.all(
+        [['units'], ['audit-log']].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+      ),
+  });
+}
+
 export const reportingStartQueryOptions = queryOptions({
   queryKey: ['reporting-start'],
   queryFn: () => getJson('/reporting-start', reportingStartResponseSchema),
@@ -59,6 +76,26 @@ export function useSetReportingStart() {
     onSuccess: () =>
       Promise.all(
         [['reporting-start'], ['months'], ['audit-log']].map((queryKey) =>
+          queryClient.invalidateQueries({ queryKey }),
+        ),
+      ),
+  });
+}
+
+export const openingBalancesQueryOptions = queryOptions({
+  queryKey: ['opening-balances'],
+  queryFn: () => getJson('/opening-balances', openingBalancesSchema),
+});
+
+/** What a depto carried into the books moves its account, so the books are refreshed too. */
+export function useSetOpeningBalance() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ unit, ...body }: OpeningBalanceRequest & { unit: number }) =>
+      sendJson('PUT', `/opening-balances/${unit}`, body, openingBalanceSchema),
+    onSuccess: () =>
+      Promise.all(
+        [['opening-balances'], ['accounts'], ['months'], ['audit-log']].map((queryKey) =>
           queryClient.invalidateQueries({ queryKey }),
         ),
       ),

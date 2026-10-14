@@ -14,6 +14,10 @@ import {
   type AccountSummary,
   type MonthHistory,
   type MonthlyReport,
+  type OpeningBalance as OpeningBalanceResponse,
+  type OpeningBalanceRequest,
+  openingBalanceRequestSchema,
+  type OpeningBalances,
   type ReportingStart,
   reportingStartSchema,
   type UnitNumberValue,
@@ -29,10 +33,12 @@ import {
   GetAccounts,
   GetMonthHistory,
   GetMonthlyReport,
+  GetOpeningBalances,
   GetReportingStart,
   OpenMonth,
   RenderMonthlyReport,
   ReopenMonth,
+  SetOpeningBalance,
   SetReportingStart,
 } from '../application/index.js';
 import {
@@ -40,6 +46,7 @@ import {
   toAccountSummary,
   toMonthHistory,
   toMonthlyReport,
+  toOpeningBalance,
 } from './presenters.js';
 
 const monthParam = new ZodValidationPipe(yearMonthSchema.transform((m) => YearMonth.parse(m)));
@@ -55,6 +62,8 @@ export class ReportsController {
     private readonly monthlyReport: GetMonthlyReport,
     private readonly history: GetMonthHistory,
     private readonly pdf: RenderMonthlyReport,
+    private readonly getOpening: GetOpeningBalances,
+    private readonly setOpening: SetOpeningBalance,
     private readonly accounts: GetAccounts,
   ) {}
 
@@ -131,6 +140,33 @@ export class ReportsController {
     @Param('month', monthParam) month: YearMonth,
   ): Promise<void> {
     await this.reopenMonth.execute(actor, month);
+  }
+
+  /** The initial load: what each depto carried into the books. Everyone may read it. */
+  @Get('opening-balances')
+  async openingBalances(): Promise<OpeningBalances> {
+    const { start, locked, balances } = await this.getOpening.execute();
+    return { start: String(start), locked, balances: balances.map(toOpeningBalance) };
+  }
+
+  @Put('opening-balances/:unit')
+  async setOpeningBalance(
+    @CurrentActor() actor: Actor,
+    @Param('unit', new ZodValidationPipe(z.coerce.number().pipe(unitNumberSchema)))
+    unit: UnitNumberValue,
+    @Body(new ZodValidationPipe(openingBalanceRequestSchema)) body: OpeningBalanceRequest,
+  ): Promise<OpeningBalanceResponse> {
+    const balance = await this.setOpening.execute(
+      actor,
+      UnitNumber.of(unit),
+      body.debts.map((debt) => ({
+        month: YearMonth.parse(debt.month),
+        type: debt.type,
+        amount: Money.ofCentavos(debt.amount),
+      })),
+      Money.ofCentavos(body.credit),
+    );
+    return toOpeningBalance(balance);
   }
 
   /** Everyone's adeudo and adelanto. */

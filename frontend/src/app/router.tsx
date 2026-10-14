@@ -13,6 +13,7 @@ import { AccountStatementPage } from '@/features/accounts/routes/AccountStatemen
 import { AccountsPage } from '@/features/accounts/routes/AccountsPage';
 import { AccountPage } from '@/features/account/routes/AccountPage';
 import { AdminPage } from '@/features/admin/routes/AdminPage';
+import { OpeningBalancesPage } from '@/features/admin/routes/OpeningBalancesPage';
 import { ReportingStartPage } from '@/features/admin/routes/ReportingStartPage';
 import { UnitsPage } from '@/features/admin/routes/UnitsPage';
 import { UsersPage } from '@/features/admin/routes/UsersPage';
@@ -208,6 +209,12 @@ const reportingStartRoute = createRoute({
   component: ReportingStartPage,
 });
 
+const openingBalancesRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/opening',
+  component: OpeningBalancesPage,
+});
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([
@@ -222,7 +229,13 @@ const routeTree = rootRoute.addChildren([
     auditRoute,
     accountRoute,
     changePasswordRoute,
-    adminRoute.addChildren([adminIndexRoute, usersRoute, unitsRoute, reportingStartRoute]),
+    adminRoute.addChildren([
+      adminIndexRoute,
+      usersRoute,
+      unitsRoute,
+      reportingStartRoute,
+      openingBalancesRoute,
+    ]),
   ]),
 ]);
 

@@ -420,7 +420,14 @@ describe('RenderMonthlyReport', () => {
     expect(doc?.otherIncome.map((e) => [e.description, e.amount])).toEqual([
       ['Cooperación', pesos(500)],
     ]);
-    expect(doc?.garbage.map((e) => String(e.week))).toEqual(['2026-08-31']);
+    // The week paid, then the month's weeks nobody paid (blank in the report).
+    expect(doc?.garbage.map((e) => [String(e.week), e.amount])).toEqual([
+      ['2026-08-31', pesos(150)],
+      ['2026-09-07', null],
+      ['2026-09-14', null],
+      ['2026-09-21', null],
+    ]);
+    expect(doc?.maintenanceFee).toEqual(pesos(700));
     expect(doc?.otherExpenses.map((e) => e.description)).toEqual(['Focos']);
     expect(doc?.cleaning.map((w) => [String(w.weekStart), w.dates.length, w.total])).toEqual([
       ['2026-08-31', 2, pesos(540)],
@@ -460,6 +467,11 @@ describe('RenderMonthlyReport', () => {
     expect(line(501)).toMatchObject({ covered: ['2026-08', '2026-09'], credit: '1400.00' });
     expect(line(101)).toMatchObject({ paid: '0.00', outstanding: '1400.00' });
     expect(units.every((u) => u.active)).toBe(true);
+    const fee = (unit: number) => units.find((u) => u.unit.value === unit)!.currentFee;
+    // 402 paid August first, so only $300 of its September payment went to September.
+    expect(fee(402)).toMatchObject({ paidThisMonth: pesos(300), outstanding: pesos(400) });
+    expect(units.find((u) => u.unit.value === 501)?.advanced).toEqual(pesos(1400));
+    expect(fee(101)).toMatchObject({ paidThisMonth: Money.ZERO, outstanding: pesos(700) });
   });
 
   it('is a draft while the month is open, and needs the month opened', async () => {
@@ -467,5 +479,130 @@ describe('RenderMonthlyReport', () => {
 
     expect((await fx.pdf.document(m('2026-10'))).status).toBe('OPEN');
     await expect(fx.pdf.execute(m('2026-11'))).rejects.toThrow(withCode('REPORT_NOT_FOUND'));
+  });
+});
+
+describe('opening balances', () => {
+  const august = { month: m('2026-08'), openingBalance: pesos(18_247.02) };
+  const debt = (month: string, amount: number, type = 'MAINTENANCE_FEE' as const) => ({
+    month: m(month),
+    type,
+    amount: pesos(amount),
+  });
+  const u = (n: number) => UnitNumber.of(n);
+
+  it('carries each depto’s debts and adelanto into the books, oldest first', async () => {
+    const fx = booksFixture('2026-09-03');
+    await fx.setStart.execute(admin, august);
+    await fx.setOpening.execute(
+      admin,
+      u(301),
+      [
+        debt('2025-08', 600),
+        debt('2026-07', 700),
+        { ...debt('2026-07', 500), type: 'SHIFT_SKIP_PENALTY' },
+      ],
+      Money.ZERO,
+    );
+    await fx.setOpening.execute(admin, u(202), [], pesos(700));
+    await fx.open.execute(admin, m('2026-08'));
+    await fx.add.execute(admin, payment('2026-08-10', 301, 700));
+
+    const accounts = await fx.accounts.all();
+    const account = (n: number) => accounts.find((a) => a.unit === u(n))!;
+    // 301's $700 went to the oldest debt: what was left of August 2025, then July 2026.
+    expect(
+      account(301).lines.map((l) => [
+        String(l.charge.month),
+        l.charge.type,
+        l.outstanding.toString(),
+      ]),
+    ).toEqual([
+      ['2025-08', 'MAINTENANCE_FEE', '0.00'],
+      ['2026-07', 'MAINTENANCE_FEE', '600.00'],
+      ['2026-07', 'SHIFT_SKIP_PENALTY', '500.00'],
+      ['2026-08', 'MAINTENANCE_FEE', '700.00'],
+    ]);
+    // 202's adelanto paid August.
+    expect([account(202).outstandingBalance, account(202).creditBalance]).toEqual([
+      Money.ZERO,
+      Money.ZERO,
+    ]);
+    // The cash is the reporting start's: the initial load never moves it.
+    expect((await fx.view.execute(admin, m('2026-08'))).balances?.opening).toEqual(
+      pesos(18_247.02),
+    );
+
+    // In August's report, 202's fee shows as paid before the month.
+    const { units } = await fx.pdf.document(m('2026-08'));
+    expect(units.find((l) => l.unit === u(202))?.currentFee).toMatchObject({
+      paidThisMonth: Money.ZERO,
+      paidBefore: pesos(700),
+      paidBeforeIn: m('2026-07'),
+    });
+
+    const { start, locked, balances } = await fx.getOpening.execute();
+    expect([String(start), locked]).toEqual(['2026-08', false]);
+    expect(balances.find((b) => b.unit === u(301))?.debt).toEqual(pesos(1800));
+    expect(
+      fx.audit.entries.find((e) => e.change.action === 'OPENING_BALANCE_SET')?.change,
+    ).toMatchObject({
+      entity: 'opening_balance',
+      entityId: '301',
+      changes: [
+        {
+          field: 'debts',
+          before: null,
+          after:
+            '2025-08 MAINTENANCE_FEE 60000, 2026-07 MAINTENANCE_FEE 70000, 2026-07 SHIFT_SKIP_PENALTY 50000',
+        },
+      ],
+    });
+  });
+
+  it('replaces a depto’s balance as a whole, audited only when it changes', async () => {
+    const fx = booksFixture('2026-08-03');
+    await fx.setStart.execute(admin, august);
+    await fx.setOpening.execute(
+      admin,
+      u(102),
+      [debt('2026-06', 700), debt('2026-07', 700)],
+      Money.ZERO,
+    );
+    await fx.setOpening.execute(admin, u(102), [debt('2026-07', 700)], pesos(100));
+    await fx.setOpening.execute(admin, u(102), [debt('2026-07', 700)], pesos(100));
+
+    expect(fx.charges.summary().filter((c) => c.startsWith('102'))).toEqual([
+      '102:2026-07:MAINTENANCE_FEE 70000',
+    ]);
+    expect(fx.audit.actions.filter((a) => a === 'OPENING_BALANCE_SET')).toHaveLength(2);
+    await fx.setOpening.execute(admin, u(102), [], Money.ZERO);
+    expect((await fx.getOpening.execute()).balances.every((b) => b.isEmpty)).toBe(true);
+  });
+
+  it('is the superadmin’s, before the start, and frozen once the first month closes', async () => {
+    const fx = booksFixture('2026-09-03');
+    await expect(fx.setOpening.execute(admin, u(102), [], pesos(1))).rejects.toThrow(
+      withCode('REPORTING_NOT_STARTED'),
+    );
+    await fx.setStart.execute(admin, august);
+    await expect(fx.setOpening.execute(owner(501), u(102), [], pesos(1))).rejects.toThrow(
+      withCode('SUPERADMIN_ONLY'),
+    );
+    await expect(
+      fx.setOpening.execute(admin, u(102), [debt('2026-08', 700)], Money.ZERO),
+    ).rejects.toThrow(withCode('OPENING_CHARGE_NOT_BEFORE_START'));
+
+    await fx.setOpening.execute(admin, u(102), [debt('2026-07', 700)], Money.ZERO);
+    await expect(fx.setStart.execute(admin, { ...august, month: m('2026-09') })).rejects.toThrow(
+      withCode('OPENING_BALANCES_SET'),
+    );
+
+    await fx.open.execute(admin, m('2026-08'));
+    await fx.close.execute(admin, m('2026-08'));
+    expect((await fx.getOpening.execute()).locked).toBe(true);
+    await expect(fx.setOpening.execute(admin, u(102), [], Money.ZERO)).rejects.toThrow(
+      withCode('OPENING_BALANCE_LOCKED'),
+    );
   });
 });

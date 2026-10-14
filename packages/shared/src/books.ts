@@ -243,3 +243,33 @@ export const accountStatementSchema = accountSummarySchema.extend({
 export type AccountStatement = z.infer<typeof accountStatementSchema>;
 
 export const accountListResponseSchema = z.array(accountSummarySchema);
+
+/** One debt carried into the books: a month (or what was left of it) or a penalty. */
+export const openingDebtSchema = z.object({
+  month: yearMonthSchema,
+  type: chargeTypeSchema,
+  amount: centavosSchema.positive('El importe debe ser mayor que cero'),
+});
+export type OpeningDebt = z.infer<typeof openingDebtSchema>;
+
+/** `PUT /api/opening-balances/:unit`: a depto's whole opening balance (initial load). */
+export const openingBalanceRequestSchema = z.object({
+  debts: z.array(openingDebtSchema).max(120),
+  credit: centavosSchema.nonnegative('El adelanto no puede ser negativo'),
+});
+export type OpeningBalanceRequest = z.infer<typeof openingBalanceRequestSchema>;
+
+export const openingBalanceSchema = openingBalanceRequestSchema.extend({
+  unit: unitNumberSchema,
+});
+export type OpeningBalance = z.infer<typeof openingBalanceSchema>;
+
+/** `GET /api/opening-balances`: what every depto carried into the books. */
+export const openingBalancesSchema = z.object({
+  /** The first month of the books; every debt is from before it. */
+  start: yearMonthSchema,
+  /** Fixed once the first month is closed. */
+  locked: z.boolean(),
+  balances: z.array(openingBalanceSchema),
+});
+export type OpeningBalances = z.infer<typeof openingBalancesSchema>;

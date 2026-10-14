@@ -1,6 +1,11 @@
 // In-memory adapter for specs that touch charges. Excluded from the build.
 import type { UnitNumber, YearMonth } from '../../../shared-kernel/index.js';
-import type { Charge, ChargeRepository } from '../domain/index.js';
+import type {
+  Charge,
+  ChargeRepository,
+  OpeningCredit,
+  OpeningCreditRepository,
+} from '../domain/index.js';
 
 export class InMemoryChargeRepository implements ChargeRepository {
   readonly rows = new Map<string, Charge>();
@@ -30,5 +35,19 @@ export class InMemoryChargeRepository implements ChargeRepository {
   /** "unit:month:type amount" for each stored charge, sorted. */
   summary(): string[] {
     return [...this.rows.values()].map((c) => `${c.key} ${c.amount.centavos}`).sort();
+  }
+}
+
+export class InMemoryOpeningCreditRepository implements OpeningCreditRepository {
+  readonly rows = new Map<UnitNumber, OpeningCredit>();
+
+  findAll(): Promise<OpeningCredit[]> {
+    return Promise.resolve([...this.rows.values()]);
+  }
+
+  save(unit: UnitNumber, credit: OpeningCredit | null): Promise<void> {
+    if (credit) this.rows.set(unit, credit);
+    else this.rows.delete(unit);
+    return Promise.resolve();
   }
 }

@@ -7,8 +7,13 @@ import { fakeApi, sessionFor, superadmin } from '@/test/fake-api';
 import { renderApp } from '@/test/render-app';
 
 const units: Unit[] = [
-  { number: 301, activeNow: true, inactivePeriods: [] },
-  { number: 302, activeNow: false, inactivePeriods: [{ from: '2026-09', to: null }] },
+  { number: 301, ownerName: 'Ana López', activeNow: true, inactivePeriods: [] },
+  {
+    number: 302,
+    ownerName: null,
+    activeNow: false,
+    inactivePeriods: [{ from: '2026-09', to: null }],
+  },
 ];
 
 describe('UnitsPage', () => {
@@ -24,6 +29,7 @@ describe('UnitsPage', () => {
       'POST /api/units/301/status': () =>
         Response.json({
           number: 301,
+          ownerName: 'Ana López',
           activeNow: true,
           inactivePeriods: [{ from: '2026-12', to: null }],
         }),
@@ -42,6 +48,28 @@ describe('UnitsPage', () => {
     expect(api.callsTo('POST /api/units/301/status')[0]?.body).toEqual({
       active: false,
       from: '2026-12',
+    });
+  });
+
+  it('sets the owner’s name the report shows, or clears it', async () => {
+    const api = fakeApi({
+      'POST /api/auth/refresh': sessionFor(superadmin),
+      'GET /api/units': () => Response.json(units),
+      'PUT /api/units/302/owner': () =>
+        Response.json({ ...units[1], ownerName: 'Bruno Díaz Ruiz' }),
+    });
+    renderApp('/admin/units');
+
+    expect(await screen.findByText('Ana López')).toBeInTheDocument();
+    const row = screen.getByText('Depto 302').closest('li')!;
+    expect(within(row).getByText('Sin nombre de propietario')).toBeInTheDocument();
+    await userEvent.click(within(row).getByRole('button', { name: 'Propietario del Depto 302' }));
+    await userEvent.type(await screen.findByLabelText('Nombre'), '  Bruno Díaz Ruiz ');
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    await vi.waitFor(() => expect(api.callsTo('PUT /api/units/302/owner')).toHaveLength(1));
+    expect(api.callsTo('PUT /api/units/302/owner')[0]?.body).toEqual({
+      ownerName: 'Bruno Díaz Ruiz',
     });
   });
 

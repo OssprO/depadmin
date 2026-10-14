@@ -12,8 +12,12 @@ export const yearMonthSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Mes 
 /** A calendar date as "YYYY-MM-DD". */
 export const localDateSchema = z.iso.date();
 
+export const OWNER_NAME_MAX_LENGTH = 80;
+
 export const unitSchema = z.object({
   number: unitNumberSchema,
+  /** As the monthly report shows it; null until the superadmin sets it. */
+  ownerName: z.string().nullable(),
   /** Whether it is active in the current month. */
   activeNow: z.boolean(),
   /** Whole months; `to` is null while it stays inactive. */
@@ -29,3 +33,12 @@ export const setUnitStatusRequestSchema = z.object({
   from: yearMonthSchema,
 });
 export type SetUnitStatusRequest = z.infer<typeof setUnitStatusRequestSchema>;
+
+export const ownerNameSchema = z
+  .string()
+  .trim()
+  .max(OWNER_NAME_MAX_LENGTH, `Máximo ${OWNER_NAME_MAX_LENGTH} caracteres`);
+
+/** `PUT /api/units/:number/owner`: the owner's name; blank or null clears it. */
+export const renameOwnerRequestSchema = z.object({ ownerName: ownerNameSchema.nullable() });
+export type RenameOwnerRequest = z.infer<typeof renameOwnerRequestSchema>;

@@ -52,6 +52,29 @@ describe('describeEntry', () => {
     ]);
   });
 
+  it('describes an opening balance in words', () => {
+    const text = describeEntry(
+      entry({
+        action: 'OPENING_BALANCE_SET',
+        entity: 'opening_balance',
+        entityLabel: '301',
+        changes: [
+          {
+            field: 'debts',
+            before: null,
+            after: '2025-08 MAINTENANCE_FEE 60000, 2026-07 SHIFT_SKIP_PENALTY 50000',
+          },
+          { field: 'credit', before: 70000, after: null },
+        ],
+      }),
+    );
+    expect(text).toMatchObject({ title: 'Carga inicial', subject: 'Saldo inicial del depto 301' });
+    expect(text.changes).toEqual([
+      { field: 'Adeudos', text: 'ago 2025 cuota $600.00; jul 2026 multa $500.00' },
+      { field: 'Adelanto', text: '$700.00 → —' },
+    ]);
+  });
+
   it('shows codes it does not know as they are', () => {
     const text = describeEntry(
       entry({
