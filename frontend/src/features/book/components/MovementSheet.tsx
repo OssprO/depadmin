@@ -1,5 +1,6 @@
 import {
   CATEGORY_RULES,
+  type GarbageWeek,
   MOVEMENT_CATEGORIES,
   type Movement,
   type MovementCategory,
@@ -10,7 +11,7 @@ import {
   UNIT_NUMBERS,
 } from '@depadmin/shared';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMemo, useState } from 'react';
+import { type ChangeEvent, useMemo, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { FormError } from '@/components/FormError';
@@ -38,6 +39,7 @@ import {
   buildingToday,
   formatMoney,
   formatMonth,
+  formatWeek,
   parsePesos,
   PESOS_PATTERN,
   pesosInput,
@@ -52,6 +54,13 @@ interface FormValues {
   amount: string;
   unit: string;
   description: string;
+  week: string;
+}
+
+/** How a new row starts: its type and, for garbage, the week it pays for. */
+export interface MovementPreset {
+  readonly category: MovementCategory;
+  readonly week?: string;
 }
 
 /** The form's strings, checked and turned into the API's row (which applies the category rules). */
@@ -68,6 +77,7 @@ function formSchema(month: string) {
         .regex(PESOS_PATTERN, 'Escribe un importe, por ejemplo 700 o 150.50'),
       unit: z.string(),
       description: z.string(),
+      week: z.string(),
     })
     .transform((form): MovementRequest => ({
       date: form.date,
@@ -75,6 +85,7 @@ function formSchema(month: string) {
       amount: parsePesos(form.amount),
       unit: form.unit ? (Number(form.unit) as MovementRequest['unit']) : null,
       description: form.description.trim() || null,
+      week: form.week || null,
     }))
     .pipe(movementRequestSchema);
 }
@@ -91,10 +102,18 @@ function suggestion(category: MovementCategory, report: MonthlyReport): string {
   return amount === undefined ? '' : pesosInput(amount);
 }
 
+/** The week a new garbage row most likely pays: the first one pending, else the next one. */
+function nextGarbageWeek(report: MonthlyReport): GarbageWeek | undefined {
+  return (
+    report.garbageWeeks.find((week) => week.status === 'PENDING') ??
+    report.garbageWeeks.find((week) => week.status === 'UPCOMING')
+  );
+}
+
 function valuesFor(
   report: MonthlyReport,
   movement: Movement | null,
-  category: MovementCategory,
+  { category, week }: MovementPreset,
 ): FormValues {
   if (movement) {
     return {
@@ -103,22 +122,33 @@ function valuesFor(
       amount: pesosInput(movement.amount),
       unit: movement.unit === null ? '' : String(movement.unit),
       description: movement.description ?? '',
+      week: movement.week ?? '',
     };
   }
   const today = buildingToday();
+  const garbageWeek = CATEGORY_RULES[category].week
+    ? (report.garbageWeeks.find((w) => w.week === week) ?? nextGarbageWeek(report))
+    : undefined;
   return {
     category,
-    date: today.startsWith(`${report.month}-`) ? today : `${report.month}-01`,
+    date:
+      garbageWeek?.suggestedDate ??
+      (today.startsWith(`${report.month}-`) ? today : `${report.month}-01`),
     amount: suggestion(category, report),
     unit: '',
     description: '',
+    week: garbageWeek?.week ?? '',
   };
 }
+
+const WEEK_STATUS = { PAID: 'pagada', PENDING: 'pendiente', UPCOMING: 'próxima' } as const;
 
 interface MovementSheetProps {
   readonly report: MonthlyReport;
   /** The row to edit, or null to add new ones. */
   readonly movement: Movement | null;
+  /** How new rows start; a payment unless said otherwise. */
+  readonly preset?: MovementPreset | undefined;
   readonly onClose: () => void;
 }
 
@@ -127,7 +157,12 @@ interface MovementSheetProps {
  * payment (those that owe first), a description for "other" rows, and the amount in force
  * prefilled. It is mounted while open, so each opening starts from fresh values.
  */
-export function MovementSheet({ report, movement, onClose }: MovementSheetProps) {
+export function MovementSheet({
+  report,
+  movement,
+  preset = { category: 'UNIT_PAYMENT' },
+  onClose,
+}: MovementSheetProps) {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [confirmingRemoval, setConfirmingRemoval] = useState(false);
@@ -137,7 +172,7 @@ export function MovementSheet({ report, movement, onClose }: MovementSheetProps)
   const schema = useMemo(() => formSchema(report.month), [report.month]);
   const form = useForm<FormValues, unknown, MovementRequest>({
     resolver: zodResolver(schema),
-    defaultValues: valuesFor(report, movement, 'UNIT_PAYMENT'),
+    defaultValues: valuesFor(report, movement, preset),
   });
   const { errors, isSubmitting } = form.formState;
   const category = useWatch({ control: form.control, name: 'category' });
@@ -151,10 +186,35 @@ export function MovementSheet({ report, movement, onClose }: MovementSheetProps)
     }))
     .sort((a, b) => b.owes - a.owes || a.unit - b.unit);
 
+  // The month's weeks, plus the one an edited row pays for if it belongs to another month.
+  const weekOptions = report.garbageWeeks.map((week) => ({
+    week: week.week,
+    label:
+      week.paidBy && week.paidBy.id === movement?.id
+        ? formatWeek(week.week)
+        : `${formatWeek(week.week)} · ${WEEK_STATUS[week.status]}`,
+  }));
+  if (movement?.week && !weekOptions.some((option) => option.week === movement.week)) {
+    weekOptions.unshift({ week: movement.week, label: formatWeek(movement.week) });
+  }
+
+  /** A new garbage row is dated when its week is usually paid; the date can still change. */
+  const dateForWeek = (week: string) => {
+    const suggested = report.garbageWeeks.find((w) => w.week === week)?.suggestedDate;
+    if (!movement && suggested) form.setValue('date', suggested);
+  };
+
   const chooseCategory = (next: MovementCategory) => {
     form.setValue('category', next);
     if (!movement) form.setValue('amount', suggestion(next, report));
     if (!CATEGORY_RULES[next].unit) form.setValue('unit', '');
+    if (!CATEGORY_RULES[next].week) {
+      form.setValue('week', '');
+    } else if (!form.getValues('week')) {
+      const week = nextGarbageWeek(report)?.week ?? '';
+      form.setValue('week', week);
+      dateForWeek(week);
+    }
   };
 
   const submit = (keepAdding: boolean) =>
@@ -169,7 +229,11 @@ export function MovementSheet({ report, movement, onClose }: MovementSheetProps)
         }
         if (keepAdding) {
           setSaved(`Guardado: ${CATEGORIES[body.category]} por ${formatMoney(body.amount)}.`);
-          form.reset({ ...valuesFor(report, null, body.category), date: body.date });
+          form.reset(
+            CATEGORY_RULES[body.category].week
+              ? valuesFor(report, null, { category: body.category })
+              : { ...valuesFor(report, null, { category: body.category }), date: body.date },
+          );
         } else {
           onClose();
         }
@@ -247,6 +311,28 @@ export function MovementSheet({ report, movement, onClose }: MovementSheetProps)
                   ))}
                 </NativeSelect>
                 <FieldError errors={[errors.unit]} />
+              </Field>
+            )}
+            {rule.week && (
+              <Field data-invalid={!!errors.week}>
+                <FieldLabel htmlFor="movement-week">Semana que se paga</FieldLabel>
+                <NativeSelect
+                  id="movement-week"
+                  className="w-full"
+                  aria-invalid={!!errors.week}
+                  {...form.register('week', {
+                    onChange: (event: ChangeEvent<HTMLSelectElement>) =>
+                      dateForWeek(event.target.value),
+                  })}
+                >
+                  <NativeSelectOption value="">Selecciona</NativeSelectOption>
+                  {weekOptions.map(({ week, label }) => (
+                    <NativeSelectOption key={week} value={week}>
+                      {label}
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
+                <FieldError errors={[errors.week]} />
               </Field>
             )}
             <div className="grid grid-cols-2 gap-3">

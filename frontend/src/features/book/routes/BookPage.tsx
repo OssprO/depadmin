@@ -8,8 +8,17 @@ import { addMonths, buildingToday, formatMonth } from '@/lib/format';
 import { monthQueryOptions } from '../api';
 import { MonthSummary } from '../components/MonthSummary';
 import { MovementList } from '../components/MovementList';
-import { MovementSheet } from '../components/MovementSheet';
+import { CleaningCard } from '../components/CleaningCard';
+import { CleaningVisitsSheet } from '../components/CleaningVisitsSheet';
+import { MovementSheet, type MovementPreset } from '../components/MovementSheet';
 import { OpenMonthCard } from '../components/OpenMonthCard';
+import { PendingGarbage } from '../components/PendingGarbage';
+
+/** What is open over the page: a row's form (new or existing) or the cleaning calendar. */
+type Editing =
+  | { kind: 'movement'; movement: Movement }
+  | { kind: 'new'; preset: MovementPreset }
+  | { kind: 'visits' };
 
 /**
  * The month's book: the summary on top and every row below. It is the turn admin's main
@@ -17,7 +26,7 @@ import { OpenMonthCard } from '../components/OpenMonthCard';
  */
 export function BookPage({ month }: { month: string }) {
   const report = useQuery(monthQueryOptions(month));
-  const [editing, setEditing] = useState<Movement | 'new' | null>(null);
+  const [editing, setEditing] = useState<Editing | null>(null);
   const thisMonth = buildingToday().slice(0, 7);
   const data = report.data;
 
@@ -62,9 +71,24 @@ export function BookPage({ month }: { month: string }) {
       {data && data.status !== 'NOT_OPENED' && (
         <>
           <MonthSummary report={data} />
+          <PendingGarbage
+            report={data}
+            onAdjust={
+              data.canWrite
+                ? (week) =>
+                    setEditing({ kind: 'new', preset: { category: 'GARBAGE', week: week.week } })
+                : undefined
+            }
+          />
           <MovementList
             movements={data.movements}
-            onSelect={data.canWrite ? (movement) => setEditing(movement) : undefined}
+            onSelect={
+              data.canWrite ? (movement) => setEditing({ kind: 'movement', movement }) : undefined
+            }
+          />
+          <CleaningCard
+            report={data}
+            onMarkVisits={data.canWrite ? () => setEditing({ kind: 'visits' }) : undefined}
           />
           {!data.canWrite && data.status === 'OPEN' && (
             <p className="text-xs/relaxed text-muted-foreground">
@@ -77,16 +101,20 @@ export function BookPage({ month }: { month: string }) {
       {data?.canWrite && (
         <Button
           className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] shadow-lg"
-          onClick={() => setEditing('new')}
+          onClick={() => setEditing({ kind: 'new', preset: { category: 'UNIT_PAYMENT' } })}
         >
           <PlusIcon /> Agregar
         </Button>
       )}
-      {data && editing && (
+      {data && editing?.kind === 'visits' && (
+        <CleaningVisitsSheet report={data} onClose={() => setEditing(null)} />
+      )}
+      {data && editing && editing.kind !== 'visits' && (
         <MovementSheet
-          key={editing === 'new' ? 'new' : editing.id}
+          key={editing.kind === 'new' ? 'new' : editing.movement.id}
           report={data}
-          movement={editing === 'new' ? null : editing}
+          movement={editing.kind === 'new' ? null : editing.movement}
+          preset={editing.kind === 'new' ? editing.preset : undefined}
           onClose={() => setEditing(null)}
         />
       )}

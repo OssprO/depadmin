@@ -131,3 +131,31 @@ const localDateFormat = new Intl.DateTimeFormat('es-MX', {
 export function formatLocalDate(date: string): string {
   return localDateFormat.format(new Date(`${date}T00:00:00Z`));
 }
+
+const utcDate = (date: string) => new Date(`${date}T00:00:00Z`);
+
+/** "YYYY-MM-DD" plus `days` (negative to go back). */
+export function addDays(date: string, days: number): string {
+  const moved = utcDate(date);
+  moved.setUTCDate(moved.getUTCDate() + days);
+  return moved.toISOString().slice(0, 10);
+}
+
+/** ISO day of the week of a calendar date: 1 = Monday … 7 = Sunday. */
+export function dayOfWeek(date: string): number {
+  return utcDate(date).getUTCDay() || 7;
+}
+
+/** "2026-09-28" → "28 sep". */
+export function formatShortDate(date: string): string {
+  return `${Number(date.slice(8, 10))} ${formatMonthShort(date.slice(0, 7))}`;
+}
+
+/** A Monday-to-Sunday week by its Monday: "5–11 oct", or "28 sep – 4 oct" across months. */
+export function formatWeek(monday: string): string {
+  const sunday = addDays(monday, 6);
+  if (monday.slice(0, 7) === sunday.slice(0, 7)) {
+    return `${Number(monday.slice(8, 10))}–${formatShortDate(sunday)}`;
+  }
+  return `${formatShortDate(monday)} – ${formatShortDate(sunday)}`;
+}

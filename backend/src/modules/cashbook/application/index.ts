@@ -5,7 +5,9 @@ export * from './record-movements.js';
 export type {
   CashbookTotals,
   CashMovement,
+  GarbageWeek,
   MonthlyCashbook,
   MovementCategory,
   MovementDetails,
+  WeeklyCleaningPayout,
 } from '../domain/index.js';

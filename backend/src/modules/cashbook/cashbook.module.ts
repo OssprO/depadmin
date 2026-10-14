@@ -4,6 +4,7 @@ import {
   AddMovement,
   CashbookAccess,
   ReadCashbook,
+  RecordCleaningVisits,
   RemoveMovement,
   ReviseMovement,
 } from './application/index.js';
@@ -21,6 +22,7 @@ import { PrismaCashMovementRepository } from './infrastructure/prisma-cash-movem
     AddMovement,
     ReviseMovement,
     RemoveMovement,
+    RecordCleaningVisits,
     ReadCashbook,
   ],
   exports: [ReadCashbook],

@@ -9,6 +9,7 @@ const payment = (coverage: Movement['coverage'], amount = 140000): Movement => (
   amount,
   unit: 501,
   description: null,
+  week: null,
   coverage,
 });
 

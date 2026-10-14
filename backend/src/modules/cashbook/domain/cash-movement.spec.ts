@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { withCode } from '../../../../test/support/domain-error.js';
 import { Money, UnitNumber } from '../../../shared-kernel/index.js';
 import { CashMovement } from './cash-movement.js';
-import { expense, otherIncome, payment, pesos } from './testing.js';
+import { d, expense, garbage, otherIncome, payment, pesos } from './testing.js';
 
 describe('CashMovement', () => {
   it('derives direction, sign and month from category and date', () => {
@@ -61,8 +61,25 @@ describe('CashMovement', () => {
     expect(() => row.revise({ category: 'GARBAGE' })).toThrow(
       withCode('MOVEMENT_UNIT_NOT_ALLOWED'),
     );
-    row.revise({ category: 'GARBAGE', unit: null });
+    row.revise({ category: 'GARBAGE', unit: null, week: d('2026-08-31') });
     expect(row.direction).toBe('OUT');
+  });
+
+  it('names the week a garbage row pays for, by its Monday, and only on garbage', () => {
+    const late = CashMovement.record('g1', garbage('2026-09-08', '2026-08-31'));
+    expect(String(late.details.week)).toBe('2026-08-31');
+    expect(() =>
+      CashMovement.record('x', { ...expense('2026-09-06', 'GARBAGE', 150), week: null }),
+    ).toThrow(withCode('MOVEMENT_WEEK_REQUIRED'));
+    expect(() => CashMovement.record('x', garbage('2026-09-06', '2026-09-06'))).toThrow(
+      withCode('MOVEMENT_WEEK_INVALID'),
+    );
+    expect(() =>
+      CashMovement.record('x', {
+        ...expense('2026-09-07', 'CLEANING', 270),
+        week: d('2026-09-07'),
+      }),
+    ).toThrow(withCode('MOVEMENT_WEEK_NOT_ALLOWED'));
   });
 
   it('soft-deletes and then refuses changes', () => {

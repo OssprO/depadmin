@@ -1,5 +1,5 @@
 import type { AuditLogEntry, AuditValue, DelegationReason, FieldChange } from '@depadmin/shared';
-import { formatLocalDate, formatMoney, formatMonth } from '@/lib/format';
+import { formatLocalDate, formatMoney, formatMonth, formatWeek } from '@/lib/format';
 import { CATEGORIES } from '../book/labels';
 import { REASONS } from '../shifts/labels';
 
@@ -56,6 +56,7 @@ const FIELDS: Record<string, Record<string, string>> = {
     amount: 'Importe',
     unit: 'Depto',
     description: 'Descripción',
+    week: 'Semana',
   },
   monthly_report: { status: 'Estado' },
   reporting_start: { month: 'Primer mes', openingBalance: 'Efectivo en caja' },
@@ -98,6 +99,7 @@ const VALUES: Record<string, Record<string, (value: string | number) => string>>
     date: (v) => formatLocalDate(String(v)),
     category: (v) => CATEGORIES[v as keyof typeof CATEGORIES] ?? String(v),
     amount: money,
+    week: (v) => formatWeek(String(v)),
   },
   monthly_report: { status: (v) => MONTH_STATUS[v] ?? String(v) },
   reporting_start: { month: (v) => formatMonth(String(v)), openingBalance: money },

@@ -1,5 +1,10 @@
 // In-memory adapter for specs that touch the cashbook. Excluded from the build.
-import { YearMonthRange, type UnitNumber, type YearMonth } from '../../../shared-kernel/index.js';
+import {
+  type LocalDate,
+  type UnitNumber,
+  type YearMonth,
+  YearMonthRange,
+} from '../../../shared-kernel/index.js';
 import { CashMovement, type CashMovementRepository } from '../domain/index.js';
 
 export class InMemoryCashMovementRepository implements CashMovementRepository {
@@ -13,6 +18,18 @@ export class InMemoryCashMovementRepository implements CashMovementRepository {
   findByMonth(month: YearMonth): Promise<CashMovement[]> {
     const range = YearMonthRange.single(month);
     return Promise.resolve(this.all().filter((m) => range.contains(m.month)));
+  }
+
+  findBetween(first: LocalDate, last: LocalDate): Promise<CashMovement[]> {
+    return Promise.resolve(this.all().filter((m) => between(m.date, first, last)));
+  }
+
+  findGarbageForWeeks(first: LocalDate, last: LocalDate): Promise<CashMovement[]> {
+    return Promise.resolve(
+      this.all().filter(
+        ({ details: { week }, isRemoved }) => week && !isRemoved && between(week, first, last),
+      ),
+    );
   }
 
   findPaymentsOf(unit: UnitNumber): Promise<CashMovement[]> {
@@ -36,6 +53,9 @@ export class InMemoryCashMovementRepository implements CashMovementRepository {
     return this.all().filter((m) => m.category === 'UNIT_PAYMENT' && !m.isRemoved);
   }
 }
+
+const between = (date: LocalDate, first: LocalDate, last: LocalDate) =>
+  !date.isBefore(first) && !date.isAfter(last);
 
 /** Stored copies, so a use case that forgets to save is caught. */
 const copy = (m: CashMovement) => CashMovement.restore(m.id, m.details, m.isRemoved);

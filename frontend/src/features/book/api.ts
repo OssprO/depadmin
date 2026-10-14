@@ -1,4 +1,5 @@
 import {
+  type CleaningVisitsRequest,
   type MovementRequest,
   monthlyReportSchema,
   openMonthResponseSchema,
@@ -62,6 +63,15 @@ export function useRemoveMovement() {
     mutationFn: async (id: string) => {
       await apiFetch(`/movements/${id}`, { method: 'DELETE' });
     },
+    onSuccess: refresh,
+  });
+}
+
+export function useRecordCleaningVisits() {
+  const refresh = useRefreshBooks();
+  return useMutation({
+    mutationFn: (body: CleaningVisitsRequest) =>
+      sendJson('POST', '/movements/cleaning-visits', body, z.object({ ids: z.array(z.uuid()) })),
     onSuccess: refresh,
   });
 }

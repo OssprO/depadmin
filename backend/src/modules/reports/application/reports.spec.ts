@@ -128,6 +128,35 @@ describe('GetMonthlyReport', () => {
     expect((await fx.view.execute(owner(401), m('2026-10'))).canWrite).toBe(false);
   });
 
+  it('suggests the pending garbage weeks without counting them, and sums cleaning by week', async () => {
+    const fx = booksFixture('2026-10-09');
+    await fx.setStart.execute(admin, start);
+    await fx.open.execute(admin, m('2026-10'));
+    await fx.add.execute(admin, expense('2026-09-29', 'CLEANING', 270));
+    await fx.add.execute(owner(502), expense('2026-10-01', 'CLEANING', 270));
+
+    const before = await fx.view.execute(owner(502), m('2026-10'));
+    expect(before.garbageWeeks.map((w) => [String(w.week), w.status])).toEqual([
+      ['2026-09-28', 'PENDING'],
+      ['2026-10-05', 'PENDING'],
+      ['2026-10-12', 'UPCOMING'],
+      ['2026-10-19', 'UPCOMING'],
+    ]);
+    expect(before.totals.byCategory.GARBAGE).toEqual(pesos(0));
+    expect(before.cleaningPayouts.map((p) => [String(p.weekStart), p.total])).toEqual([
+      ['2026-09-28', pesos(540)],
+    ]);
+
+    const [first] = before.garbageWeeks;
+    await fx.add.execute(owner(502), {
+      ...expense(String(first!.suggestedDate), 'GARBAGE', 150),
+      week: first!.week,
+    });
+    const after = await fx.view.execute(owner(502), m('2026-10'));
+    expect(after.garbageWeeks[0]?.status).toBe('PAID');
+    expect(after.totals.byCategory.GARBAGE).toEqual(pesos(150));
+  });
+
   it('works before any rate is in force', async () => {
     const fx = booksFixture('2026-10-02');
 

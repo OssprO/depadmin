@@ -162,6 +162,8 @@ model CashMovement {
   amount      Int
   description String?
   unitNumber  Int?             @map("unit_number")
+  /// Garbage rows only: the Monday of the week the row pays for.
+  coversWeek  DateTime?        @map("covers_week") @db.Date
   removedAt   DateTime?        @map("removed_at") @db.Timestamptz
   createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz
   updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz

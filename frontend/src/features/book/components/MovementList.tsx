@@ -1,7 +1,7 @@
 import type { Movement } from '@depadmin/shared';
 import { ArrowDownLeftIcon, ArrowUpRightIcon, BroomIcon, TrashIcon } from '@phosphor-icons/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { formatLocalDate, formatMoney } from '@/lib/format';
+import { formatLocalDate, formatMoney, formatWeek } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { describeCoverage, isIncome, movementTitle } from '../labels';
 
@@ -46,13 +46,15 @@ export function MovementList({ movements, onSelect }: MovementListProps) {
           {day.movements.map((movement) => {
             const Icon = ICONS[movement.category];
             const income = isIncome(movement.category);
-            const coverage = describeCoverage(movement);
+            const detail =
+              describeCoverage(movement) ??
+              (movement.week && `semana ${formatWeek(movement.week)}`);
             const content = (
               <>
                 <Icon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
                 <span className="flex flex-1 flex-col text-left">
                   <span className="font-medium">{movementTitle(movement)}</span>
-                  {coverage && <span className="text-muted-foreground">{coverage}</span>}
+                  {detail && <span className="text-muted-foreground">{detail}</span>}
                 </span>
                 <span className={cn('tabular-nums', income && 'font-medium')}>
                   {income ? '+' : '−'} {formatMoney(movement.amount)}

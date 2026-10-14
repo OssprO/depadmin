@@ -20,5 +20,6 @@ Cada ADR documenta una decisión: el contexto, lo que se decidió y sus consecue
 | [0014](0014-bitacora.md)               | Bitácora de auditoría en la capa de aplicación     | Aceptado |
 | [0015](0015-turnos-y-delegaciones.md)  | Turnos, delegaciones y comunicación entre módulos  | Aceptado |
 | [0016](0016-libro-del-mes.md)          | Libro del mes, apertura de meses y cuentas         | Aceptado |
+| [0017](0017-egresos-recurrentes.md)    | Egresos recurrentes asistidos (basura y limpieza)  | Aceptado |
 
 Plantilla: copia cualquier ADR y conserva las secciones _Contexto_, _Decisión_ y _Consecuencias_.

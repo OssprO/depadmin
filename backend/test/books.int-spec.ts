@@ -54,7 +54,7 @@ const addRow = (token: string, body: object) =>
   http()
     .post('/api/movements')
     .auth(token, { type: 'bearer' })
-    .send({ unit: null, description: null, ...body });
+    .send({ unit: null, description: null, week: null, ...body });
 
 describe('books API', () => {
   it('starts the books, opens the month and keeps a live report', async () => {
@@ -116,6 +116,7 @@ describe('books API', () => {
         amount: 30000,
         unit: null,
         description: null,
+        week: null,
       })
       .expect(204);
     await http().delete(`/api/movements/${id}`).auth(owner502, { type: 'bearer' }).expect(204);
@@ -201,5 +202,52 @@ describe('books API', () => {
       409,
       'UNIT_STATUS_MONTH_OPENED',
     );
+  });
+
+  it('confirms a pending garbage week and marks several cleaning visits', async () => {
+    await startBooks();
+    await http().post('/api/months/2026-10/open').auth(admin, { type: 'bearer' }).expect(200);
+
+    const [first] = (await month(owner502, '2026-10')).garbageWeeks;
+    expect(first).toEqual({
+      week: '2026-09-28',
+      payday: '2026-10-04',
+      status: 'PENDING',
+      paidBy: null,
+      suggestedDate: '2026-10-02',
+    });
+    const garbage = {
+      date: first!.suggestedDate,
+      category: 'GARBAGE',
+      amount: 15000,
+      week: first!.week,
+    };
+    const paid = await addRow(owner502, garbage).expect(201);
+    expectProblem(await addRow(owner502, garbage), 409, 'GARBAGE_WEEK_PAID');
+    expectProblem(
+      await addRow(owner502, { ...garbage, week: '2026-10-04' }),
+      400,
+      'VALIDATION_FAILED',
+    );
+
+    const visits = (dates: string[]) =>
+      http()
+        .post('/api/movements/cleaning-visits')
+        .auth(owner502, { type: 'bearer' })
+        .send({ dates, amount: 27000 });
+    const recorded = await visits(['2026-10-01', '2026-10-02']).expect(201);
+    expect((recorded.body as { ids: string[] }).ids).toHaveLength(2);
+    expectProblem(await visits(['2026-10-02']), 409, 'CLEANING_VISIT_RECORDED');
+
+    const october = await month(owner502, '2026-10');
+    expect(october.garbageWeeks[0]).toMatchObject({
+      status: 'PAID',
+      paidBy: { id: (paid.body as { id: string }).id, date: '2026-10-02' },
+    });
+    expect(october.movements.find((row) => row.category === 'GARBAGE')?.week).toBe('2026-09-28');
+    expect(october.cleaningPayouts).toEqual([
+      { weekStart: '2026-09-28', dates: ['2026-10-01', '2026-10-02'], total: 54000 },
+    ]);
+    expect(october.totals.expense).toBe(69000);
   });
 });

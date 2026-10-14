@@ -15,6 +15,11 @@ export interface MovementDetails {
   readonly amount: Money;
   readonly description: string | null;
   readonly unit: UnitNumber | null;
+  /**
+   * For a garbage row, the Monday of the week it pays for. It is stored, not derived from
+   * the date, so a week paid late or early (even in another month) still counts as paid.
+   */
+  readonly week: LocalDate | null;
 }
 
 /**
@@ -103,6 +108,21 @@ function validate(details: MovementDetails): MovementDetails {
     throw new ValidationError(
       'MOVEMENT_UNIT_NOT_ALLOWED',
       `${details.category} cannot name a depto`,
+    );
+  }
+  if (rule.requiresWeek && !details.week) {
+    throw new ValidationError('MOVEMENT_WEEK_REQUIRED', `${details.category} needs a week`);
+  }
+  if (!rule.requiresWeek && details.week) {
+    throw new ValidationError(
+      'MOVEMENT_WEEK_NOT_ALLOWED',
+      `${details.category} cannot name a week`,
+    );
+  }
+  if (details.week && details.week.dayOfWeek !== 1) {
+    throw new ValidationError(
+      'MOVEMENT_WEEK_INVALID',
+      `A week is named by its Monday, got ${details.week}`,
     );
   }
   if (rule.requiresDescription && !description) {

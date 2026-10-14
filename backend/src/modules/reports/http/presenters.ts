@@ -43,6 +43,7 @@ function toMovement({ movement, coverage }: ReportRow): Movement {
     amount: centavos(details.amount),
     unit: details.unit && unit(details.unit),
     description: details.description,
+    week: details.week && String(details.week),
     coverage: coverage.map((c) => ({
       month: String(c.month),
       type: c.type,
@@ -82,5 +83,17 @@ export function toMonthlyReport(view: MonthlyReportView): MonthlyReport {
       garbageWeekly: centavos(suggestions.garbageWeekly),
     },
     accounts: view.accounts.map(toAccountSummary),
+    garbageWeeks: view.garbageWeeks.map((week) => ({
+      week: String(week.week),
+      payday: String(week.payday),
+      status: week.status,
+      paidBy: week.paidBy && { id: week.paidBy.id, date: String(week.paidBy.date) },
+      suggestedDate: String(week.suggestedDate),
+    })),
+    cleaningPayouts: view.cleaningPayouts.map((payout) => ({
+      weekStart: String(payout.weekStart),
+      dates: payout.dates.map(String),
+      total: centavos(payout.total),
+    })),
   };
 }
