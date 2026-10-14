@@ -99,3 +99,35 @@ const pesos = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN
 export function formatMoney(centavos: number): string {
   return pesos.format(centavos / 100);
 }
+
+/** Pesos as typed in a form: digits with an optional decimal point or comma (no thousands). */
+export const PESOS_PATTERN = /^\d{1,7}([.,]\d{1,2})?$/;
+
+/** "1200", "150.5" or "150,50" → centavos; NaN if it is not an amount. */
+export function parsePesos(text: string): number {
+  const trimmed = text.trim();
+  if (!PESOS_PATTERN.test(trimmed)) return Number.NaN;
+  return Math.round(Number(trimmed.replace(',', '.')) * 100);
+}
+
+/** Centavos as a form value: 70000 → "700", 15050 → "150.50". */
+export function pesosInput(centavos: number): string {
+  return centavos % 100 === 0 ? String(centavos / 100) : (centavos / 100).toFixed(2);
+}
+
+/** Today in the building, as "YYYY-MM-DD". */
+export function buildingToday(now: Date = new Date()): string {
+  return dayKey(now.toISOString());
+}
+
+const localDateFormat = new Intl.DateTimeFormat('es-MX', {
+  timeZone: 'UTC',
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+});
+
+/** A calendar date (no time), e.g. "2026-10-03" → "sábado, 3 de octubre". */
+export function formatLocalDate(date: string): string {
+  return localDateFormat.format(new Date(`${date}T00:00:00Z`));
+}

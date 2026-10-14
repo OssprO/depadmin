@@ -1,11 +1,11 @@
 import {
+  BookOpenTextIcon,
   CalendarDotsIcon,
   ClockCounterClockwiseIcon,
+  DotsThreeOutlineIcon,
   HouseIcon,
-  UserCircleIcon,
-  WrenchIcon,
 } from '@phosphor-icons/react';
-import { Link, type LinkProps, Outlet } from '@tanstack/react-router';
+import { Link, type LinkProps, Outlet, useRouterState } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { Brand } from '@/components/Brand';
 import { useCurrentUser } from '@/lib/use-session';
@@ -14,14 +14,19 @@ interface NavItemProps {
   readonly to: NonNullable<LinkProps['to']>;
   readonly icon: ReactNode;
   readonly label: string;
+  /** Other sections reached from this tab, which keep it highlighted. */
+  readonly sections?: readonly string[];
 }
 
-function NavItem({ to, icon, label }: NavItemProps) {
+function NavItem({ to, icon, label, sections = [] }: NavItemProps) {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const inSection = sections.some((section) => pathname.startsWith(section));
   return (
     <Link
       to={to}
       activeOptions={{ exact: to === '/' }}
-      className="flex flex-1 flex-col items-center gap-1 py-2 text-muted-foreground data-[status=active]:text-foreground [&_svg]:size-6"
+      data-section={inSection || undefined}
+      className="flex flex-1 flex-col items-center gap-1 py-2 text-muted-foreground data-[section]:text-foreground data-[status=active]:text-foreground [&_svg]:size-6"
     >
       {icon}
       <span className="text-[0.65rem]">{label}</span>
@@ -50,12 +55,15 @@ export function AppLayout() {
         >
           <div className="mx-auto flex max-w-md">
             <NavItem to="/" icon={<HouseIcon />} label="Inicio" />
+            <NavItem to="/book" icon={<BookOpenTextIcon />} label="Libro" />
             <NavItem to="/shifts" icon={<CalendarDotsIcon />} label="Turnos" />
             <NavItem to="/audit" icon={<ClockCounterClockwiseIcon />} label="Bitácora" />
-            {user.role === 'SUPERADMIN' && (
-              <NavItem to="/admin" icon={<WrenchIcon />} label="Admin" />
-            )}
-            <NavItem to="/account" icon={<UserCircleIcon />} label="Cuenta" />
+            <NavItem
+              to="/more"
+              icon={<DotsThreeOutlineIcon />}
+              label="Más"
+              sections={['/accounts', '/admin', '/account']}
+            />
           </div>
         </nav>
       )}

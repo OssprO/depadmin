@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
   addMonths,
+  buildingToday,
   dayKey,
   formatDay,
   formatDuration,
+  formatLocalDate,
   formatMoney,
   formatMonth,
   formatMonthRange,
   formatTime,
+  parsePesos,
+  pesosInput,
 } from './format';
 
 describe('formatDuration', () => {
@@ -54,5 +58,33 @@ describe('months and money', () => {
 
   it('shows centavos as pesos', () => {
     expect(formatMoney(50000)).toBe('$500.00');
+  });
+});
+
+describe('pesos in forms', () => {
+  it('reads what people type', () => {
+    expect(parsePesos('700')).toBe(70000);
+    expect(parsePesos(' 150.5 ')).toBe(15050);
+    expect(parsePesos('150,50')).toBe(15050);
+    // A comma followed by three digits reads as thousands: ambiguous, so refused.
+    expect(parsePesos('1,200')).toBeNaN();
+    expect(parsePesos('1.234.5')).toBeNaN();
+    expect(parsePesos('')).toBeNaN();
+    expect(parsePesos('-5')).toBeNaN();
+  });
+
+  it('writes centavos back without needless decimals', () => {
+    expect(pesosInput(70000)).toBe('700');
+    expect(pesosInput(15050)).toBe('150.50');
+  });
+
+  it('knows the building’s date', () => {
+    expect(buildingToday(new Date('2026-10-14T03:30:00Z'))).toBe('2026-10-13');
+  });
+});
+
+describe('calendar dates', () => {
+  it('names a date without shifting it to another time zone', () => {
+    expect(formatLocalDate('2026-10-03')).toBe('sábado, 3 de octubre');
   });
 });

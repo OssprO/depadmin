@@ -1,5 +1,6 @@
 import type { AuditLogEntry, AuditValue, DelegationReason, FieldChange } from '@depadmin/shared';
-import { formatMoney, formatMonth } from '@/lib/format';
+import { formatLocalDate, formatMoney, formatMonth } from '@/lib/format';
+import { CATEGORIES } from '../book/labels';
 import { REASONS } from '../shifts/labels';
 
 // Spanish text for the audit log. Codes come from the backend's use cases; an unknown one
@@ -14,14 +15,22 @@ const ACTIONS: Record<string, string> = {
   SHIFT_DELEGATION_CANCELLED: 'Delegación cancelada',
   CHARGE_ADDED: 'Cargo agregado',
   CHARGE_REMOVED: 'Cargo retirado',
+  CASH_MOVEMENT_ADDED: 'Movimiento agregado',
+  CASH_MOVEMENT_REVISED: 'Movimiento corregido',
+  CASH_MOVEMENT_REMOVED: 'Movimiento borrado',
+  MONTH_OPENED: 'Mes abierto',
+  REPORTING_START_SET: 'Inicio de la contabilidad',
 };
 
 /** The kinds of entity, in the order the filter offers them. */
 export const ENTITIES: Record<string, string> = {
+  cash_movement: 'Movimiento',
+  monthly_report: 'Mes',
   shift_delegation: 'Delegación',
   charge: 'Cargo',
   unit: 'Depto',
   user: 'Usuario',
+  reporting_start: 'Inicio',
 };
 
 const FIELDS: Record<string, Record<string, string>> = {
@@ -41,7 +50,18 @@ const FIELDS: Record<string, Record<string, string>> = {
     active: 'Vigente',
   },
   charge: { unit: 'Depto', month: 'Mes', type: 'Tipo', amount: 'Importe' },
+  cash_movement: {
+    date: 'Fecha',
+    category: 'Tipo',
+    amount: 'Importe',
+    unit: 'Depto',
+    description: 'Descripción',
+  },
+  monthly_report: { status: 'Estado' },
+  reporting_start: { month: 'Primer mes', openingBalance: 'Efectivo en caja' },
 };
+
+const MONTH_STATUS: Record<string, string> = { OPEN: 'Abierto', CLOSED: 'Cerrado' };
 
 const CHARGE_TYPES: Record<string, string> = {
   MAINTENANCE_FEE: 'Cuota de mantenimiento',
@@ -60,6 +80,8 @@ function formatMonths(value: string): string {
     .join('; ');
 }
 
+const money = (value: string | number) => (typeof value === 'number' ? formatMoney(value) : value);
+
 /** Field values that read better than their stored form. */
 const VALUES: Record<string, Record<string, (value: string | number) => string>> = {
   unit: { inactivePeriods: (v) => formatMonths(String(v)) },
@@ -70,8 +92,15 @@ const VALUES: Record<string, Record<string, (value: string | number) => string>>
   charge: {
     month: (v) => formatMonth(String(v)),
     type: (v) => CHARGE_TYPES[v] ?? String(v),
-    amount: (v) => (typeof v === 'number' ? formatMoney(v) : v),
+    amount: money,
   },
+  cash_movement: {
+    date: (v) => formatLocalDate(String(v)),
+    category: (v) => CATEGORIES[v as keyof typeof CATEGORIES] ?? String(v),
+    amount: money,
+  },
+  monthly_report: { status: (v) => MONTH_STATUS[v] ?? String(v) },
+  reporting_start: { month: (v) => formatMonth(String(v)), openingBalance: money },
 };
 
 export interface ChangeLine {
