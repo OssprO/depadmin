@@ -37,7 +37,7 @@ export function LoginPage() {
   });
 
   return (
-    <div className="mx-auto flex min-h-svh w-full max-w-md flex-col justify-center gap-6 px-4 py-[max(1.5rem,env(safe-area-inset-top))]">
+    <main className="mx-auto flex min-h-svh w-full max-w-md flex-col justify-center gap-6 px-4 py-[max(1.5rem,env(safe-area-inset-top))]">
       <Brand />
       <Card>
         <CardHeader>
@@ -84,6 +84,6 @@ export function LoginPage() {
       <p className="text-center text-xs text-muted-foreground">
         ¿Olvidaste tu contraseña? Pídele al administrador una temporal.
       </p>
-    </div>
+    </main>
   );
 }
