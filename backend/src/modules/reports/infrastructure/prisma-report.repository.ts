@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { fromDbMoney, fromDbMonth, toDbMonth } from '../../../platform/prisma/db-values.js';
-import type { MonthlyReport as ReportRow } from '../../../platform/prisma/generated/client.js';
+import {
+  Prisma,
+  type MonthlyReport as ReportRow,
+} from '../../../platform/prisma/generated/client.js';
 import { PrismaDatabase } from '../../../platform/prisma/prisma-database.js';
+import type { YearMonth } from '../../../shared-kernel/index.js';
 import {
   MonthlyReport,
   type ReportingStart,
@@ -32,6 +36,12 @@ export class PrismaReportRepository implements ReportRepository {
       create: { id: 1, ...data },
       update: data,
     });
+  }
+
+  async lockMonth(month: YearMonth, mode: 'shared' | 'exclusive'): Promise<void> {
+    const lock = Prisma.raw(mode === 'exclusive' ? 'FOR UPDATE' : 'FOR SHARE');
+    await this.database.db.$queryRaw`
+      SELECT 1 FROM monthly_report WHERE month = ${toDbMonth(month)} ${lock}`;
   }
 
   save(reports: readonly MonthlyReport[]): Promise<void> {

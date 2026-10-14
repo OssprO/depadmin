@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
 import { BUILDING_TIME_ZONE } from '../../../platform/clock/system-clock.js';
 import type { Env } from '../../../platform/config/env.js';
+import { runJob } from '../../../platform/jobs/run-job.js';
 import { OpenCurrentMonth } from '../application/index.js';
 
 /**
@@ -23,16 +24,12 @@ export class OpenCurrentMonthJob {
   }
 
   @Cron('5 0 * * *', { name: 'open-current-month', timeZone: BUILDING_TIME_ZONE })
-  async run(): Promise<void> {
-    if (!this.enabled) return;
-    try {
+  run(): Promise<void> {
+    return runJob(this.logger, this.enabled, 'Could not open the current month', async () => {
       const opened = await this.openCurrentMonth.execute();
-      if (opened.length > 0) {
-        this.logger.log(`Opened ${opened.map((report) => String(report.month)).join(', ')}`);
-      }
-    } catch (error) {
-      // A failed run must not take the server down; the next day tries again.
-      this.logger.error('Could not open the current month', error);
-    }
+      return opened.length > 0
+        ? `Opened ${opened.map((report) => String(report.month)).join(', ')}`
+        : null;
+    });
   }
 }

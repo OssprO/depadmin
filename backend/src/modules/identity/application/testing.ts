@@ -77,6 +77,12 @@ export class InMemoryRefreshTokenRepository implements RefreshTokenRepository {
     return this.revokeWhere((t) => t.userId === userId, at);
   }
 
+  deleteExpired(at: Instant): Promise<number> {
+    const expired = [...this.rows.values()].filter((t) => t.expiresAt.isBefore(at));
+    for (const token of expired) this.rows.delete(token.id);
+    return Promise.resolve(expired.length);
+  }
+
   activeSessionsOf(userId: string, now: Instant): string[] {
     return [...this.rows.values()]
       .filter((t) => t.userId === userId && t.stateAt(now) === 'ACTIVE')

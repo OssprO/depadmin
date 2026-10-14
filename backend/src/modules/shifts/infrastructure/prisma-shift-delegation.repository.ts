@@ -1,8 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { fromDbMonth, toDbMonth } from '../../../platform/prisma/db-values.js';
 import type { ShiftDelegation as DelegationRow } from '../../../platform/prisma/generated/client.js';
+import { translateViolations } from '../../../platform/prisma/db-errors.js';
 import { PrismaDatabase } from '../../../platform/prisma/prisma-database.js';
-import { UnitNumber, type YearMonth, YearMonthRange } from '../../../shared-kernel/index.js';
+import {
+  ConflictError,
+  UnitNumber,
+  type YearMonth,
+  YearMonthRange,
+} from '../../../shared-kernel/index.js';
 import { ShiftDelegation, type ShiftDelegationRepository } from '../domain/index.js';
 
 @Injectable()
@@ -24,6 +30,13 @@ export class PrismaShiftDelegationRepository implements ShiftDelegationRepositor
 
   /** Delegations are immutable except for being cancelled, which stamps the time once. */
   save(delegation: ShiftDelegation): Promise<void> {
+    return translateViolations(() => this.saveRow(delegation), {
+      shift_delegation_no_overlap: () =>
+        new ConflictError('DELEGATIONS_OVERLAP', 'Another delegation took those months meanwhile'),
+    });
+  }
+
+  private saveRow(delegation: ShiftDelegation): Promise<void> {
     return this.database.run(async () => {
       const { db } = this.database;
       const existing = await db.shiftDelegation.findUnique({ where: { id: delegation.id } });

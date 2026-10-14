@@ -9,6 +9,14 @@ export class FakeMonthLedger implements MonthLedger {
     return this;
   }
 
+  /** Months the use cases held open, in order. */
+  readonly held: string[] = [];
+
+  holdOpen(month: YearMonth): Promise<void> {
+    this.held.push(String(month));
+    return Promise.resolve();
+  }
+
   statusOf(month: YearMonth): Promise<MonthStatus> {
     return Promise.resolve(this.statuses.get(String(month)) ?? 'NOT_OPENED');
   }

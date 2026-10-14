@@ -13,4 +13,8 @@ export class ReportMonthLedger implements MonthLedger {
     if (!report) return 'NOT_OPENED';
     return report.isOpen ? 'OPEN' : 'CLOSED';
   }
+
+  holdOpen(month: YearMonth): Promise<void> {
+    return this.reports.lockMonth(month, 'shared');
+  }
 }

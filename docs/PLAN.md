@@ -1,6 +1,6 @@
 # Plan de trabajo — DepAdmin (Edificio Correspondencia 63)
 
-**Versión:** 2.0 · **Fecha:** 2026-10-14 · **Base:** `docs/SPEC.md` v0.4
+**Versión:** 2.1 · **Fecha:** 2026-10-14 · **Base:** `docs/SPEC.md` v0.4
 
 Este plan reemplaza a la sección 11 de la spec. Cada fase termina en algo que se puede correr, probar y revisar. Modo de trabajo: Claude explica el porqué de cada decisión, implementa con pruebas y entrega la fase como un PR. Tú revisas y apruebas antes de pasar a la siguiente.
 
@@ -311,12 +311,15 @@ El detalle está en el ADR-0020.
 
 ### Fase 11b: Pulido y endurecimiento
 
-- Alta de los 10 usuarios (el mecanismo ya existe desde la fase 3: contraseña temporal y cambio obligatorio en el primer login).
-- Limpieza periódica de refresh tokens vencidos y división del bundle del frontend por rutas.
-- Responder 409 (no 500) cuando la base rechaza dos delegaciones simultáneas sobre los mismos meses, o dos pagos de basura de la misma semana. Bloquear el mes mientras se cierra, para que un renglón agregado al mismo tiempo no quede fuera de la foto.
-- PWA (manifest e ícono, instalable en el celular).
-- Accesibilidad, estados vacíos y de error, revisión de rendimiento (Lighthouse) y de seguridad (OWASP ASVS nivel 1).
-- Pruebas E2E de los flujos críticos completos.
+El detalle está en el ADR-0021 y en `docs/SEGURIDAD.md`.
+
+- Peticiones simultáneas: 409 (no 500) cuando dos confirmaciones de basura o dos delegaciones chocan en la base, y un candado de fila para que ningún renglón quede fuera del cierre de un mes.
+- Job nocturno que borra los refresh tokens vencidos.
+- Cada pantalla se carga por separado: el primer paquete baja de 722 kB a 369 kB (118 kB gzip).
+- PWA: manifiesto e íconos (normal y «maskable»), instalable en la pantalla de inicio.
+- Accesibilidad: axe revisa todas las pantallas, en modo claro y oscuro, en las pruebas de navegador. Lighthouse da 100 en accesibilidad.
+- Seguridad: revisión OWASP ASVS nivel 1, dependencias con avisos corregidas y pendientes del despliegue anotados.
+- Los 10 usuarios ya los crea la semilla desde la fase 3; falta repartir las contraseñas temporales al desplegar.
 
 ---
 

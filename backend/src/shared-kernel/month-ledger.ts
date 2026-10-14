@@ -13,6 +13,12 @@ export type MonthStatus = 'NOT_OPENED' | 'OPEN' | 'CLOSED';
  */
 export interface MonthLedger {
   statusOf(month: YearMonth): Promise<MonthStatus>;
+  /**
+   * Keeps the month from being closed until the current unit of work ends, so a row written
+   * meanwhile cannot miss the closing snapshot. Call it inside the unit of work, before
+   * checking that the month is open; a close already under way finishes first.
+   */
+  holdOpen(month: YearMonth): Promise<void>;
 }
 
 export const MONTH_LEDGER = Symbol('MonthLedger');

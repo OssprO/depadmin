@@ -14,6 +14,7 @@ describe('validateEnv', () => {
       APP_VERSION: 'dev',
       DATABASE_URL,
       JWT_SECRET,
+      LOGIN_ATTEMPTS_PER_MINUTE: 5,
       JOBS_ENABLED: true,
     });
   });

@@ -1,4 +1,5 @@
 export * from './change-password.js';
+export * from './purge-expired-sessions.js';
 export * from './refresh-session.js';
 export * from './reset-password.js';
 export * from './session-issuer.js';

@@ -8,6 +8,7 @@ export async function assertNoneClosed(
   ledger: MonthLedger,
   months: readonly YearMonth[],
 ): Promise<void> {
+  for (const month of months) await ledger.holdOpen(month);
   const statuses = await Promise.all(months.map((month) => ledger.statusOf(month)));
   const closed = months.filter((_, i) => statuses[i] === 'CLOSED');
   if (closed.length > 0) {

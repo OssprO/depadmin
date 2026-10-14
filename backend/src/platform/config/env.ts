@@ -8,6 +8,8 @@ const envSchema = z.object({
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
   /** Signs access tokens. Generate one with `openssl rand -base64 48`. */
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
+  /** Login attempts allowed per minute for each IP and username. */
+  LOGIN_ATTEMPTS_PER_MINUTE: z.coerce.number().int().min(1).max(1000).default(5),
   /** Scheduled jobs (opening the month when nobody did). Tests turn them off. */
   JOBS_ENABLED: z.stringbool().default(true),
 });

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { withCode } from '../../../../test/support/domain-error.js';
 import { UnitNumber } from '../../../shared-kernel/index.js';
 import { REFRESH_TOKEN_LIFETIME_DAYS } from '../domain/index.js';
+import { PurgeExpiredSessions } from './purge-expired-sessions.js';
 import { RefreshSession } from './refresh-session.js';
 import { SignIn } from './sign-in.js';
 import { SignOut } from './sign-out.js';
@@ -133,6 +134,20 @@ describe('sessions', () => {
       await signOut.execute(phone.refreshToken.token);
 
       await expect(refresh.execute(laptop.refreshToken.token)).resolves.toBeDefined();
+    });
+  });
+
+  describe('PurgeExpiredSessions', () => {
+    it('deletes only the refresh tokens that have expired', async () => {
+      const purge = new PurgeExpiredSessions(fx.refreshTokens, fx.clock);
+      await signIn.execute({ username: '501', password: 'correct horse' });
+      fx.clock.advanceDays(REFRESH_TOKEN_LIFETIME_DAYS - 1);
+      await signIn.execute({ username: '501', password: 'correct horse' });
+
+      expect(await purge.execute()).toBe(0);
+      fx.clock.advanceDays(2);
+      expect(await purge.execute()).toBe(1);
+      expect(fx.refreshTokens.rows.size).toBe(1);
     });
   });
 });

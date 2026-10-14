@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { withCode } from '../../../../test/support/domain-error.js';
 import { useTestDatabase } from '../../../../test/support/database.js';
 import { UnitNumber, YearMonth, YearMonthRange } from '../../../shared-kernel/index.js';
 import { type DelegationReason, ShiftDelegation } from '../domain/index.js';
@@ -53,8 +54,9 @@ describe('PrismaShiftDelegationRepository', () => {
   it('allows a single active delegation per month in the database itself', async () => {
     const first = delegation('2026-10', '2026-11');
     await repository().save(first);
+    // The constraint's violation comes back as the domain's own conflict.
     await expect(repository().save(delegation('2026-11', '2026-11', 'OTHER'))).rejects.toThrow(
-      /no_overlap|exclusion/i,
+      withCode('DELEGATIONS_OVERLAP'),
     );
     first.cancel();
     await repository().save(first);
