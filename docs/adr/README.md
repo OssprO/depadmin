@@ -22,5 +22,6 @@ Cada ADR documenta una decisión: el contexto, lo que se decidió y sus consecue
 | [0016](0016-libro-del-mes.md)          | Libro del mes, apertura de meses y cuentas                | Aceptado |
 | [0017](0017-egresos-recurrentes.md)    | Egresos recurrentes asistidos (basura y limpieza)         | Aceptado |
 | [0018](0018-cierre-e-historico.md)     | Cierre de mes, histórico, dashboard y apertura automática | Aceptado |
+| [0019](0019-reporte-pdf.md)            | Reporte mensual en PDF                                    | Aceptado |
 
 Plantilla: copia cualquier ADR y conserva las secciones _Contexto_, _Decisión_ y _Consecuencias_.

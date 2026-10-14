@@ -14,6 +14,7 @@ import { CleaningVisitsSheet } from '../components/CleaningVisitsSheet';
 import { MovementSheet, type MovementPreset } from '../components/MovementSheet';
 import { OpenMonthCard } from '../components/OpenMonthCard';
 import { PendingGarbage } from '../components/PendingGarbage';
+import { ReportPdfActions } from '../components/ReportPdfActions';
 
 /** What is open over the page: a row's form (new or existing) or the cleaning calendar. */
 type Editing =
@@ -72,6 +73,7 @@ export function BookPage({ month }: { month: string }) {
       {data && data.status !== 'NOT_OPENED' && (
         <>
           <MonthSummary report={data} />
+          <ReportPdfActions report={data} />
           <PendingGarbage
             report={data}
             onAdjust={

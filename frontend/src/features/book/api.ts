@@ -45,6 +45,12 @@ export function useOpenMonth() {
   });
 }
 
+/** The month's report as a PDF file, ready to download or share. */
+export async function fetchReportPdf(month: string): Promise<File> {
+  const response = await apiFetch(`/months/${month}/report.pdf`);
+  return new File([await response.blob()], `reporte-${month}.pdf`, { type: 'application/pdf' });
+}
+
 export function useCloseMonth() {
   const refresh = useRefreshBooks();
   return useMutation({

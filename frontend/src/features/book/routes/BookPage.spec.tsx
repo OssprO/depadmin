@@ -402,3 +402,81 @@ describe('closing and reopening a month', () => {
     expect(screen.queryByRole('button', { name: 'Reabrir el mes' })).not.toBeInTheDocument();
   });
 });
+
+describe('the month’s PDF', () => {
+  const pdfBytes = () =>
+    new Response('%PDF-1.3 report', { headers: { 'Content-Type': 'application/pdf' } });
+
+  // jsdom has neither the Web Share API nor object URLs: each spec adds what it needs.
+  const stub = (target: object, key: string, value: unknown) =>
+    Object.defineProperty(target, key, { value, configurable: true, writable: true });
+
+  afterEach(() => {
+    connectSession(null);
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    for (const key of ['share', 'canShare']) Reflect.deleteProperty(navigator, key);
+    Reflect.deleteProperty(URL, 'createObjectURL');
+  });
+
+  it('downloads the report, marked as a draft while the month is open', async () => {
+    const api = fakeApi({
+      'POST /api/auth/refresh': sessionFor(owner501),
+      'GET /api/months/2026-10': october(octoberReport({ canWrite: false })),
+      'GET /api/months/2026-10/report.pdf': pdfBytes,
+    });
+    stub(URL, 'createObjectURL', () => 'blob:report');
+    // Left in place: the download frees its URL a few seconds later, maybe after this spec.
+    stub(URL, 'revokeObjectURL', () => undefined);
+    const saved: string[] = [];
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      saved.push(`${this.href} ${this.download}`);
+    });
+    renderApp('/book/2026-10');
+
+    expect(
+      await screen.findByText('El mes sigue abierto: el PDF sale como borrador.'),
+    ).toBeInTheDocument();
+    // Without the Web Share API (a desktop browser), downloading is the only way out.
+    expect(screen.queryByRole('button', { name: 'Compartir' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Descargar PDF' }));
+
+    await vi.waitFor(() => expect(saved).toEqual(['blob:report reporte-2026-10.pdf']));
+    expect(api.callsTo('GET /api/months/2026-10/report.pdf')).toHaveLength(1);
+  });
+
+  it('shares the file where the phone can, straight to WhatsApp', async () => {
+    fakeApi({
+      'POST /api/auth/refresh': sessionFor(owner501),
+      'GET /api/months/2026-10': october(octoberReport({ status: 'CLOSED', canWrite: false })),
+      'GET /api/months/2026-10/report.pdf': pdfBytes,
+    });
+    const share = vi.fn<(data: ShareData) => Promise<void>>(() => Promise.resolve());
+    stub(navigator, 'share', share);
+    stub(navigator, 'canShare', () => true);
+    renderApp('/book/2026-10');
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Compartir' }));
+
+    await vi.waitFor(() => expect(share).toHaveBeenCalledOnce());
+    const [data] = share.mock.calls[0]!;
+    expect(data.title).toBe('Reporte de octubre 2026');
+    expect(data.files?.map((file) => file.name)).toEqual(['reporte-2026-10.pdf']);
+    expect(screen.queryByText(/borrador/)).not.toBeInTheDocument();
+  });
+
+  it('says why the PDF could not be prepared', async () => {
+    fakeApi({
+      'POST /api/auth/refresh': sessionFor(owner501),
+      'GET /api/months/2026-10': october(),
+      'GET /api/months/2026-10/report.pdf': () => problem(404, 'REPORT_NOT_FOUND'),
+    });
+    renderApp('/book/2026-10');
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Descargar PDF' }));
+
+    expect(await screen.findByText('Ese mes no se ha abierto.')).toBeInTheDocument();
+  });
+});

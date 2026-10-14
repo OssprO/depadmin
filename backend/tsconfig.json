@@ -4,6 +4,8 @@
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "lib": ["ES2023"],
+    // The PDF templates are React components (@react-pdf/renderer).
+    "jsx": "react-jsx",
     "types": ["node"],
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,

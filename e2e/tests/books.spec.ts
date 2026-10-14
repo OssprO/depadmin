@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { expect, type Page, test } from '@playwright/test';
 import { SUPERADMIN } from '../support/accounts.js';
 
@@ -16,7 +17,7 @@ function previousMonth(month: string): string {
 
 const balance = (page: Page) => page.getByText(/^Saldo (actual|final)$/).locator('..');
 
-test('keeps last month’s books, closes them and shows them in the history and the dashboard', async ({
+test('keeps last month’s books, closes them, downloads the PDF and shows the history and the dashboard', async ({
   page,
 }) => {
   await page.goto('/book');
@@ -79,6 +80,14 @@ test('keeps last month’s books, closes them and shows them in the history and 
   await expect(balance(page)).toContainText('Saldo final$5,280.00');
   await expect(page.getByRole('button', { name: 'Reabrir el mes' })).toBeVisible();
   await expect(page.getByRole('button', { name: /Agregar/ })).toHaveCount(0);
+
+  // Its report as a PDF, built from the frozen month.
+  const downloading = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Descargar PDF' }).click();
+  const download = await downloading;
+  expect(download.suggestedFilename()).toBe(`reporte-${lastMonth}.pdf`);
+  const pdf = await readFile(await download.path());
+  expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
 
   await page.getByRole('link', { name: 'Todos los meses' }).click();
   const months = page.getByRole('listitem');

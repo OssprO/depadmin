@@ -1,6 +1,6 @@
 # Plan de trabajo — DepAdmin (Edificio Correspondencia 63)
 
-**Versión:** 1.8 · **Fecha:** 2026-10-14 · **Base:** `docs/SPEC.md` v0.4
+**Versión:** 1.9 · **Fecha:** 2026-10-14 · **Base:** `docs/SPEC.md` v0.4
 
 Este plan reemplaza a la sección 11 de la spec. Cada fase termina en algo que se puede correr, probar y revisar. Modo de trabajo: Claude explica el porqué de cada decisión, implementa con pruebas y entrega la fase como un PR. Tú revisas y apruebas antes de pasar a la siguiente.
 
@@ -292,9 +292,12 @@ El detalle está en el ADR-0018.
 
 ### Fase 10: Reporte PDF
 
-- Plantilla con @react-pdf/renderer que conserve el espíritu del reporte actual. Se necesita un PDF de ejemplo como referencia (ver la sección 6).
-- Descarga del PDF y botón de compartir (Web Share API, que en el móvil abre WhatsApp directamente).
-- El PDF de un mes cerrado se genera desde su foto, así que siempre sale igual.
+El detalle está en el ADR-0019.
+
+- `GET /api/months/:month/report.pdf` con @react-pdf/renderer, en el backend. Muestra las cuatro cifras, una línea por depto (lo que pagó, qué cubrió, adeudo y adelanto, y qué meses debe) y los egresos por categoría.
+- Un mes cerrado sale de su foto, con las cuentas como estaban al terminar el mes, así que siempre sale igual. Un mes abierto sale como borrador.
+- En el libro, «Descargar PDF» y «Compartir» (Web Share API: en el celular abre WhatsApp directamente).
+- La plantilla sigue el modelo de la spec mientras llega un PDF real (pregunta 6). Ajustarla solo toca `monthly-report-pdf.tsx`.
 
 **Conceptos:** renderizado en el servidor, streams, Web Share API.
 
@@ -321,7 +324,7 @@ Cada una tiene un valor por defecto para no bloquear el avance. Se confirman en 
 | 3   | ¿Los cargos de cuota se generan el día 1 de cada mes aunque nadie abra el reporte?                                                                                            | **Aplicado:** se generan al abrir el mes; un job diario lo abre a las 00:05 si nadie lo hizo                                                                                    | 7    |
 | 4   | ¿Qué día de la semana se paga la basura?                                                                                                                                      | **Respondida:** el sábado; se sugiere ese día y el usuario ajusta la fecha. La limpieza se paga el miércoles o el viernes                                                       | 8    |
 | 5   | ¿Quieres adjuntar fotos de comprobantes en los egresos? Implica almacenar archivos en el VPS y respaldarlos.                                                                  | **Aplicado:** no en la primera versión                                                                                                                                          | 8    |
-| 6   | Necesito **uno o dos PDFs reales** del reporte actual para replicar su formato.                                                                                               | —                                                                                                                                                                               | 10   |
+| 6   | Necesito **uno o dos PDFs reales** del reporte actual para replicar su formato.                                                                                               | Plantilla provisional con el modelo de la spec; se ajusta al recibir el PDF                                                                                                     | 10   |
 | 7   | Mes de corte, saldo de caja y adeudos o adelantos vigentes por depto para la carga inicial.                                                                                   | —                                                                                                                                                                               | 11   |
 | 8   | Dominio y subdominio, y acceso SSH al VPS (distribución y si ya tiene Docker).                                                                                                | —                                                                                                                                                                               | 5    |
 | 9   | ¿Los dueños pueden cambiar su propia contraseña? ¿Hay recuperación por email?                                                                                                 | **Aplicado:** cambio propio sí; sin email: el superadmin genera una contraseña temporal                                                                                         | 3    |

@@ -1,4 +1,14 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Put } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Header,
+  HttpCode,
+  Param,
+  Post,
+  Put,
+  StreamableFile,
+} from '@nestjs/common';
 import {
   type AccountStatement,
   type AccountSummary,
@@ -21,6 +31,7 @@ import {
   GetMonthlyReport,
   GetReportingStart,
   OpenMonth,
+  RenderMonthlyReport,
   ReopenMonth,
   SetReportingStart,
 } from '../application/index.js';
@@ -43,6 +54,7 @@ export class ReportsController {
     private readonly reopenMonth: ReopenMonth,
     private readonly monthlyReport: GetMonthlyReport,
     private readonly history: GetMonthHistory,
+    private readonly pdf: RenderMonthlyReport,
     private readonly accounts: GetAccounts,
   ) {}
 
@@ -91,6 +103,16 @@ export class ReportsController {
   ): Promise<{ opened: string[] }> {
     const opened = await this.openMonth.execute(actor, month);
     return { opened: opened.map((report) => String(report.month)) };
+  }
+
+  /** The month's report as a PDF: frozen once closed, a draft while open. */
+  @Get('months/:month/report.pdf')
+  @Header('Content-Type', 'application/pdf')
+  @Header('Cache-Control', 'private, no-store')
+  async report(@Param('month', monthParam) month: YearMonth): Promise<StreamableFile> {
+    return new StreamableFile(await this.pdf.execute(month), {
+      disposition: `attachment; filename="reporte-${String(month)}.pdf"`,
+    });
   }
 
   @Post('months/:month/close')
