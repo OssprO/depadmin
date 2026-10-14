@@ -9,6 +9,8 @@ import {
 } from '@tanstack/react-router';
 import { AccountPage } from '@/features/account/routes/AccountPage';
 import { UsersPage } from '@/features/admin/routes/UsersPage';
+import { auditFiltersFrom } from '@/features/audit/filters';
+import { AuditLogPage } from '@/features/audit/routes/AuditLogPage';
 import { ChangePasswordPage } from '@/features/auth/routes/ChangePasswordPage';
 import { LoginPage } from '@/features/auth/routes/LoginPage';
 import { HomePage } from '@/features/dashboard/routes/HomePage';
@@ -87,9 +89,25 @@ const usersRoute = createRoute({
   component: UsersPage,
 });
 
+/** Its filters live in the URL, so they survive a reload and the back button. */
+const auditRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/audit',
+  validateSearch: auditFiltersFrom,
+  component: function AuditRoute() {
+    const navigate = auditRoute.useNavigate();
+    return (
+      <AuditLogPage
+        filters={auditRoute.useSearch()}
+        onFiltersChange={(search) => void navigate({ search, replace: true })}
+      />
+    );
+  },
+});
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
-  appRoute.addChildren([homeRoute, accountRoute, changePasswordRoute, usersRoute]),
+  appRoute.addChildren([homeRoute, auditRoute, accountRoute, changePasswordRoute, usersRoute]),
 ]);
 
 export function createAppRouter(context: RouterContext, history?: RouterHistory) {

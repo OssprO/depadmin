@@ -1,22 +1,29 @@
 import type { CurrentUser, SessionResponse } from '@depadmin/shared';
 import { vi } from 'vitest';
 
-type Handler = (request: { body: unknown; headers: Headers }) => Response | Promise<Response>;
+type Handler = (request: {
+  body: unknown;
+  headers: Headers;
+  search: URLSearchParams;
+}) => Response | Promise<Response>;
 
 /**
- * Stubs `fetch` with handlers keyed by "METHOD /path" (e.g. "POST /api/auth/login"). Unknown
+ * Stubs `fetch` with handlers keyed by "METHOD /path" (e.g. "POST /api/auth/login"); the
+ * query string is passed to the handler as `search`, not matched. Unknown
  * routes answer 404, and every call is recorded for assertions.
  */
 export function fakeApi(handlers: Record<string, Handler>) {
-  const calls: { route: string; headers: Headers; body: unknown }[] = [];
+  const calls: { route: string; search: URLSearchParams; headers: Headers; body: unknown }[] = [];
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init: RequestInit = {}) => {
     const url = new URL(input instanceof Request ? input.url : input, 'http://localhost');
     const route = `${init.method ?? 'GET'} ${url.pathname}`;
     const headers = new Headers(init.headers);
     const body: unknown = typeof init.body === 'string' ? JSON.parse(init.body) : undefined;
-    calls.push({ route, headers, body });
+    calls.push({ route, search: url.searchParams, headers, body });
     const handler = handlers[route];
-    return handler ? handler({ body, headers }) : problem(404, 'NOT_FOUND');
+    return handler
+      ? handler({ body, headers, search: url.searchParams })
+      : problem(404, 'NOT_FOUND');
   });
   vi.stubGlobal('fetch', fetchMock);
   return { calls, fetchMock, callsTo: (route: string) => calls.filter((c) => c.route === route) };
