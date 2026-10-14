@@ -1,5 +1,4 @@
 import { Body, Controller, Get, Header, HttpCode, Post, Req, Res, UseGuards } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
 import {
   type ChangePasswordRequest,
   changePasswordRequestSchema,
@@ -24,8 +23,6 @@ import { LoginThrottlerGuard } from './login-throttler.guard.js';
 import { toCurrentUser, toSessionResponse } from './presenters.js';
 import { clearRefreshCookie, readRefreshCookie, setRefreshCookie } from './refresh-cookie.js';
 
-const MINUTE = 60_000;
-
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -40,8 +37,8 @@ export class AuthController {
   @Post('login')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
+  // At most LOGIN_ATTEMPTS_PER_MINUTE attempts per IP and username (identity.module.ts).
   @UseGuards(LoginThrottlerGuard)
-  @Throttle({ default: { limit: 5, ttl: MINUTE } })
   async login(
     @Body(new ZodValidationPipe(loginRequestSchema)) body: LoginRequest,
     @Res({ passthrough: true }) response: Response,

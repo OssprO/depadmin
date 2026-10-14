@@ -27,6 +27,8 @@ export async function startStack(): Promise<() => Promise<void>> {
     DATABASE_URL: database.getConnectionUri(),
     JWT_SECRET: 'browser-tests-secret-that-is-at-least-32-chars',
     JOBS_ENABLED: 'false',
+    // Every test signs in from the same IP; the limit itself is covered by the API tests.
+    LOGIN_ATTEMPTS_PER_MINUTE: '100',
     SUPERADMIN_USERNAME: SUPERADMIN.username,
     SUPERADMIN_PASSWORD: SUPERADMIN.password,
     API_URL: `http://localhost:${API_PORT}`,
