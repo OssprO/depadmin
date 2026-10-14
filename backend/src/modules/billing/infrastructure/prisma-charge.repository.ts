@@ -9,6 +9,11 @@ import { Charge, type ChargeRepository } from '../domain/index.js';
 export class PrismaChargeRepository implements ChargeRepository {
   constructor(private readonly database: PrismaDatabase) {}
 
+  async findAll(): Promise<Charge[]> {
+    const rows = await this.database.db.charge.findMany();
+    return rows.map(toDomain);
+  }
+
   async findByUnit(unit: UnitNumber): Promise<Charge[]> {
     const rows = await this.database.db.charge.findMany({ where: { unitNumber: unit.value } });
     return rows.map(toDomain);
