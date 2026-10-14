@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { FakeUnitOfWork, RecordingAuditTrail } from '../../../../test/support/audit-trail.js';
 import { withCode } from '../../../../test/support/domain-error.js';
+import { FakeMonthLedger } from '../../../../test/support/month-ledger.js';
 import { type Actor, UnitNumber, YearMonth, YearMonthRange } from '../../../shared-kernel/index.js';
 import { Unit } from '../domain/index.js';
 import { ListUnits, UnitStatuses } from './list-units.js';
@@ -16,12 +17,14 @@ describe('units', () => {
   let units: InMemoryUnitRepository;
   let audit: RecordingAuditTrail;
   let setStatus: SetUnitStatus;
+  let ledger: FakeMonthLedger;
 
   beforeEach(() => {
     units = new InMemoryUnitRepository(UnitNumber.all().map((n) => Unit.create(n)));
     const unitOfWork = new FakeUnitOfWork();
     audit = new RecordingAuditTrail(unitOfWork);
-    setStatus = new SetUnitStatus(units, unitOfWork, audit);
+    ledger = new FakeMonthLedger();
+    setStatus = new SetUnitStatus(units, unitOfWork, audit, ledger);
   });
 
   describe('SetUnitStatus', () => {
@@ -47,6 +50,17 @@ describe('units', () => {
       ]);
     });
 
+    it('starts only in a month that has not been opened', async () => {
+      ledger.set('2026-10', 'OPEN').set('2026-09', 'CLOSED');
+
+      for (const from of ['2026-09', '2026-10']) {
+        await expect(
+          setStatus.execute(admin, { unit: u(302), active: false, from: m(from) }),
+        ).rejects.toThrow(withCode('UNIT_STATUS_MONTH_OPENED'));
+      }
+      await setStatus.execute(admin, { unit: u(302), active: false, from: m('2026-11') });
+    });
+
     it('is for the superadmin only', async () => {
       await expect(
         setStatus.execute(owner, { unit: u(302), active: false, from: m('2026-10') }),
@@ -61,7 +75,12 @@ describe('units', () => {
     });
 
     it('reports a depto missing from storage', async () => {
-      const empty = new SetUnitStatus(new InMemoryUnitRepository(), new FakeUnitOfWork(), audit);
+      const empty = new SetUnitStatus(
+        new InMemoryUnitRepository(),
+        new FakeUnitOfWork(),
+        audit,
+        ledger,
+      );
       await expect(
         empty.execute(admin, { unit: u(302), active: false, from: m('2026-10') }),
       ).rejects.toThrow(withCode('UNIT_NOT_FOUND'));
