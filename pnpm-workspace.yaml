@@ -1,6 +1,7 @@
 packages:
   - backend
   - frontend
+  - e2e
   - packages/*
 
 # pnpm blocks dependency build scripts unless they are listed here.
