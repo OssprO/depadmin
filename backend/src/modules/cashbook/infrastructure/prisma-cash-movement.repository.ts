@@ -14,12 +14,26 @@ export class PrismaCashMovementRepository implements CashMovementRepository {
     return row && toDomain(row);
   }
 
-  async findByMonth(month: YearMonth): Promise<CashMovement[]> {
+  findByMonth(month: YearMonth): Promise<CashMovement[]> {
+    return this.findBetween(LocalDate.firstOf(month), LocalDate.lastOf(month));
+  }
+
+  async findBetween(first: LocalDate, last: LocalDate): Promise<CashMovement[]> {
+    const rows = await this.database.db.cashMovement.findMany({
+      where: { date: { gte: toDbDate(first), lte: toDbDate(last) } },
+      orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
+    });
+    return rows.map(toDomain);
+  }
+
+  async findGarbageForWeeks(first: LocalDate, last: LocalDate): Promise<CashMovement[]> {
     const rows = await this.database.db.cashMovement.findMany({
       where: {
-        date: { gte: toDbDate(LocalDate.firstOf(month)), lte: toDbDate(LocalDate.lastOf(month)) },
+        category: 'GARBAGE',
+        removedAt: null,
+        coversWeek: { gte: toDbDate(first), lte: toDbDate(last) },
       },
-      orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
+      orderBy: [{ coversWeek: 'asc' }],
     });
     return rows.map(toDomain);
   }
@@ -44,7 +58,7 @@ export class PrismaCashMovementRepository implements CashMovementRepository {
     return this.database.run(async () => {
       const { db } = this.database;
       for (const movement of movements) {
-        const { date, category, amount, description, unit } = movement.details;
+        const { date, category, amount, description, unit, week } = movement.details;
         const existing = await db.cashMovement.findUnique({ where: { id: movement.id } });
         const data = {
           date: toDbDate(date),
@@ -52,6 +66,7 @@ export class PrismaCashMovementRepository implements CashMovementRepository {
           amount: amount.centavos,
           description,
           unitNumber: unit?.value ?? null,
+          coversWeek: week && toDbDate(week),
           // Keep the original removal time.
           removedAt: movement.isRemoved ? (existing?.removedAt ?? new Date()) : null,
         };
@@ -74,6 +89,7 @@ function toDomain(row: MovementRow): CashMovement {
       amount: fromDbMoney(row.amount),
       description: row.description,
       unit: row.unitNumber === null ? null : UnitNumber.of(row.unitNumber),
+      week: row.coversWeek && fromDbDate(row.coversWeek),
     },
     row.removedAt !== null,
   );

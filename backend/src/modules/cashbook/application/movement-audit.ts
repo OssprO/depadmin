@@ -18,5 +18,6 @@ export const MOVEMENT_AUDIT: AuditSubject<CashMovement> = {
     amount: details.amount.centavos,
     unit: details.unit?.value ?? null,
     description: details.description,
+    week: details.week && String(details.week),
   }),
 };

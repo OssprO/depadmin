@@ -13,7 +13,15 @@ const row = (date: string, details: Partial<MovementDetails> = {}) =>
     amount: Money.ofPesos(700),
     description: null,
     unit: UnitNumber.of(501),
+    week: null,
     ...details,
+  });
+const garbage = (date: string, week: string) =>
+  row(date, {
+    category: 'GARBAGE',
+    unit: null,
+    amount: Money.ofPesos(150),
+    week: LocalDate.parse(week),
   });
 
 describe('PrismaCashMovementRepository', () => {
@@ -21,7 +29,7 @@ describe('PrismaCashMovementRepository', () => {
     await repository().save([
       row('2026-08-31'),
       row('2026-09-01'),
-      row('2026-09-30', { category: 'GARBAGE', unit: null, amount: Money.ofPesos(150) }),
+      garbage('2026-09-30', '2026-09-28'),
       row('2026-10-01'),
     ]);
     const september = await repository().findByMonth(YearMonth.of(2026, 9));
@@ -60,6 +68,39 @@ describe('PrismaCashMovementRepository', () => {
     ]);
   });
 
+  it('finds rows between two days, across months', async () => {
+    await repository().save([
+      row('2026-09-27'),
+      row('2026-09-28'),
+      row('2026-10-04'),
+      row('2026-10-05'),
+    ]);
+    const span = await repository().findBetween(
+      LocalDate.parse('2026-09-28'),
+      LocalDate.parse('2026-10-04'),
+    );
+    expect(span.map((r) => String(r.date))).toEqual(['2026-09-28', '2026-10-04']);
+  });
+
+  it('finds the live garbage rows paying for some weeks, wherever they are dated', async () => {
+    const removed = garbage('2026-10-11', '2026-10-05');
+    removed.remove();
+    await repository().save([
+      garbage('2026-10-31', '2026-10-26'), // paid early, in October, for November's week
+      garbage('2026-11-08', '2026-11-02'),
+      garbage('2026-11-30', '2026-11-30'),
+      removed,
+    ]);
+    const weeks = await repository().findGarbageForWeeks(
+      LocalDate.parse('2026-10-05'),
+      LocalDate.parse('2026-11-23'),
+    );
+    expect(weeks.map((r) => [String(r.date), String(r.details.week)])).toEqual([
+      ['2026-10-31', '2026-10-26'],
+      ['2026-11-08', '2026-11-02'],
+    ]);
+  });
+
   it('lists the live payments of one depto across months', async () => {
     const removed = row('2026-10-02');
     removed.remove();
@@ -88,5 +129,34 @@ describe('PrismaCashMovementRepository', () => {
     await expect(insert({ category: 'OTHER_EXPENSE', description: '  ' })).rejects.toThrow(
       /description_required|check/i,
     );
+  });
+
+  it('keeps one live garbage row per week, named by its Monday, in the database', async () => {
+    const insert = (data: { category: 'GARBAGE' | 'CLEANING'; coversWeek?: string }) =>
+      ctx.database.client.cashMovement.create({
+        data: {
+          id: crypto.randomUUID(),
+          date: new Date('2026-09-06'),
+          amount: 15000,
+          category: data.category,
+          coversWeek: data.coversWeek ? new Date(data.coversWeek) : null,
+        },
+      });
+    await expect(insert({ category: 'GARBAGE' })).rejects.toThrow(/week_iff_garbage|check/i);
+    await expect(insert({ category: 'CLEANING', coversWeek: '2026-08-31' })).rejects.toThrow(
+      /week_iff_garbage|check/i,
+    );
+    await expect(insert({ category: 'GARBAGE', coversWeek: '2026-09-06' })).rejects.toThrow(
+      /week_is_monday|check/i,
+    );
+
+    const paid = garbage('2026-09-06', '2026-08-31');
+    await repository().save([paid]);
+    await expect(insert({ category: 'GARBAGE', coversWeek: '2026-08-31' })).rejects.toThrow(
+      /one_garbage_per_week|exclusion/i,
+    );
+    paid.remove();
+    await repository().save([paid]);
+    await expect(insert({ category: 'GARBAGE', coversWeek: '2026-08-31' })).resolves.toBeDefined();
   });
 });

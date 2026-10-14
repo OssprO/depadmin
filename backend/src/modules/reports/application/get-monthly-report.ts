@@ -13,7 +13,9 @@ import type { AccountStatement, PaymentCoverage } from '../../billing/applicatio
 import {
   type CashbookTotals,
   type CashMovement,
+  type GarbageWeek,
   ReadCashbook,
+  type WeeklyCleaningPayout,
 } from '../../cashbook/application/index.js';
 import { GetRates } from '../../settings/application/index.js';
 import { LoadShiftCalendar } from '../../shifts/application/index.js';
@@ -48,6 +50,10 @@ export interface MonthlyReportView {
   } | null;
   /** Every depto's account, to list the ones that owe first when recording a payment. */
   readonly accounts: readonly AccountStatement[];
+  /** The month's garbage weeks; the pending ones are suggestions outside the totals. */
+  readonly garbageWeeks: readonly GarbageWeek[];
+  /** What to pay the cleaning person for each week that touches the month. */
+  readonly cleaningPayouts: readonly WeeklyCleaningPayout[];
 }
 
 /**
@@ -69,13 +75,16 @@ export class GetMonthlyReport {
 
   async execute(actor: Actor, month: YearMonth): Promise<MonthlyReportView> {
     const today = this.clock.today();
-    const [ledger, cashbook, accounts, calendar, suggestions] = await Promise.all([
-      this.reports.loadLedger(),
-      this.cashbook.month(month),
-      this.accounts.all(),
-      this.calendars.execute(month),
-      this.suggestionsFor(month),
-    ]);
+    const [ledger, cashbook, accounts, calendar, suggestions, garbageWeeks, cleaningPayouts] =
+      await Promise.all([
+        this.reports.loadLedger(),
+        this.cashbook.month(month),
+        this.accounts.all(),
+        this.calendars.execute(month),
+        this.suggestionsFor(month),
+        this.cashbook.garbageWeeks(month, today),
+        this.cashbook.cleaningPayouts(month),
+      ]);
     const report = ledger?.reports.find((r) => r.month.equals(month));
     const status: MonthStatus = !report ? 'NOT_OPENED' : report.isOpen ? 'OPEN' : 'CLOSED';
     const mayWrite = this.policy.decide({ actor, month, today, responsibility: calendar }).allowed;
@@ -112,6 +121,8 @@ export class GetMonthlyReport {
         mayWrite,
       suggestions,
       accounts,
+      garbageWeeks,
+      cleaningPayouts,
     };
   }
 

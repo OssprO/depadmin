@@ -12,6 +12,7 @@ export const payment = (date: string, unit: number, amount = 700): MovementDetai
   amount: pesos(amount),
   description: null,
   unit: UnitNumber.of(unit),
+  week: null,
 });
 
 export const expense = (
@@ -19,7 +20,21 @@ export const expense = (
   category: 'GARBAGE' | 'CLEANING' | 'OTHER_EXPENSE',
   amount: number,
   description: string | null = null,
-): MovementDetails => ({ date: d(date), category, amount: pesos(amount), description, unit: null });
+): MovementDetails => ({
+  date: d(date),
+  category,
+  amount: pesos(amount),
+  description,
+  unit: null,
+  // A garbage row pays for the week of its date unless a spec says otherwise.
+  week: category === 'GARBAGE' ? d(date).startOfWeek() : null,
+});
+
+/** A garbage row paid on `date` for the week starting on Monday `week`. */
+export const garbage = (date: string, week: string, amount = 150): MovementDetails => ({
+  ...expense(date, 'GARBAGE', amount),
+  week: d(week),
+});
 
 export const otherIncome = (
   date: string,
@@ -31,4 +46,5 @@ export const otherIncome = (
   amount: pesos(amount),
   description,
   unit: null,
+  week: null,
 });

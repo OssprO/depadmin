@@ -1,4 +1,4 @@
-import { type LocalDate, Money } from '../../../shared-kernel/index.js';
+import { ConflictError, LocalDate, Money, type YearMonth } from '../../../shared-kernel/index.js';
 import type { CashMovement } from './cash-movement.js';
 import type { MovementCategory } from './movement-category.js';
 
@@ -24,10 +24,92 @@ export function suggestedAmount(category: MovementCategory, rates: SuggestionRat
   }
 }
 
+// Garbage: one fixed payment per calendar week (spec 4.3). Weeks run Monday to Sunday and the
+// suggested payday is the Sunday (PLAN question 4); the user adjusts the real date.
+
+export type GarbageWeekStatus = 'PAID' | 'PENDING' | 'UPCOMING';
+
+/**
+ * A week of garbage as the month's list shows it. A pending week is a suggestion, not a row:
+ * it counts nowhere until it is confirmed, which records a real row.
+ */
+export interface GarbageWeek {
+  /** Monday. */
+  readonly week: LocalDate;
+  /** Sunday, the suggested payday; it decides which month lists the week. */
+  readonly payday: LocalDate;
+  /** Paid by a live row (in any month); pending once the week has begun; upcoming before. */
+  readonly status: GarbageWeekStatus;
+  readonly paidBy: CashMovement | null;
+  /** The date a one-tap confirmation records: the payday, or today if that comes first. */
+  readonly suggestedDate: LocalDate;
+}
+
+/** Mondays of the weeks whose payday (Sunday) falls in the month: four or five of them. */
+export function garbageWeeksOf(month: YearMonth): LocalDate[] {
+  const first = LocalDate.firstOf(month);
+  const last = LocalDate.lastOf(month);
+  const weeks: LocalDate[] = [];
+  for (let payday = first.plusDays(7 - first.dayOfWeek); !payday.isAfter(last);) {
+    weeks.push(payday.plusDays(-6));
+    payday = payday.plusDays(7);
+  }
+  return weeks;
+}
+
+/**
+ * The month's garbage weeks and how each stands, given the live garbage rows that pay for
+ * them (wherever those rows are dated).
+ */
+export function garbageSchedule(
+  month: YearMonth,
+  today: LocalDate,
+  garbageRows: readonly CashMovement[],
+): GarbageWeek[] {
+  return garbageWeeksOf(month).map((week) => {
+    const payday = week.plusDays(6);
+    const paidBy =
+      garbageRows.find((row) => !row.isRemoved && row.details.week?.equals(week)) ?? null;
+    const status: GarbageWeekStatus = paidBy
+      ? 'PAID'
+      : week.isAfter(today)
+        ? 'UPCOMING'
+        : 'PENDING';
+    return {
+      week,
+      payday,
+      status,
+      paidBy,
+      suggestedDate: today.isBefore(payday) ? today : payday,
+    };
+  });
+}
+
+/** Each week is paid once: a garbage row cannot pay for a week another live row pays for. */
+export function assertWeekUnpaid(
+  movement: CashMovement,
+  garbageRows: readonly CashMovement[],
+): void {
+  const { week } = movement.details;
+  if (!week || movement.isRemoved) return;
+  const other = garbageRows.find(
+    (row) => row.id !== movement.id && !row.isRemoved && row.details.week?.equals(week),
+  );
+  if (other) {
+    throw new ConflictError(
+      'GARBAGE_WEEK_PAID',
+      `The week of ${week} is already paid by movement ${other.id} (${other.date})`,
+    );
+  }
+}
+
+// Cleaning: one row per visit at the visit's date, paid weekly (spec 4.3).
+
 export interface WeeklyCleaningPayout {
   /** Monday of the week. */
   readonly weekStart: LocalDate;
-  readonly visits: number;
+  /** The visits of the week, by date. */
+  readonly dates: readonly LocalDate[];
   readonly total: Money;
 }
 
@@ -49,7 +131,49 @@ export function weeklyCleaningPayouts(movements: readonly CashMovement[]): Weekl
     .sort((a, b) => a.weekStart.compareTo(b.weekStart))
     .map(({ weekStart, visits }) => ({
       weekStart,
-      visits: visits.length,
+      dates: visits.map((visit) => visit.date).sort((a, b) => a.compareTo(b)),
       total: Money.sum(visits.map((visit) => visit.amount)),
     }));
+}
+
+/**
+ * The payouts of the weeks that touch a month. A week that crosses into the next or the
+ * previous month includes its visits there too, since the person is paid for the whole
+ * week; pass the rows dated in that whole span (see `cleaningSpanOf`).
+ */
+export function cleaningPayoutsOf(
+  month: YearMonth,
+  movements: readonly CashMovement[],
+): WeeklyCleaningPayout[] {
+  const { first, last } = cleaningSpanOf(month);
+  return weeklyCleaningPayouts(
+    movements.filter((row) => !row.date.isBefore(first) && !row.date.isAfter(last)),
+  );
+}
+
+/** From the Monday of the month's first week to the Sunday of its last one. */
+export function cleaningSpanOf(month: YearMonth): { first: LocalDate; last: LocalDate } {
+  const last = LocalDate.lastOf(month);
+  return {
+    first: LocalDate.firstOf(month).startOfWeek(),
+    last: last.startOfWeek().plusDays(6),
+  };
+}
+
+/** The shortcut that marks several visits at once records each date only once. */
+export function assertNewVisits(
+  dates: readonly LocalDate[],
+  existing: readonly CashMovement[],
+): void {
+  const seen = new Set<string>();
+  for (const date of dates) {
+    const key = String(date);
+    const recorded = existing.some(
+      (row) => row.category === 'CLEANING' && !row.isRemoved && row.date.equals(date),
+    );
+    if (seen.has(key) || recorded) {
+      throw new ConflictError('CLEANING_VISIT_RECORDED', `There is already a visit on ${key}`);
+    }
+    seen.add(key);
+  }
 }
