@@ -8,7 +8,8 @@ async function signIn(page: Page, username: string, password: string) {
 }
 
 async function signOut(page: Page) {
-  await page.getByRole('link', { name: 'Cuenta' }).click();
+  await page.getByRole('link', { name: 'Más' }).click();
+  await page.getByRole('link', { name: /Mi cuenta/ }).click();
   await page.getByRole('button', { name: 'Cerrar sesión' }).click();
   await expect(page.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible();
 }
@@ -64,7 +65,9 @@ test('gives an owner access with a temporary password they must replace', async 
 
   await expect(page.getByRole('heading', { name: 'Hola, Depto 501' })).toBeVisible();
   // Owners have no admin tools.
-  await expect(page.getByRole('link', { name: 'Admin' })).toHaveCount(0);
+  await page.getByRole('link', { name: 'Más' }).click();
+  await expect(page.getByRole('link', { name: /Estados de cuenta/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Administración/ })).toHaveCount(0);
   await page.goto('/admin/users');
   await expect(page.getByRole('heading', { name: 'Hola, Depto 501' })).toBeVisible();
 
