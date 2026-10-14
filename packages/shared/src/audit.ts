@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { roleSchema } from './auth.js';
 
 export const AUDIT_LOG_PAGE_LIMIT_MAX = 100;
 
@@ -12,10 +11,11 @@ export const auditLogQuerySchema = z.object({
     .optional(),
   /** The history of one row. */
   entityId: z.string().min(1).max(64).optional(),
-  /** Who acted: `superadmin`, or a depto number such as `501`. */
+  /** Who acted: `superadmin`, `system` (scheduled jobs), or a depto number such as `501`. */
   actor: z
     .union([
       z.literal('superadmin'),
+      z.literal('system'),
       z
         .string()
         .regex(/^\d{3}$/)
@@ -41,11 +41,15 @@ export const fieldChangeSchema = z.union([
 ]);
 export type FieldChange = z.infer<typeof fieldChangeSchema>;
 
+/** A user's role, or the app itself for what runs on a schedule. */
+export const auditActorRoleSchema = z.enum(['SUPERADMIN', 'OWNER', 'SYSTEM']);
+export type AuditActorRole = z.infer<typeof auditActorRoleSchema>;
+
 export const auditLogEntrySchema = z.object({
   id: z.string(),
   occurredAt: z.iso.datetime(),
-  /** Who acted, as it was then. `unit` is the owner's depto; null for the superadmin. */
-  actor: z.object({ role: roleSchema, unit: z.number().int().nullable() }),
+  /** Who acted, as it was then. `unit` is the owner's depto; null for anyone else. */
+  actor: z.object({ role: auditActorRoleSchema, unit: z.number().int().nullable() }),
   /** A stable code, e.g. `USER_PASSWORD_RESET`. */
   action: z.string(),
   entity: z.string(),

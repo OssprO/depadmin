@@ -62,6 +62,8 @@ export function octoberReport(overrides: Partial<MonthlyReport> = {}): MonthlyRe
     movements: [paymentRow, cleaningRow],
     canWrite: true,
     canOpen: false,
+    canClose: false,
+    canReopen: false,
     suggestions: { maintenanceFee: 70000, cleaningPerVisit: 27000, garbageWeekly: 15000 },
     accounts: accounts({ 302: 70000, 102: 140000 }),
     // On 14 October three of the weeks have begun and none is paid; the last two are to come.
