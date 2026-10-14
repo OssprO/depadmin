@@ -9,6 +9,11 @@ import { CashMovement, type CashMovementRepository } from '../domain/index.js';
 export class PrismaCashMovementRepository implements CashMovementRepository {
   constructor(private readonly database: PrismaDatabase) {}
 
+  async findById(id: string): Promise<CashMovement | null> {
+    const row = await this.database.db.cashMovement.findUnique({ where: { id } });
+    return row && toDomain(row);
+  }
+
   async findByMonth(month: YearMonth): Promise<CashMovement[]> {
     const rows = await this.database.db.cashMovement.findMany({
       where: {
@@ -22,6 +27,14 @@ export class PrismaCashMovementRepository implements CashMovementRepository {
   async findPaymentsOf(unit: UnitNumber): Promise<CashMovement[]> {
     const rows = await this.database.db.cashMovement.findMany({
       where: { category: 'UNIT_PAYMENT', unitNumber: unit.value, removedAt: null },
+      orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
+    });
+    return rows.map(toDomain);
+  }
+
+  async findAllPayments(): Promise<CashMovement[]> {
+    const rows = await this.database.db.cashMovement.findMany({
+      where: { category: 'UNIT_PAYMENT', removedAt: null },
       orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
     });
     return rows.map(toDomain);

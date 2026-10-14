@@ -1,22 +1,30 @@
 import type { QueryClient } from '@tanstack/react-query';
+import { UNIT_NUMBERS, yearMonthSchema } from '@depadmin/shared';
 import {
   createRootRouteWithContext,
   createRoute,
   createRouter,
+  notFound,
   Outlet,
   redirect,
   type RouterHistory,
 } from '@tanstack/react-router';
+import { AccountStatementPage } from '@/features/accounts/routes/AccountStatementPage';
+import { AccountsPage } from '@/features/accounts/routes/AccountsPage';
 import { AccountPage } from '@/features/account/routes/AccountPage';
 import { AdminPage } from '@/features/admin/routes/AdminPage';
+import { ReportingStartPage } from '@/features/admin/routes/ReportingStartPage';
 import { UnitsPage } from '@/features/admin/routes/UnitsPage';
 import { UsersPage } from '@/features/admin/routes/UsersPage';
 import { auditFiltersFrom } from '@/features/audit/filters';
 import { AuditLogPage } from '@/features/audit/routes/AuditLogPage';
 import { ChangePasswordPage } from '@/features/auth/routes/ChangePasswordPage';
 import { LoginPage } from '@/features/auth/routes/LoginPage';
+import { BookPage } from '@/features/book/routes/BookPage';
 import { HomePage } from '@/features/dashboard/routes/HomePage';
+import { MorePage } from '@/features/more/routes/MorePage';
 import { ShiftsPage } from '@/features/shifts/routes/ShiftsPage';
+import { buildingToday } from '@/lib/format';
 import { safeRedirect } from '@/lib/safe-redirect';
 import type { SessionStore } from '@/lib/session';
 import { AppLayout } from './AppLayout';
@@ -83,6 +91,59 @@ const changePasswordRoute = createRoute({
   component: ChangePasswordPage,
 });
 
+/** The book opens on the current month in the building. */
+const bookIndexRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/book',
+  beforeLoad: () => {
+    throw redirect({ to: '/book/$month', params: { month: buildingToday().slice(0, 7) } });
+  },
+});
+
+const bookRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/book/$month',
+  params: {
+    parse: ({ month }) => {
+      if (!yearMonthSchema.safeParse(month).success) throw notFound();
+      return { month };
+    },
+    stringify: ({ month }) => ({ month }),
+  },
+  component: function BookRoute() {
+    const { month } = bookRoute.useParams();
+    return <BookPage key={month} month={month} />;
+  },
+});
+
+const accountsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/accounts',
+  component: AccountsPage,
+});
+
+const accountStatementRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/accounts/$unit',
+  params: {
+    parse: ({ unit }) => {
+      const number = Number(unit);
+      if (!(UNIT_NUMBERS as readonly number[]).includes(number)) throw notFound();
+      return { unit: number };
+    },
+    stringify: ({ unit }) => ({ unit: String(unit) }),
+  },
+  component: function AccountRoute() {
+    return <AccountStatementPage unit={accountStatementRoute.useParams().unit} />;
+  },
+});
+
+const moreRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/more',
+  component: MorePage,
+});
+
 const shiftsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/shifts',
@@ -133,15 +194,26 @@ const auditRoute = createRoute({
   },
 });
 
+const reportingStartRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/start',
+  component: ReportingStartPage,
+});
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([
     homeRoute,
+    bookIndexRoute,
+    bookRoute,
+    accountsRoute,
+    accountStatementRoute,
+    moreRoute,
     shiftsRoute,
     auditRoute,
     accountRoute,
     changePasswordRoute,
-    adminRoute.addChildren([adminIndexRoute, usersRoute, unitsRoute]),
+    adminRoute.addChildren([adminIndexRoute, usersRoute, unitsRoute, reportingStartRoute]),
   ]),
 ]);
 

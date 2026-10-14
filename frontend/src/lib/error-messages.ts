@@ -32,6 +32,26 @@ const MESSAGES: Record<string, string> = {
   UNIT_NOT_INACTIVE: 'El depto no está inactivo en ese mes.',
   RATES_NOT_CONFIGURED: 'Faltan las tarifas; el superadmin debe configurarlas.',
   RATE_NOT_DEFINED: 'No hay tarifa vigente para ese mes.',
+  UNIT_STATUS_MONTH_OPENED:
+    'Ese mes ya se abrió y cobró sus cuotas; el cambio debe empezar el mes siguiente.',
+  // Books
+  REPORTING_NOT_STARTED: 'Falta capturar el inicio de la contabilidad.',
+  REPORTING_START_LOCKED: 'El inicio ya no se puede cambiar así: ya hay meses abiertos o cerrados.',
+  MONTH_BEFORE_START: 'Ese mes es anterior al inicio de la contabilidad.',
+  MONTH_NOT_STARTED: 'Ese mes todavía no empieza.',
+  MONTH_NOT_OPENED: 'Ese mes no se ha abierto.',
+  MONTH_CLOSED: 'Ese mes está cerrado; solo el superadmin puede reabrirlo.',
+  MONTH_OUT_OF_ORDER: 'Los meses se abren en orden.',
+  REPORT_NOT_FOUND: 'Ese mes no se ha abierto.',
+  MOVEMENT_NOT_FOUND: 'Ese movimiento ya no existe.',
+  MOVEMENT_REMOVED: 'Ese movimiento ya se había borrado.',
+  MOVEMENT_DUPLICATED: 'Ese movimiento ya estaba registrado.',
+  MOVEMENT_OUTSIDE_MONTH:
+    'La fecha debe ser del mismo mes. Para moverlo, bórralo y captúralo en su mes.',
+  MOVEMENT_AMOUNT_INVALID: 'El importe debe ser mayor que cero.',
+  MOVEMENT_UNIT_REQUIRED: 'Elige el depto que pagó.',
+  MOVEMENT_UNIT_NOT_ALLOWED: 'Este tipo de movimiento no lleva depto.',
+  MOVEMENT_DESCRIPTION_REQUIRED: 'Describe el movimiento.',
 };
 
 const GENERIC = 'Algo salió mal. Inténtalo de nuevo.';

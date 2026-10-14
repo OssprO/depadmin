@@ -1,12 +1,14 @@
 import {
   passwordResetResponseSchema,
+  type ReportingStart,
+  reportingStartResponseSchema,
   type SetUnitStatusRequest,
   unitListResponseSchema,
   unitSchema,
   userListResponseSchema,
 } from '@depadmin/shared';
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getJson, sendJson } from '@/lib/http';
+import { apiFetch, getJson, sendJson } from '@/lib/http';
 
 export const usersQueryOptions = queryOptions({
   queryKey: ['users'],
@@ -36,6 +38,27 @@ export function useSetUnitStatus() {
     onSuccess: () =>
       Promise.all(
         [['units'], ['shifts'], ['audit-log']].map((queryKey) =>
+          queryClient.invalidateQueries({ queryKey }),
+        ),
+      ),
+  });
+}
+
+export const reportingStartQueryOptions = queryOptions({
+  queryKey: ['reporting-start'],
+  queryFn: () => getJson('/reporting-start', reportingStartResponseSchema),
+});
+
+/** Every balance hangs from the start, so the books are refreshed too. */
+export function useSetReportingStart() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: ReportingStart) => {
+      await apiFetch('/reporting-start', { method: 'PUT', body });
+    },
+    onSuccess: () =>
+      Promise.all(
+        [['reporting-start'], ['months'], ['audit-log']].map((queryKey) =>
           queryClient.invalidateQueries({ queryKey }),
         ),
       ),

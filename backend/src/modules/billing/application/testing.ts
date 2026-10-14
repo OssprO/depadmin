@@ -5,6 +5,10 @@ import type { Charge, ChargeRepository } from '../domain/index.js';
 export class InMemoryChargeRepository implements ChargeRepository {
   readonly rows = new Map<string, Charge>();
 
+  findAll(): Promise<Charge[]> {
+    return Promise.resolve([...this.rows.values()]);
+  }
+
   findByUnit(unit: UnitNumber): Promise<Charge[]> {
     return Promise.resolve([...this.rows.values()].filter((c) => c.unit === unit));
   }
