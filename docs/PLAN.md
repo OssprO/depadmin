@@ -1,6 +1,6 @@
 # Plan de trabajo — DepAdmin (Edificio Correspondencia 63)
 
-**Versión:** 1.9 · **Fecha:** 2026-10-14 · **Base:** `docs/SPEC.md` v0.4
+**Versión:** 2.0 · **Fecha:** 2026-10-14 · **Base:** `docs/SPEC.md` v0.4
 
 Este plan reemplaza a la sección 11 de la spec. Cada fase termina en algo que se puede correr, probar y revisar. Modo de trabajo: Claude explica el porqué de cada decisión, implementa con pruebas y entrega la fase como un PR. Tú revisas y apruebas antes de pasar a la siguiente.
 
@@ -301,9 +301,16 @@ El detalle está en el ADR-0019.
 
 **Conceptos:** renderizado en el servidor, streams, Web Share API.
 
-### Fase 11: Carga inicial, pulido y endurecimiento
+### Fase 11a: Carga inicial y reporte con el formato del edificio
 
-- Carga inicial: adeudos o adelantos vigentes por depto al mes de corte (el mes y el saldo de caja ya se capturan desde la fase 7). Los PDFs anteriores se suben como archivo de consulta.
+El detalle está en el ADR-0020.
+
+- Nombre del propietario por depto, que edita el superadmin y aparece en el reporte.
+- Carga inicial por depto (Administración → Carga inicial): adeudos de antes del primer mes, mes por mes (o lo que faltaba de un mes, o la multa), y el adelanto. Se puede editar hasta que cierra el primer mes.
+- El PDF copia las hojas «Balance Correspondencia 63»: MES EN CURSO, ADEUDOS/ADELANTOS y OBSERVACIONES generadas, celdas en rojo o verde, egresos por concepto con las semanas de basura no pagadas en blanco, y totales.
+
+### Fase 11b: Pulido y endurecimiento
+
 - Alta de los 10 usuarios (el mecanismo ya existe desde la fase 3: contraseña temporal y cambio obligatorio en el primer login).
 - Limpieza periódica de refresh tokens vencidos y división del bundle del frontend por rutas.
 - Responder 409 (no 500) cuando la base rechaza dos delegaciones simultáneas sobre los mismos meses, o dos pagos de basura de la misma semana. Bloquear el mes mientras se cierra, para que un renglón agregado al mismo tiempo no quede fuera de la foto.
@@ -324,8 +331,8 @@ Cada una tiene un valor por defecto para no bloquear el avance. Se confirman en 
 | 3   | ¿Los cargos de cuota se generan el día 1 de cada mes aunque nadie abra el reporte?                                                                                            | **Aplicado:** se generan al abrir el mes; un job diario lo abre a las 00:05 si nadie lo hizo                                                                                    | 7    |
 | 4   | ¿Qué día de la semana se paga la basura?                                                                                                                                      | **Respondida:** el sábado; se sugiere ese día y el usuario ajusta la fecha. La limpieza se paga el miércoles o el viernes                                                       | 8    |
 | 5   | ¿Quieres adjuntar fotos de comprobantes en los egresos? Implica almacenar archivos en el VPS y respaldarlos.                                                                  | **Aplicado:** no en la primera versión                                                                                                                                          | 8    |
-| 6   | Necesito **uno o dos PDFs reales** del reporte actual para replicar su formato.                                                                                               | Plantilla provisional con el modelo de la spec; se ajusta al recibir el PDF                                                                                                     | 10   |
-| 7   | Mes de corte, saldo de caja y adeudos o adelantos vigentes por depto para la carga inicial.                                                                                   | —                                                                                                                                                                               | 11   |
+| 6   | Necesito **uno o dos PDFs reales** del reporte actual para replicar su formato.                                                                                               | **Aplicado:** el PDF sigue las hojas «Balance Correspondencia 63» que compartiste                                                                                               | 10   |
+| 7   | Mes de corte, saldo de caja y adeudos o adelantos vigentes por depto para la carga inicial.                                                                                   | **Mecanismo listo:** el superadmin captura el corte en Inicio de la contabilidad y Carga inicial                                                                                | 11a  |
 | 8   | Dominio y subdominio, y acceso SSH al VPS (distribución y si ya tiene Docker).                                                                                                | —                                                                                                                                                                               | 5    |
 | 9   | ¿Los dueños pueden cambiar su propia contraseña? ¿Hay recuperación por email?                                                                                                 | **Aplicado:** cambio propio sí; sin email: el superadmin genera una contraseña temporal                                                                                         | 3    |
 | 10  | ¿Puede haber varios usuarios por depto (por ejemplo, pareja o inquilino con solo lectura)?                                                                                    | **Aplicado:** un usuario por depto, como dice la spec                                                                                                                           | 3    |
