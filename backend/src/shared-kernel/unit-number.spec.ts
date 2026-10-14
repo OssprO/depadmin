@@ -1,3 +1,4 @@
+import { UNIT_NUMBERS } from '@depadmin/shared';
 import { describe, expect, it } from 'vitest';
 import { withCode } from '../../test/support/domain-error.js';
 import { UnitNumber } from './unit-number.js';
@@ -19,5 +20,9 @@ describe('UnitNumber', () => {
     expect(UnitNumber.of(402).floor).toBe(4);
     expect(String(UnitNumber.of(402))).toBe('402');
     expect(JSON.stringify([UnitNumber.of(101)])).toBe('[101]');
+  });
+
+  it('matches the list the frontend uses', () => {
+    expect(UnitNumber.all().map((unit) => unit.value)).toEqual(UNIT_NUMBERS);
   });
 });
