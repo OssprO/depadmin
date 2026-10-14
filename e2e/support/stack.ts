@@ -26,6 +26,7 @@ export async function startStack(): Promise<() => Promise<void>> {
     PORT: String(API_PORT),
     DATABASE_URL: database.getConnectionUri(),
     JWT_SECRET: 'browser-tests-secret-that-is-at-least-32-chars',
+    JOBS_ENABLED: 'false',
     SUPERADMIN_USERNAME: SUPERADMIN.username,
     SUPERADMIN_PASSWORD: SUPERADMIN.password,
     API_URL: `http://localhost:${API_PORT}`,

@@ -19,8 +19,11 @@ import {
   type ReportRepository,
 } from '../domain/index.js';
 import { GetAccounts } from './accounts.js';
+import { CloseMonth } from './close-month.js';
 import { GetMonthlyReport } from './get-monthly-report.js';
-import { OpenMonth } from './open-month.js';
+import { GetMonthHistory } from './month-history.js';
+import { MonthOpening, OpenCurrentMonth, OpenMonth } from './open-month.js';
+import { ReopenMonth } from './reopen-month.js';
 import { ReportMonthLedger } from './report-month-ledger.js';
 import { GetReportingStart, SetReportingStart } from './reporting-start.js';
 
@@ -63,6 +66,12 @@ export function booksFixture(today: string, inactive: Record<number, YearMonthRa
   const calendars = new LoadShiftCalendar(new InMemoryShiftDelegationRepository(), units);
   const cashbook = new ReadCashbook(movements, ledger);
   const accounts = new GetAccounts(new GetAccountStatements(charges), cashbook);
+  const opening = new MonthOpening(
+    reports,
+    unitOfWork,
+    audit,
+    new ChargeMaintenanceFees(charges, unitOfWork, audit, rates, units),
+  );
   return {
     clock,
     audit,
@@ -70,14 +79,11 @@ export function booksFixture(today: string, inactive: Record<number, YearMonthRa
     accounts,
     setStart: new SetReportingStart(reports, unitOfWork, audit),
     getStart: new GetReportingStart(reports),
-    open: new OpenMonth(
-      reports,
-      unitOfWork,
-      audit,
-      clock,
-      calendars,
-      new ChargeMaintenanceFees(charges, unitOfWork, audit, rates, units),
-    ),
+    open: new OpenMonth(clock, calendars, opening),
+    openCurrent: new OpenCurrentMonth(reports, clock, opening),
+    close: new CloseMonth(reports, unitOfWork, audit, clock, calendars, cashbook),
+    reopen: new ReopenMonth(reports, unitOfWork, audit),
+    history: new GetMonthHistory(reports, clock, cashbook, calendars),
     add: new AddMovement(
       movements,
       unitOfWork,

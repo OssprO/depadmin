@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { withCode } from '../../../../test/support/domain-error.js';
-import { Money, YearMonth } from '../../../shared-kernel/index.js';
+import { LocalDate, Money, YearMonth } from '../../../shared-kernel/index.js';
 import { MonthlyReport, type MonthTotals } from './monthly-report.js';
 import { type LiveTotals, ReportLedger } from './report-ledger.js';
 
@@ -24,6 +24,8 @@ function liveBook(initial: Record<string, MonthTotals>): {
 }
 
 const start = { month: m('2026-08'), openingBalance: pesos(10_000) };
+/** A day after every month these specs close. */
+const later = LocalDate.parse('2026-11-01');
 const balances = (ledger: ReportLedger, month: string, live: LiveTotals) => {
   const b = ledger.balancesOf(m(month), live);
   return [b.openingBalance.toString(), b.closingBalance.toString()];
@@ -97,7 +99,7 @@ describe('ReportLedger', () => {
     expect(balances(ledger, '2026-08', live)).toEqual(['10000.00', '15800.00']);
     expect(balances(ledger, '2026-09', live)).toEqual(['15800.00', '21200.00']);
 
-    ledger.closeMonth(m('2026-08'), live);
+    ledger.closeMonth(m('2026-08'), live, later);
     expect(ledger.report(m('2026-08')).snapshot?.closingBalance.toString()).toBe('15800.00');
     expect(balances(ledger, '2026-09', live)).toEqual(['15800.00', '21200.00']);
   });
@@ -107,15 +109,37 @@ describe('ReportLedger', () => {
     const ledger = ReportLedger.restore(start, []);
     ledger.openMonth(m('2026-08'));
     ledger.openMonth(m('2026-09'));
-    expect(() => ledger.closeMonth(m('2026-09'), live)).toThrow(withCode('PREVIOUS_MONTH_OPEN'));
-    expect(() => ledger.closeMonth(m('2026-10'), live)).toThrow(withCode('REPORT_NOT_FOUND'));
+    expect(() => ledger.closeMonth(m('2026-09'), live, later)).toThrow(
+      withCode('PREVIOUS_MONTH_OPEN'),
+    );
+    expect(() => ledger.closeMonth(m('2026-10'), live, later)).toThrow(
+      withCode('MONTH_NOT_OPENED'),
+    );
+    ledger.closeMonth(m('2026-08'), live, later);
+    expect(() => ledger.closeMonth(m('2026-08'), live, later)).toThrow(
+      withCode('MONTH_ALREADY_CLOSED'),
+    );
+  });
+
+  it('closes a month only once it is over', () => {
+    const { live } = liveBook({});
+    const ledger = ReportLedger.restore(start, []);
+    ledger.openMonth(m('2026-08'));
+    const lastDay = LocalDate.parse('2026-08-31');
+    expect(ledger.closingBlocker(m('2026-08'), lastDay)).toEqual(
+      expect.objectContaining({ code: 'MONTH_IN_PROGRESS' }),
+    );
+    expect(() => ledger.closeMonth(m('2026-08'), live, lastDay)).toThrow(
+      withCode('MONTH_IN_PROGRESS'),
+    );
+    expect(ledger.closingBlocker(m('2026-08'), lastDay.plusDays(1))).toBeNull();
   });
 
   it('freezes closed months even if the cashbook would say otherwise', () => {
     const book = liveBook({ '2026-08': totals(7000, 1200) });
     const ledger = ReportLedger.restore(start, []);
     ledger.openMonth(m('2026-08'));
-    ledger.closeMonth(m('2026-08'), book.live);
+    ledger.closeMonth(m('2026-08'), book.live, later);
     book.set('2026-08', totals(0, 0));
     expect(balances(ledger, '2026-08', book.live)).toEqual(['10000.00', '15800.00']);
   });
@@ -128,13 +152,13 @@ describe('ReportLedger', () => {
     });
     const ledger = ReportLedger.restore(start, []);
     for (const month of ['2026-08', '2026-09', '2026-10']) ledger.openMonth(m(month));
-    ledger.closeMonth(m('2026-08'), book.live);
-    ledger.closeMonth(m('2026-09'), book.live);
+    ledger.closeMonth(m('2026-08'), book.live, later);
+    ledger.closeMonth(m('2026-09'), book.live, later);
 
     // A forgotten $700 payment in August.
     ledger.reopenMonth(m('2026-08'));
     book.set('2026-08', totals(7700, 1200));
-    const changed = ledger.closeMonth(m('2026-08'), book.live);
+    const changed = ledger.closeMonth(m('2026-08'), book.live, later);
 
     expect(changed.map((r) => String(r.month))).toEqual(['2026-08', '2026-09']);
     expect(balances(ledger, '2026-09', book.live)).toEqual(['16500.00', '21900.00']);
@@ -149,18 +173,19 @@ describe('ReportLedger', () => {
     });
     const ledger = ReportLedger.restore(start, []);
     for (const month of ['2026-08', '2026-09', '2026-10']) ledger.openMonth(m(month));
-    for (const month of ['2026-08', '2026-09', '2026-10']) ledger.closeMonth(m(month), book.live);
+    for (const month of ['2026-08', '2026-09', '2026-10'])
+      ledger.closeMonth(m(month), book.live, later);
 
     ledger.reopenMonth(m('2026-08'));
     ledger.reopenMonth(m('2026-09'));
     book.set('2026-08', totals(2000, 0));
-    expect(ledger.closeMonth(m('2026-08'), book.live).map((r) => String(r.month))).toEqual([
+    expect(ledger.closeMonth(m('2026-08'), book.live, later).map((r) => String(r.month))).toEqual([
       '2026-08',
     ]);
     // October keeps its frozen figures until September closes again.
     expect(balances(ledger, '2026-10', book.live)).toEqual(['12000.00', '13000.00']);
 
-    expect(ledger.closeMonth(m('2026-09'), book.live).map((r) => String(r.month))).toEqual([
+    expect(ledger.closeMonth(m('2026-09'), book.live, later).map((r) => String(r.month))).toEqual([
       '2026-09',
       '2026-10',
     ]);

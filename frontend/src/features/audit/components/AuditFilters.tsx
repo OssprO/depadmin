@@ -41,12 +41,17 @@ export function AuditFilters({ filters, onChange }: AuditFiltersProps) {
           value={filters.actor === undefined ? ALL : String(filters.actor)}
           onChange={({ target: { value } }) => {
             const actor =
-              value === ALL ? undefined : value === 'superadmin' ? value : Number(value);
+              value === ALL
+                ? undefined
+                : value === 'superadmin' || value === 'system'
+                  ? value
+                  : Number(value);
             onChange(withFilter(filters, 'actor', actor));
           }}
         >
           <NativeSelectOption value={ALL}>Todos</NativeSelectOption>
           <NativeSelectOption value="superadmin">Superadmin</NativeSelectOption>
+          <NativeSelectOption value="system">Sistema</NativeSelectOption>
           {UNIT_NUMBERS.map((unit) => (
             <NativeSelectOption key={unit} value={unit}>
               Depto {unit}

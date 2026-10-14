@@ -19,6 +19,9 @@ const ACTIONS: Record<string, string> = {
   CASH_MOVEMENT_REVISED: 'Movimiento corregido',
   CASH_MOVEMENT_REMOVED: 'Movimiento borrado',
   MONTH_OPENED: 'Mes abierto',
+  MONTH_CLOSED: 'Mes cerrado',
+  MONTH_RESTATED: 'Saldos del mes recalculados',
+  MONTH_REOPENED: 'Mes reabierto',
   REPORTING_START_SET: 'Inicio de la contabilidad',
 };
 
@@ -58,7 +61,13 @@ const FIELDS: Record<string, Record<string, string>> = {
     description: 'Descripción',
     week: 'Semana',
   },
-  monthly_report: { status: 'Estado' },
+  monthly_report: {
+    status: 'Estado',
+    openingBalance: 'Saldo inicial',
+    income: 'Ingresos',
+    expense: 'Egresos',
+    closingBalance: 'Saldo final',
+  },
   reporting_start: { month: 'Primer mes', openingBalance: 'Efectivo en caja' },
 };
 
@@ -101,7 +110,13 @@ const VALUES: Record<string, Record<string, (value: string | number) => string>>
     amount: money,
     week: (v) => formatWeek(String(v)),
   },
-  monthly_report: { status: (v) => MONTH_STATUS[v] ?? String(v) },
+  monthly_report: {
+    status: (v) => MONTH_STATUS[v] ?? String(v),
+    openingBalance: money,
+    income: money,
+    expense: money,
+    closingBalance: money,
+  },
   reporting_start: { month: (v) => formatMonth(String(v)), openingBalance: money },
 };
 
@@ -113,17 +128,22 @@ export interface ChangeLine {
 export interface EntryText {
   /** What happened, e.g. "Contraseña temporal generada". */
   readonly title: string;
-  /** Who did it, e.g. "Superadmin" or "Depto 501". */
+  /** Who did it, e.g. "Superadmin", "Depto 501" or "Sistema" (a scheduled job). */
   readonly actor: string;
   /** What it was done to, e.g. "Usuario 502". */
   readonly subject: string;
   readonly changes: readonly ChangeLine[];
 }
 
+const ACTORS: Partial<Record<AuditLogEntry['actor']['role'], string>> = {
+  SUPERADMIN: 'Superadmin',
+  SYSTEM: 'Sistema',
+};
+
 export function describeEntry(entry: AuditLogEntry): EntryText {
   return {
     title: ACTIONS[entry.action] ?? entry.action,
-    actor: entry.actor.unit === null ? 'Superadmin' : `Depto ${entry.actor.unit}`,
+    actor: ACTORS[entry.actor.role] ?? `Depto ${entry.actor.unit}`,
     subject: `${ENTITIES[entry.entity] ?? entry.entity} ${entry.entityLabel}`,
     changes: entry.changes.map((change) => describeChange(entry.entity, change)),
   };

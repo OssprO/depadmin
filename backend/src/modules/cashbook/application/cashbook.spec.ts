@@ -194,6 +194,7 @@ describe('garbage weeks', () => {
       ['2026-10-05', 'PENDING'],
       ['2026-10-12', 'PENDING'],
       ['2026-10-19', 'UPCOMING'],
+      ['2026-10-26', 'UPCOMING'],
     ]);
   });
 });

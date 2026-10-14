@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { useTestDatabase } from '../../../../test/support/database.js';
-import { Money, YearMonth } from '../../../shared-kernel/index.js';
+import { LocalDate, Money, YearMonth } from '../../../shared-kernel/index.js';
 import type { LiveTotals } from '../domain/index.js';
 import { PrismaReportRepository } from './prisma-report.repository.js';
 
@@ -9,6 +9,7 @@ const repository = () => new PrismaReportRepository(ctx.database);
 const m = (text: string) => YearMonth.parse(text);
 const live: LiveTotals = () => ({ income: Money.ofPesos(7000), expense: Money.ofPesos(1200) });
 const start = { month: m('2026-08'), openingBalance: Money.ofPesos(10_000) };
+const later = LocalDate.parse('2026-11-01');
 
 describe('PrismaReportRepository', () => {
   it('has no ledger until the reporting start is set', async () => {
@@ -20,7 +21,7 @@ describe('PrismaReportRepository', () => {
     const ledger = (await repository().loadLedger())!;
     const opened = [ledger.openMonth(m('2026-08')), ledger.openMonth(m('2026-09'))];
     await repository().save(opened);
-    await repository().save(ledger.closeMonth(m('2026-08'), live));
+    await repository().save(ledger.closeMonth(m('2026-08'), live, later));
 
     const loaded = (await repository().loadLedger())!;
     expect(loaded.reports.map((r) => [String(r.month), r.status])).toEqual([
@@ -35,8 +36,8 @@ describe('PrismaReportRepository', () => {
     await repository().saveStart(start);
     const ledger = (await repository().loadLedger())!;
     await repository().save([ledger.openMonth(m('2026-08')), ledger.openMonth(m('2026-09'))]);
-    await repository().save(ledger.closeMonth(m('2026-08'), live));
-    await repository().save(ledger.closeMonth(m('2026-09'), live));
+    await repository().save(ledger.closeMonth(m('2026-08'), live, later));
+    await repository().save(ledger.closeMonth(m('2026-09'), live, later));
     const septemberClosedAt = (await ctx.database.client.monthlyReport.findFirst({
       where: { month: new Date('2026-09-01') },
     }))!.closedAt;
@@ -48,7 +49,11 @@ describe('PrismaReportRepository', () => {
     expect(reopened).toMatchObject({ closedAt: null, openingBalance: null, closingBalance: null });
 
     await repository().save(
-      ledger.closeMonth(m('2026-08'), () => ({ income: Money.ofPesos(7700), expense: Money.ZERO })),
+      ledger.closeMonth(
+        m('2026-08'),
+        () => ({ income: Money.ofPesos(7700), expense: Money.ZERO }),
+        later,
+      ),
     );
     const september = await ctx.database.client.monthlyReport.findFirst({
       where: { month: new Date('2026-09-01') },

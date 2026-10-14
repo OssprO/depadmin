@@ -174,6 +174,40 @@ describe('DelegateShift', () => {
   });
 });
 
+describe('a closed month', () => {
+  it('freezes its delegations and their penalties until it is reopened', async () => {
+    const fx = shiftsFixture('2026-12-03');
+    const { id } = await fx.delegate.execute(admin, {
+      from: m('2026-10'),
+      to: m('2026-11'),
+      delegateUnit: u(501),
+      reason: 'SKIPPED_SHIFT',
+    });
+    fx.months.set('2026-10', 'CLOSED').set('2026-11', 'OPEN');
+
+    await expect(fx.cancel.execute(admin, id)).rejects.toThrow(withCode('DELEGATION_MONTH_CLOSED'));
+    expect(fx.charges.summary()).toHaveLength(2);
+
+    fx.months.set('2026-10', 'OPEN');
+    await fx.cancel.execute(admin, id);
+    expect(fx.charges.summary()).toEqual([]);
+  });
+
+  it('cannot be delegated', async () => {
+    const fx = shiftsFixture('2026-12-03');
+    fx.months.set('2026-12', 'CLOSED');
+    await expect(
+      fx.delegate.execute(admin, {
+        from: m('2026-12'),
+        to: m('2026-12'),
+        delegateUnit: u(402),
+        reason: 'OTHER',
+      }),
+    ).rejects.toThrow(withCode('DELEGATION_MONTH_CLOSED'));
+    expect(fx.audit.actions).toEqual([]);
+  });
+});
+
 describe('CancelDelegation', () => {
   it('cancels the delegation and takes the penalties back', async () => {
     const fx = shiftsFixture('2026-10-02');

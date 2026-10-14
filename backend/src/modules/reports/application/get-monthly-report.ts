@@ -19,9 +19,12 @@ import {
 } from '../../cashbook/application/index.js';
 import { GetRates } from '../../settings/application/index.js';
 import { LoadShiftCalendar } from '../../shifts/application/index.js';
-import { type MonthTotals, REPORT_REPOSITORY, type ReportRepository } from '../domain/index.js';
+import { REPORT_REPOSITORY, type ReportRepository } from '../domain/index.js';
 import { GetAccounts } from './accounts.js';
+import { mayClose } from './close-month.js';
+import { liveTotalsOf } from './live-totals.js';
 import { openingBlocker } from './open-month.js';
+import { mayReopen } from './reopen-month.js';
 
 export interface ReportRow {
   readonly movement: CashMovement;
@@ -42,6 +45,10 @@ export interface MonthlyReportView {
   /** What the caller can do now. */
   readonly canWrite: boolean;
   readonly canOpen: boolean;
+  /** Over, open, the month before it closed, and the caller may close it. */
+  readonly canClose: boolean;
+  /** Closed, and the caller is the superadmin. */
+  readonly canReopen: boolean;
   /** Amounts to prefill per category (null before any rate is in force). */
   readonly suggestions: {
     readonly maintenanceFee: Money;
@@ -87,18 +94,14 @@ export class GetMonthlyReport {
       ]);
     const report = ledger?.reports.find((r) => r.month.equals(month));
     const status: MonthStatus = !report ? 'NOT_OPENED' : report.isOpen ? 'OPEN' : 'CLOSED';
-    const mayWrite = this.policy.decide({ actor, month, today, responsibility: calendar }).allowed;
 
     let balances: MonthlyReportView['balances'] = null;
     if (ledger && report) {
-      const live = await this.liveTotals(
-        ledger.reports.map((r) => r.month).filter((m) => !m.isAfter(month)),
-      );
-      const { openingBalance, closingBalance } = ledger.balancesOf(month, (m) =>
-        live.get(String(m))!,
-      );
+      const live = await liveTotalsOf(this.cashbook, ledger, month);
+      const { openingBalance, closingBalance } = ledger.balancesOf(month, live);
       balances = { opening: openingBalance, closing: closingBalance };
     }
+    const access = { actor, month, today, responsibility: calendar };
 
     const coverage = (movement: CashMovement) => {
       const unit = movement.details.unit;
@@ -113,23 +116,19 @@ export class GetMonthlyReport {
       balances,
       totals: cashbook.totals(),
       rows: cashbook.movements.map((movement) => ({ movement, coverage: coverage(movement) })),
-      canWrite: status === 'OPEN' && mayWrite,
+      canWrite: status === 'OPEN' && this.policy.decide(access).allowed,
       canOpen:
         status === 'NOT_OPENED' &&
         ledger !== null &&
         openingBlocker(ledger, month, today.yearMonth) === null &&
-        mayWrite,
+        this.policy.decide(access).allowed,
+      canClose: ledger !== null && mayClose(ledger, access),
+      canReopen: mayReopen(actor, status),
       suggestions,
       accounts,
       garbageWeeks,
       cleaningPayouts,
     };
-  }
-
-  /** Each month's live totals, for the balances of the months still open. */
-  private async liveTotals(months: readonly YearMonth[]): Promise<Map<string, MonthTotals>> {
-    const books = await Promise.all(months.map((m) => this.cashbook.month(m)));
-    return new Map(books.map((book) => [String(book.month), book.totals()]));
   }
 
   private async suggestionsFor(month: YearMonth): Promise<MonthlyReportView['suggestions']> {

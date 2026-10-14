@@ -1,6 +1,7 @@
 // In-memory wiring for the shifts use case specs. Excluded from the build.
 import { FakeUnitOfWork, RecordingAuditTrail } from '../../../../test/support/audit-trail.js';
 import { FixedClock } from '../../../../test/support/clock.js';
+import { FakeMonthLedger } from '../../../../test/support/month-ledger.js';
 import {
   type Actor,
   UnitNumber,
@@ -70,8 +71,10 @@ export function shiftsFixture(today: string, inactive: Record<number, YearMonthR
   const units = buildingWith(inactive);
   const rates = initialRates();
   const calendars = new LoadShiftCalendar(delegations, new ListUnits(units));
+  const months = new FakeMonthLedger();
   return {
     clock,
+    months,
     audit,
     delegations,
     charges,
@@ -81,6 +84,7 @@ export function shiftsFixture(today: string, inactive: Record<number, YearMonthR
       unitOfWork,
       audit,
       clock,
+      months,
       calendars,
       new ChargeShiftSkipPenalties(charges, unitOfWork, audit, rates),
     ),
@@ -88,6 +92,7 @@ export function shiftsFixture(today: string, inactive: Record<number, YearMonthR
       delegations,
       unitOfWork,
       audit,
+      months,
       new WithdrawShiftSkipPenalties(charges, unitOfWork, audit),
     ),
   };

@@ -135,7 +135,7 @@ export type GarbageWeekStatus = z.infer<typeof garbageWeekStatusSchema>;
 export const garbageWeekSchema = z.object({
   /** Monday. */
   week: localDateSchema,
-  /** Sunday, the suggested payday; it decides which month lists the week. */
+  /** Saturday, the suggested payday; it decides which month lists the week. */
   payday: localDateSchema,
   status: garbageWeekStatusSchema,
   /** The row that pays for it, which may be dated in another month. */
@@ -174,6 +174,10 @@ export const monthlyReportSchema = z.object({
   movements: z.array(movementSchema),
   canWrite: z.boolean(),
   canOpen: z.boolean(),
+  /** The month is over and open, the one before it is closed, and the caller may close it. */
+  canClose: z.boolean(),
+  /** Closed, and the caller is the superadmin. */
+  canReopen: z.boolean(),
   /** Amounts to prefill, from the rates in force that month. */
   suggestions: z
     .object({
@@ -183,7 +187,7 @@ export const monthlyReportSchema = z.object({
     })
     .nullable(),
   accounts: z.array(accountSummarySchema),
-  /** The month's garbage weeks: the ones whose Sunday falls in it. */
+  /** The month's garbage weeks: the ones whose Saturday falls in it. */
   garbageWeeks: z.array(garbageWeekSchema),
   /** Weekly cleaning payouts for the weeks that touch the month. */
   cleaningPayouts: z.array(cleaningPayoutSchema),
@@ -191,6 +195,27 @@ export const monthlyReportSchema = z.object({
 export type MonthlyReport = z.infer<typeof monthlyReportSchema>;
 
 export const openMonthResponseSchema = z.object({ opened: z.array(yearMonthSchema) });
+
+/** One opened month in the history: its report in four figures. */
+export const monthHistoryEntrySchema = z.object({
+  month: yearMonthSchema,
+  status: monthStatusSchema.exclude(['NOT_OPENED']),
+  openingBalance: centavosSchema,
+  income: centavosSchema,
+  expense: centavosSchema,
+  /** Frozen once closed; live while open. The newest month's is the cash on hand. */
+  closingBalance: centavosSchema,
+  canClose: z.boolean(),
+  canReopen: z.boolean(),
+});
+export type MonthHistoryEntry = z.infer<typeof monthHistoryEntrySchema>;
+
+/** `GET /api/months`: every opened month, newest first. */
+export const monthHistorySchema = z.object({
+  reportingStarted: z.boolean(),
+  months: z.array(monthHistoryEntrySchema),
+});
+export type MonthHistory = z.infer<typeof monthHistorySchema>;
 
 /** Where the books start: the first month and the cash on hand at its beginning. */
 export const reportingStartSchema = z.object({

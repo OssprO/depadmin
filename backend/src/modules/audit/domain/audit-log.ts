@@ -2,7 +2,9 @@ import type { FieldChange, Instant, UnitNumber } from '../../../shared-kernel/in
 
 /** Who acted, as the log froze it: the role, and the depto for an owner. */
 export type AuditActor =
-  { readonly role: 'SUPERADMIN' } | { readonly role: 'OWNER'; readonly unit: UnitNumber };
+  | { readonly role: 'SUPERADMIN' }
+  | { readonly role: 'OWNER'; readonly unit: UnitNumber }
+  | { readonly role: 'SYSTEM' };
 
 /** One recorded change, as read back from the log. */
 export interface AuditLogEntry {
@@ -21,8 +23,8 @@ export interface AuditLogFilter {
   readonly entity?: string | undefined;
   /** The history of one row. */
   readonly entityId?: string | undefined;
-  /** `SUPERADMIN`, or the depto whose owner acted. */
-  readonly actor?: 'SUPERADMIN' | UnitNumber | undefined;
+  /** `SUPERADMIN`, `SYSTEM` (scheduled jobs), or the depto whose owner acted. */
+  readonly actor?: 'SUPERADMIN' | 'SYSTEM' | UnitNumber | undefined;
 }
 
 export interface AuditLogPageRequest {

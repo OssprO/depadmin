@@ -2,12 +2,13 @@ import type {
   AccountStatement as AccountStatementResponse,
   AccountSummary,
   Movement,
+  MonthHistory as MonthHistoryResponse,
   MonthlyReport,
   UnitNumberValue,
 } from '@depadmin/shared';
 import type { Money, UnitNumber } from '../../../shared-kernel/index.js';
 import type { AccountStatement } from '../../billing/application/index.js';
-import type { MonthlyReportView, ReportRow } from '../application/index.js';
+import type { MonthHistory, MonthlyReportView, ReportRow } from '../application/index.js';
 
 const unit = (number: UnitNumber) => number.value as UnitNumberValue;
 const centavos = (money: Money) => money.centavos;
@@ -77,6 +78,8 @@ export function toMonthlyReport(view: MonthlyReportView): MonthlyReport {
     movements: view.rows.map(toMovement),
     canWrite: view.canWrite,
     canOpen: view.canOpen,
+    canClose: view.canClose,
+    canReopen: view.canReopen,
     suggestions: suggestions && {
       maintenanceFee: centavos(suggestions.maintenanceFee),
       cleaningPerVisit: centavos(suggestions.cleaningPerVisit),
@@ -94,6 +97,22 @@ export function toMonthlyReport(view: MonthlyReportView): MonthlyReport {
       weekStart: String(payout.weekStart),
       dates: payout.dates.map(String),
       total: centavos(payout.total),
+    })),
+  };
+}
+
+export function toMonthHistory(history: MonthHistory): MonthHistoryResponse {
+  return {
+    reportingStarted: history.reportingStarted,
+    months: history.months.map((entry) => ({
+      month: String(entry.month),
+      status: entry.status,
+      openingBalance: centavos(entry.openingBalance),
+      income: centavos(entry.income),
+      expense: centavos(entry.expense),
+      closingBalance: centavos(entry.closingBalance),
+      canClose: entry.canClose,
+      canReopen: entry.canReopen,
     })),
   };
 }

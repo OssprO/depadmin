@@ -7,6 +7,7 @@ describe('audit contracts', () => {
       auditLogQuerySchema.parse({ entity: 'user', actor: '501', before: '42', limit: '10' }),
     ).toEqual({ entity: 'user', actor: 501, before: '42', limit: 10 });
     expect(auditLogQuerySchema.parse({ actor: 'superadmin' })).toEqual({ actor: 'superadmin' });
+    expect(auditLogQuerySchema.parse({ actor: 'system' })).toEqual({ actor: 'system' });
     expect(auditLogQuerySchema.parse({})).toEqual({});
   });
 

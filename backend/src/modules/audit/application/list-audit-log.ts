@@ -15,8 +15,8 @@ const CURSOR = /^[1-9]\d{0,17}$/;
 export interface AuditLogQuery {
   readonly entity?: string | undefined;
   readonly entityId?: string | undefined;
-  /** `superadmin`, or a depto number such as 501. */
-  readonly actor?: 'superadmin' | number | undefined;
+  /** `superadmin`, `system`, or a depto number such as 501. */
+  readonly actor?: 'superadmin' | 'system' | number | undefined;
   readonly before?: string | undefined;
   readonly limit?: number | undefined;
 }
@@ -43,5 +43,7 @@ export class ListAuditLog {
 
 function actorFilter(actor: AuditLogQuery['actor']): AuditLogFilter['actor'] {
   if (actor === undefined) return undefined;
-  return actor === 'superadmin' ? 'SUPERADMIN' : UnitNumber.of(actor);
+  if (actor === 'superadmin') return 'SUPERADMIN';
+  if (actor === 'system') return 'SYSTEM';
+  return UnitNumber.of(actor);
 }

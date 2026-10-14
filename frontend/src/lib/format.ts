@@ -70,6 +70,11 @@ export function formatMonth(month: string): string {
   return `${name} ${year}`;
 }
 
+/** "2026-10" → "octubre". */
+export function formatMonthName(month: string): string {
+  return parseMonth(month).name;
+}
+
 /** "2026-10" → "oct". */
 export function formatMonthShort(month: string): string {
   return parseMonth(month).name.slice(0, 3);

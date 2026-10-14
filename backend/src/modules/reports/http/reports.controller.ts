@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, Param, Post, Put } from '@nestjs/commo
 import {
   type AccountStatement,
   type AccountSummary,
+  type MonthHistory,
   type MonthlyReport,
   type ReportingStart,
   reportingStartSchema,
@@ -14,13 +15,21 @@ import { CurrentActor } from '../../../platform/http/auth.js';
 import { ZodValidationPipe } from '../../../platform/http/zod-validation.pipe.js';
 import { type Actor, Money, UnitNumber, YearMonth } from '../../../shared-kernel/index.js';
 import {
+  CloseMonth,
   GetAccounts,
+  GetMonthHistory,
   GetMonthlyReport,
   GetReportingStart,
   OpenMonth,
+  ReopenMonth,
   SetReportingStart,
 } from '../application/index.js';
-import { toAccountStatement, toAccountSummary, toMonthlyReport } from './presenters.js';
+import {
+  toAccountStatement,
+  toAccountSummary,
+  toMonthHistory,
+  toMonthlyReport,
+} from './presenters.js';
 
 const monthParam = new ZodValidationPipe(yearMonthSchema.transform((m) => YearMonth.parse(m)));
 
@@ -30,7 +39,10 @@ export class ReportsController {
     private readonly getStart: GetReportingStart,
     private readonly setStart: SetReportingStart,
     private readonly openMonth: OpenMonth,
+    private readonly closeMonth: CloseMonth,
+    private readonly reopenMonth: ReopenMonth,
     private readonly monthlyReport: GetMonthlyReport,
+    private readonly history: GetMonthHistory,
     private readonly accounts: GetAccounts,
   ) {}
 
@@ -57,6 +69,12 @@ export class ReportsController {
     });
   }
 
+  /** Every opened month, newest first. */
+  @Get('months')
+  async months(@CurrentActor() actor: Actor): Promise<MonthHistory> {
+    return toMonthHistory(await this.history.execute(actor));
+  }
+
   @Get('months/:month')
   async month(
     @CurrentActor() actor: Actor,
@@ -73,6 +91,24 @@ export class ReportsController {
   ): Promise<{ opened: string[] }> {
     const opened = await this.openMonth.execute(actor, month);
     return { opened: opened.map((report) => String(report.month)) };
+  }
+
+  @Post('months/:month/close')
+  @HttpCode(204)
+  async close(
+    @CurrentActor() actor: Actor,
+    @Param('month', monthParam) month: YearMonth,
+  ): Promise<void> {
+    await this.closeMonth.execute(actor, month);
+  }
+
+  @Post('months/:month/reopen')
+  @HttpCode(204)
+  async reopen(
+    @CurrentActor() actor: Actor,
+    @Param('month', monthParam) month: YearMonth,
+  ): Promise<void> {
+    await this.reopenMonth.execute(actor, month);
   }
 
   /** Everyone's adeudo and adelanto. */

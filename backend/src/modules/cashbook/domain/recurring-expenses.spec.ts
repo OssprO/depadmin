@@ -41,22 +41,24 @@ describe('suggestedAmount', () => {
 });
 
 describe('garbage weeks', () => {
-  it('lists the weeks whose Sunday falls in the month', () => {
-    // October 2026 starts on a Thursday; its Sundays are the 4th, 11th, 18th and 25th.
+  it('lists the weeks whose Saturday falls in the month', () => {
+    // October 2026 starts on a Thursday; its Saturdays are the 3rd, 10th, 17th, 24th and 31st.
     expect(garbageWeeksOf(october).map(String)).toEqual([
       '2026-09-28',
       '2026-10-05',
       '2026-10-12',
       '2026-10-19',
-    ]);
-    // November 2026 starts on a Sunday, so the week of 26 October is November's.
-    expect(garbageWeeksOf(YearMonth.of(2026, 11)).map(String)).toEqual([
       '2026-10-26',
+    ]);
+    // November 2026 starts on a Sunday, the day after October's last payday.
+    expect(garbageWeeksOf(YearMonth.of(2026, 11)).map(String)).toEqual([
       '2026-11-02',
       '2026-11-09',
       '2026-11-16',
       '2026-11-23',
     ]);
+    // A month that starts on its payday: Saturday 1 August 2026.
+    expect(garbageWeeksOf(YearMonth.of(2026, 8)).map(String)[0]).toBe('2026-07-27');
   });
 
   it('marks each week paid, pending once it has begun, or upcoming', () => {
@@ -70,24 +72,26 @@ describe('garbage weeks', () => {
       ['2026-10-05', 'PENDING', null],
       ['2026-10-12', 'PENDING', null],
       ['2026-10-19', 'UPCOMING', null],
+      ['2026-10-26', 'UPCOMING', null],
     ]);
   });
 
-  it('suggests paying on Sunday, or today if Sunday has not come yet', () => {
+  it('suggests paying on Saturday, or today if Saturday has not come yet', () => {
     const weeks = garbageSchedule(october, d('2026-10-14'), []);
     expect(weeks.map((w) => [String(w.payday), String(w.suggestedDate)])).toEqual([
-      ['2026-10-04', '2026-10-04'],
-      ['2026-10-11', '2026-10-11'],
-      ['2026-10-18', '2026-10-14'],
-      ['2026-10-25', '2026-10-14'],
+      ['2026-10-03', '2026-10-03'],
+      ['2026-10-10', '2026-10-10'],
+      ['2026-10-17', '2026-10-14'],
+      ['2026-10-24', '2026-10-14'],
+      ['2026-10-31', '2026-10-14'],
     ]);
   });
 
   it('counts a week as paid by a row dated in another month', () => {
-    // The week of 26 October is November's, paid on Saturday 31 October.
-    const early = CashMovement.record('g1', garbage('2026-10-31', '2026-10-26'));
-    const [first] = garbageSchedule(YearMonth.of(2026, 11), d('2026-11-03'), [early]);
-    expect(first?.status).toBe('PAID');
+    // The last week of October, paid late on Monday 2 November.
+    const late = CashMovement.record('g1', garbage('2026-11-02', '2026-10-26'));
+    const weeks = garbageSchedule(october, d('2026-11-03'), [late]);
+    expect(weeks.at(-1)?.status).toBe('PAID');
   });
 
   it('pays each week only once', () => {

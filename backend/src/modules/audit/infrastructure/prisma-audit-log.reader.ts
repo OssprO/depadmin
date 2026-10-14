@@ -42,16 +42,17 @@ function whereFilter({ entity, entityId, actor }: AuditLogFilter): Prisma.AuditL
   return {
     ...(entity !== undefined && { entity }),
     ...(entityId !== undefined && { entityId }),
-    ...(actor === 'SUPERADMIN' && { actorRole: 'SUPERADMIN' }),
+    ...((actor === 'SUPERADMIN' || actor === 'SYSTEM') && { actorRole: actor }),
     ...(actor instanceof UnitNumber && { actorRole: 'OWNER', actorUnit: actor.value }),
   };
 }
 
 function toEntry(row: AuditLogRow): AuditLogEntry {
+  // A CHECK guarantees that an owner, and only an owner, has a depto.
   const actor: AuditActor =
-    row.actorUnit === null
-      ? { role: 'SUPERADMIN' }
-      : { role: 'OWNER', unit: UnitNumber.of(row.actorUnit) };
+    row.actorRole === 'OWNER'
+      ? { role: 'OWNER', unit: UnitNumber.of(row.actorUnit ?? 0) }
+      : { role: row.actorRole };
   return {
     id: row.id.toString(),
     occurredAt: fromDbInstant(row.occurredAt),

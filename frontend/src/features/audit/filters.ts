@@ -3,7 +3,7 @@ import { ENTITIES } from './labels';
 
 export interface AuditLogFilters {
   readonly entity?: string;
-  readonly actor?: 'superadmin' | number;
+  readonly actor?: 'superadmin' | 'system' | number;
 }
 
 const isUnit = (value: unknown): value is number =>
@@ -14,7 +14,7 @@ export function auditFiltersFrom(search: Record<string, unknown>): AuditLogFilte
   const { entity, actor } = search;
   return {
     ...(typeof entity === 'string' && Object.hasOwn(ENTITIES, entity) && { entity }),
-    ...((actor === 'superadmin' || isUnit(actor)) && { actor }),
+    ...((actor === 'superadmin' || actor === 'system' || isUnit(actor)) && { actor }),
   };
 }
 
