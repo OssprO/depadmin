@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { withCode } from '../../../../test/support/domain-error.js';
 import { Money, UnitNumber, YearMonth } from '../../../shared-kernel/index.js';
-import { expense, payment, pesos } from '../../cashbook/domain/testing.js';
+import { expense, garbage, otherIncome, payment, pesos } from '../../cashbook/domain/testing.js';
 import { admin, owner } from '../../shifts/application/testing.js';
 import { booksFixture } from './testing.js';
 
@@ -373,5 +373,99 @@ describe('OpenCurrentMonth', () => {
     const fx = booksFixture('2026-10-01');
     await fx.setStart.execute(admin, { month: m('2026-11'), openingBalance: Money.ZERO });
     expect(await fx.openCurrent.execute()).toEqual([]);
+  });
+});
+
+describe('RenderMonthlyReport', () => {
+  /** September's books, closed on 3 October; 402 pays more in October. */
+  async function september() {
+    const fx = booksFixture('2026-10-03');
+    await fx.setStart.execute(admin, start);
+    await fx.open.execute(admin, m('2026-10'));
+    for (const row of [
+      payment('2026-09-05', 401, 1400),
+      payment('2026-09-10', 402, 1000),
+      payment('2026-09-30', 501, 2800),
+      garbage('2026-09-05', '2026-08-31'),
+      expense('2026-09-01', 'CLEANING', 270),
+      expense('2026-09-03', 'CLEANING', 270),
+      expense('2026-09-08', 'CLEANING', 270),
+      otherIncome('2026-09-12', 500, 'Cooperación'),
+      expense('2026-09-20', 'OTHER_EXPENSE', 120, 'Focos'),
+    ]) {
+      await fx.add.execute(admin, row);
+    }
+    await fx.close.execute(admin, m('2026-08'));
+    await fx.close.execute(admin, m('2026-09'));
+    await fx.add.execute(admin, payment('2026-10-01', 402, 400));
+    return fx;
+  }
+
+  it('gathers the month’s figures, rows and accounts for the renderer', async () => {
+    const fx = await september();
+
+    const bytes = await fx.pdf.execute(m('2026-09'));
+
+    expect(new TextDecoder().decode(bytes)).toBe('2026-09');
+    const [doc] = fx.renderer.documents;
+    expect(doc).toMatchObject({
+      status: 'CLOSED',
+      scheduledUnit: UnitNumber.of(501),
+      responsibleUnits: [UnitNumber.of(501)],
+      openingBalance: pesos(5000),
+      income: pesos(5700),
+      expense: pesos(1080),
+      closingBalance: pesos(9620),
+    });
+    expect(doc?.otherIncome.map((e) => [e.description, e.amount])).toEqual([
+      ['Cooperación', pesos(500)],
+    ]);
+    expect(doc?.garbage.map((e) => String(e.week))).toEqual(['2026-08-31']);
+    expect(doc?.otherExpenses.map((e) => e.description)).toEqual(['Focos']);
+    expect(doc?.cleaning.map((w) => [String(w.weekStart), w.dates.length, w.total])).toEqual([
+      ['2026-08-31', 2, pesos(540)],
+      ['2026-09-07', 1, pesos(270)],
+    ]);
+  });
+
+  it('shows each depto’s account as it stood when the month ended', async () => {
+    const fx = await september();
+
+    const { units } = await fx.pdf.document(m('2026-09'));
+
+    const line = (unit: number) => {
+      const found = units.find((u) => u.unit.value === unit)!;
+      return {
+        paid: found.paid.toString(),
+        covered: found.covered.map((c) => `${String(c.month)}${c.settles ? '' : ' parcial'}`),
+        owed: found.owed.map((o) => `${String(o.month)} ${o.amount.toString()}`),
+        outstanding: found.outstanding.toString(),
+        credit: found.credit.toString(),
+      };
+    };
+    expect(line(401)).toEqual({
+      paid: '1400.00',
+      covered: ['2026-08', '2026-09'],
+      owed: [],
+      outstanding: '0.00',
+      credit: '0.00',
+    });
+    // October's $400 does not change September's report.
+    expect(line(402)).toMatchObject({
+      covered: ['2026-08', '2026-09 parcial'],
+      owed: ['2026-09 400.00'],
+      outstanding: '400.00',
+    });
+    // Paid ahead in September: October's fee did not exist yet, so it is an adelanto.
+    expect(line(501)).toMatchObject({ covered: ['2026-08', '2026-09'], credit: '1400.00' });
+    expect(line(101)).toMatchObject({ paid: '0.00', outstanding: '1400.00' });
+    expect(units.every((u) => u.active)).toBe(true);
+  });
+
+  it('is a draft while the month is open, and needs the month opened', async () => {
+    const fx = await september();
+
+    expect((await fx.pdf.document(m('2026-10'))).status).toBe('OPEN');
+    await expect(fx.pdf.execute(m('2026-11'))).rejects.toThrow(withCode('REPORT_NOT_FOUND'));
   });
 });

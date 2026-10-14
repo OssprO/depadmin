@@ -11,3 +11,5 @@ export type {
   MovementDetails,
   WeeklyCleaningPayout,
 } from '../domain/index.js';
+// Pure helpers other modules apply to the rows they read.
+export { weeklyCleaningPayouts } from '../domain/index.js';

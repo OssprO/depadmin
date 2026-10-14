@@ -4,5 +4,6 @@ export * from './get-monthly-report.js';
 export * from './month-history.js';
 export * from './open-month.js';
 export * from './reopen-month.js';
+export * from './report-document.js';
 export * from './report-month-ledger.js';
 export * from './reporting-start.js';

@@ -78,4 +78,32 @@ describe('GetAccountStatements', () => {
     // 302 is inactive from October: only September's fee.
     expect(all.find((s) => s.unit.value === 302)?.outstandingBalance).toEqual(Money.ofPesos(700));
   });
+
+  it('reports the accounts as they stood when a month ended', async () => {
+    const { charges, fees } = setup();
+    await fees.execute(admin, m('2026-09'));
+    await fees.execute(admin, m('2026-10'));
+    const u501 = UnitNumber.of(501);
+    const pay = (id: string, date: LocalDate, pesos: number) => ({
+      id,
+      unit: u501,
+      date,
+      amount: Money.ofPesos(pesos),
+    });
+    // $1,000 in September (a $300 adelanto then), and $400 more in October.
+    const payments = [
+      pay('p1', LocalDate.of(2026, 9, 30), 1000),
+      pay('p2', LocalDate.of(2026, 10, 1), 400),
+    ];
+    const statements = new GetAccountStatements(charges);
+
+    const september = (await statements.ofAll(payments, m('2026-09'))).find((s) => s.unit === u501);
+    expect([september?.outstandingBalance, september?.creditBalance]).toEqual([
+      Money.ZERO,
+      Money.ofPesos(300),
+    ]);
+    expect(september?.lines.map((line) => String(line.charge.month))).toEqual(['2026-09']);
+    const now = (await statements.ofAll(payments)).find((s) => s.unit === u501);
+    expect([now?.outstandingBalance, now?.creditBalance]).toEqual([Money.ZERO, Money.ZERO]);
+  });
 });

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { UnitNumber } from '../../../shared-kernel/index.js';
+import type { UnitNumber, YearMonth } from '../../../shared-kernel/index.js';
 import {
   type AccountStatement,
   GetAccountStatements,
@@ -33,8 +33,9 @@ export class GetAccounts {
     return this.statements.of(unit, payments.map(toUnitPayment));
   }
 
-  async all(): Promise<AccountStatement[]> {
+  /** Every depto's account now, or as it stood when `through` ended (for its report). */
+  async all(through?: YearMonth): Promise<AccountStatement[]> {
     const payments = await this.cashbook.payments();
-    return this.statements.ofAll(payments.map(toUnitPayment));
+    return this.statements.ofAll(payments.map(toUnitPayment), through);
   }
 }

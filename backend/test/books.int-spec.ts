@@ -345,4 +345,32 @@ describe('books API', () => {
     ]);
     expect((await month(owner502, '2026-10')).status).toBe('OPEN');
   });
+
+  it('downloads the month’s report as a PDF, for any opened month', async () => {
+    await startBooks();
+    await http().post('/api/months/2026-10/open').auth(admin, { type: 'bearer' }).expect(200);
+    const pdf = (token: string, value: string) =>
+      http()
+        .get(`/api/months/${value}/report.pdf`)
+        .auth(token, { type: 'bearer' })
+        .buffer(true)
+        .parse((response, done) => {
+          const chunks: Buffer[] = [];
+          response.on('data', (chunk: Buffer) => chunks.push(chunk));
+          response.on('end', () => done(null, Buffer.concat(chunks)));
+        });
+
+    const response = await pdf(owner502, '2026-09').expect(200);
+
+    expect(response.headers['content-type']).toBe('application/pdf');
+    expect(response.headers['content-disposition']).toBe(
+      'attachment; filename="reporte-2026-09.pdf"',
+    );
+    expect((response.body as Buffer).subarray(0, 5).toString()).toBe('%PDF-');
+    expectProblem(
+      await http().get('/api/months/2026-11/report.pdf').auth(owner502, { type: 'bearer' }),
+      404,
+      'REPORT_NOT_FOUND',
+    );
+  });
 });

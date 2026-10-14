@@ -13,12 +13,15 @@ import {
   MonthOpening,
   OpenCurrentMonth,
   OpenMonth,
+  RenderMonthlyReport,
   ReopenMonth,
+  REPORT_RENDERER,
   ReportMonthLedger,
   SetReportingStart,
 } from './application/index.js';
 import { REPORT_REPOSITORY } from './domain/index.js';
 import { ReportsController } from './http/reports.controller.js';
+import { ReactPdfReportRenderer } from './infrastructure/pdf/react-pdf-report-renderer.js';
 import { PrismaReportRepository } from './infrastructure/prisma-report.repository.js';
 import { OpenCurrentMonthJob } from './jobs/open-current-month.job.js';
 
@@ -32,6 +35,7 @@ import { OpenCurrentMonthJob } from './jobs/open-current-month.job.js';
   controllers: [ReportsController],
   providers: [
     { provide: REPORT_REPOSITORY, useClass: PrismaReportRepository },
+    { provide: REPORT_RENDERER, useClass: ReactPdfReportRenderer },
     ReportMonthLedger,
     { provide: MONTH_LEDGER, useExisting: ReportMonthLedger },
     SetReportingStart,
@@ -43,6 +47,7 @@ import { OpenCurrentMonthJob } from './jobs/open-current-month.job.js';
     ReopenMonth,
     GetMonthlyReport,
     GetMonthHistory,
+    RenderMonthlyReport,
     GetAccounts,
     OpenCurrentMonthJob,
   ],

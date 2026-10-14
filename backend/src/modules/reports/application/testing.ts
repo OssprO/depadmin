@@ -24,6 +24,11 @@ import { GetMonthlyReport } from './get-monthly-report.js';
 import { GetMonthHistory } from './month-history.js';
 import { MonthOpening, OpenCurrentMonth, OpenMonth } from './open-month.js';
 import { ReopenMonth } from './reopen-month.js';
+import {
+  RenderMonthlyReport,
+  type ReportDocument,
+  type ReportRenderer,
+} from './report-document.js';
 import { ReportMonthLedger } from './report-month-ledger.js';
 import { GetReportingStart, SetReportingStart } from './reporting-start.js';
 
@@ -52,6 +57,16 @@ export class InMemoryReportRepository implements ReportRepository {
   }
 }
 
+/** Keeps the documents it is asked to render; the bytes are just the month. */
+export class RecordingReportRenderer implements ReportRenderer {
+  readonly documents: ReportDocument[] = [];
+
+  render(document: ReportDocument): Promise<Uint8Array> {
+    this.documents.push(document);
+    return Promise.resolve(new TextEncoder().encode(String(document.month)));
+  }
+}
+
 /** Every use case of the books, on the given day, over in-memory storage. */
 export function booksFixture(today: string, inactive: Record<number, YearMonthRange> = {}) {
   const clock = FixedClock.on(today);
@@ -72,9 +87,11 @@ export function booksFixture(today: string, inactive: Record<number, YearMonthRa
     audit,
     new ChargeMaintenanceFees(charges, unitOfWork, audit, rates, units),
   );
+  const renderer = new RecordingReportRenderer();
   return {
     clock,
     audit,
+    renderer,
     charges,
     accounts,
     setStart: new SetReportingStart(reports, unitOfWork, audit),
@@ -84,6 +101,7 @@ export function booksFixture(today: string, inactive: Record<number, YearMonthRa
     close: new CloseMonth(reports, unitOfWork, audit, clock, calendars, cashbook),
     reopen: new ReopenMonth(reports, unitOfWork, audit),
     history: new GetMonthHistory(reports, clock, cashbook, calendars),
+    pdf: new RenderMonthlyReport(reports, renderer, clock, cashbook, accounts, calendars),
     add: new AddMovement(
       movements,
       unitOfWork,
