@@ -1,6 +1,6 @@
 # Plan de trabajo — DepAdmin (Edificio Correspondencia 63)
 
-**Versión:** 1.4 · **Fecha:** 2026-10-14 · **Base:** `docs/SPEC.md` v0.4
+**Versión:** 1.5 · **Fecha:** 2026-10-14 · **Base:** `docs/SPEC.md` v0.4
 
 Este plan reemplaza a la sección 11 de la spec. Cada fase termina en algo que se puede correr, probar y revisar. Modo de trabajo: Claude explica el porqué de cada decisión, implementa con pruebas y entrega la fase como un PR. Tú revisas y apruebas antes de pasar a la siguiente.
 
@@ -208,24 +208,33 @@ Va antes de las funcionalidades de escritura para que todas la usen desde el pri
 
 **Conceptos:** trazabilidad, inmutabilidad, por qué se audita en la capa de aplicación y no con un interceptor HTTP.
 
-### Fase 5: Despliegue temprano (walking skeleton)
+### Fase 5: Despliegue (pospuesta)
+
+**Pospuesta (2026-10-14):** todavía no hay dominio y la idea es agregar más funcionalidad y los datos históricos antes de publicar. Se hará cuando el producto esté más avanzado, antes o junto con la fase 11. Mientras tanto, las fases continúan en local y en CI.
 
 - Dockerfiles multi-stage (api, web), `infra/docker-compose.yml`, Caddyfile con tu dominio.
 - Migraciones automáticas al desplegar; secretos fuera del repo (`JWT_SECRET`, credenciales del superadmin para el seed).
 - `trust proxy` en Express para que el límite de intentos de login vea la IP real detrás de Caddy.
 - Backups diarios con `pg_dump` y retención, más una prueba de restauración documentada.
 - CD con GitHub Actions: imagen al registry (GHCR) y despliegue por SSH al VPS.
-- Desde aquí, cada fase termina desplegada en producción.
 
 **Conceptos:** imágenes reproducibles, reverse proxy, HTTPS, backups probados.
 
 ### Fase 6: Turnos, delegaciones y blueprint
 
-- API: calendario de turnos (rango de meses), turno actual, registrar la entrega del turno (el administrador saliente dentro de su ventana, o el superadmin), crear o cancelar cualquier delegación y marcar un depto activo o inactivo (solo superadmin).
-- Multa por no tomar turno: al registrar una delegación por omisión se genera un cargo de $500 por cada mes delegado (más la cuota normal: $1,200 por mes). Si se cancela, se retiran esos cargos.
-- Frontend: widget blueprint de 2×5 en el dashboard (depto en turno resaltado, delegación diferenciada), vista de calendario y pantallas de administración.
+- API, con el detalle en el ADR-0015:
+  - `GET /api/shifts/calendar` (hasta 36 meses) y `GET /api/shifts/current`. Cada mes indica quién responde y si quien consulta puede delegarlo (`canDelegate`).
+  - `POST /api/shifts/delegations`: el superadmin delega cualquier parte de un periodo; el administrador saliente registra la entrega (el siguiente no toma el turno) dentro de su ventana.
+  - `POST /api/shifts/delegations/:id/cancel` (solo superadmin).
+  - `GET /api/units` y `POST /api/units/:number/status` para marcar un depto inactivo o reactivarlo (solo superadmin).
+- Multa por no tomar turno: una delegación por omisión genera un cargo por cada mes delegado, con la tarifa vigente ese mes ($500, más la cuota normal: $1,200 por mes). Si se cancela, se retiran esos cargos. Todo queda en la bitácora.
+- `WriteAccessPolicy` pasa al shared kernel, y los módulos se comunican por su capa de aplicación (`ListUnits`, `GetRates`, `LoadShiftCalendar` y los casos de uso de multas).
+- Frontend:
+  - Blueprint 2×5 en el inicio: depto en turno resaltado, delegación diferenciada (quién delegó y quién cubre), deptos inactivos y periodos sin cubrir.
+  - Pantalla _Turnos_ con los periodos, sus delegaciones y las acciones permitidas (hoja inferior para delegar).
+  - _Admin_ agrupa _Usuarios_ y la nueva pantalla _Deptos_.
 
-**Conceptos:** aritmética de ciclos sobre fechas, cálculo con excepciones.
+**Conceptos:** aritmética de ciclos sobre fechas, cálculo con excepciones, comunicación entre módulos por casos de uso.
 
 ### Fase 7: Libro del mes (captura tipo lista), cuotas y estado de cuenta
 
@@ -241,6 +250,7 @@ Es la pantalla principal de quien está en turno: la lista de movimientos del me
 - Funciona en modo de solo lectura para quien no está en turno (transparencia total).
 - Backend: casos de uso `AddCashMovement`, `EditCashMovement` y `RemoveCashMovement`, una sola entrada para todas las categorías (DRY), con una estrategia de validación por categoría. La query `MonthlyCashbook` arma la vista. Los cargos del mes se generan de forma idempotente al abrir el mes, y la asignación FIFO se hace al guardar un pago de depto.
 - Estado de cuenta por depto y tabla general de adeudos y adelantos.
+- Marcar un depto inactivo (fase 6) debe considerar las cuotas ya generadas de esos meses.
 
 **Conceptos:** contabilidad de libro (ledger), patrón Strategy por categoría, idempotencia, read models (CQRS ligero), UX de captura móvil.
 
@@ -259,6 +269,7 @@ Todo vive dentro de la misma lista; esta fase solo agrega atajos para lo que se 
 - Ciclo de vida del mes sobre la lista de la fase 7: abrir (se toma el saldo inicial del mes anterior y se generan los cargos), cerrar (lo hace el administrador saliente dentro de su ventana o el superadmin; se congela la lista y se guarda la foto, con una advertencia si quedan renglones de basura pendientes) y reabrir (solo superadmin, con recálculo en cascada y auditoría).
 - Dashboard: saldo actual, ingresos y egresos del mes, deptos con adeudo y blueprint.
 - Histórico navegable por mes: cada mes cerrado se ve como su lista congelada más el resumen.
+- Un mes cerrado también congela el estado de los deptos y las delegaciones de ese mes (fase 6).
 
 **Conceptos:** máquinas de estado, snapshots frente a cálculo en vivo.
 
@@ -275,6 +286,7 @@ Todo vive dentro de la misma lista; esta fase solo agrega atajos para lo que se 
 - Pantalla o script de carga inicial: mes de corte, saldo de caja y adeudos o adelantos vigentes por depto. Los PDFs anteriores se suben como archivo de consulta.
 - Alta de los 10 usuarios (el mecanismo ya existe desde la fase 3: contraseña temporal y cambio obligatorio en el primer login).
 - Limpieza periódica de refresh tokens vencidos y división del bundle del frontend por rutas.
+- Responder 409 (no 500) cuando la base rechaza dos delegaciones simultáneas sobre los mismos meses.
 - PWA (manifest e ícono, instalable en el celular).
 - Accesibilidad, estados vacíos y de error, revisión de rendimiento (Lighthouse) y de seguridad (OWASP ASVS nivel 1).
 - Pruebas E2E de los flujos críticos completos.
