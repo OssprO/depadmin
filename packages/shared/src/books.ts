@@ -19,14 +19,22 @@ export type MovementCategory = z.infer<typeof movementCategorySchema>;
  * (`CATEGORY_RULES` in the cashbook module) and has the last word.
  */
 export const CATEGORY_RULES: Readonly<
-  Record<MovementCategory, { direction: 'IN' | 'OUT'; unit: boolean; description: boolean }>
+  Record<
+    MovementCategory,
+    { direction: 'IN' | 'OUT'; unit: boolean; description: boolean; week: boolean }
+  >
 > = {
-  UNIT_PAYMENT: { direction: 'IN', unit: true, description: false },
-  OTHER_INCOME: { direction: 'IN', unit: false, description: true },
-  GARBAGE: { direction: 'OUT', unit: false, description: false },
-  CLEANING: { direction: 'OUT', unit: false, description: false },
-  OTHER_EXPENSE: { direction: 'OUT', unit: false, description: true },
+  UNIT_PAYMENT: { direction: 'IN', unit: true, description: false, week: false },
+  OTHER_INCOME: { direction: 'IN', unit: false, description: true, week: false },
+  GARBAGE: { direction: 'OUT', unit: false, description: false, week: true },
+  CLEANING: { direction: 'OUT', unit: false, description: false, week: false },
+  OTHER_EXPENSE: { direction: 'OUT', unit: false, description: true, week: false },
 };
+
+/** ISO day of week of a `YYYY-MM-DD` date (1 = Monday … 7 = Sunday), in any time zone. */
+export function isoDayOfWeek(date: string): number {
+  return new Date(`${date}T00:00:00Z`).getUTCDay() || 7;
+}
 
 export const DESCRIPTION_MAX_LENGTH = 200;
 
@@ -42,9 +50,20 @@ export const movementRequestSchema = z
       .trim()
       .max(DESCRIPTION_MAX_LENGTH, `Usa como máximo ${DESCRIPTION_MAX_LENGTH} caracteres`)
       .nullable(),
+    /** Garbage only: the Monday of the week the row pays for. */
+    week: localDateSchema.nullable(),
   })
   .superRefine((row, context) => {
     const rule = CATEGORY_RULES[row.category];
+    if (rule.week && row.week === null) {
+      context.addIssue({ code: 'custom', path: ['week'], message: 'Elige la semana que se paga' });
+    }
+    if (!rule.week && row.week !== null) {
+      context.addIssue({ code: 'custom', path: ['week'], message: 'Este tipo no lleva semana' });
+    }
+    if (row.week !== null && isoDayOfWeek(row.week) !== 1) {
+      context.addIssue({ code: 'custom', path: ['week'], message: 'La semana empieza en lunes' });
+    }
     if (rule.unit && row.unit === null) {
       context.addIssue({ code: 'custom', path: ['unit'], message: 'Elige el depto que pagó' });
     }
@@ -81,6 +100,8 @@ export const movementSchema = z.object({
   amount: centavosSchema,
   unit: unitNumberSchema.nullable(),
   description: z.string().nullable(),
+  /** For a garbage row: the Monday of the week it pays for. */
+  week: localDateSchema.nullable(),
   /** For a depto payment: the charges it covered, oldest first. */
   coverage: z.array(paymentCoverageSchema),
 });
@@ -94,6 +115,44 @@ export const accountSummarySchema = z.object({
   credit: centavosSchema,
 });
 export type AccountSummary = z.infer<typeof accountSummarySchema>;
+
+/** `POST /api/movements/cleaning-visits`: several visits at once, one row per date. */
+export const cleaningVisitsRequestSchema = z.object({
+  dates: z
+    .array(localDateSchema)
+    .min(1, 'Marca al menos un día')
+    .max(31)
+    .refine((dates) => new Set(dates).size === dates.length, 'Cada día va una sola vez'),
+  /** Per visit. */
+  amount: centavosSchema.positive('El importe debe ser mayor que cero'),
+});
+export type CleaningVisitsRequest = z.infer<typeof cleaningVisitsRequestSchema>;
+
+export const garbageWeekStatusSchema = z.enum(['PAID', 'PENDING', 'UPCOMING']);
+export type GarbageWeekStatus = z.infer<typeof garbageWeekStatusSchema>;
+
+/** A week of garbage in the month: paid by a row, or a pending suggestion (counts nowhere). */
+export const garbageWeekSchema = z.object({
+  /** Monday. */
+  week: localDateSchema,
+  /** Sunday, the suggested payday; it decides which month lists the week. */
+  payday: localDateSchema,
+  status: garbageWeekStatusSchema,
+  /** The row that pays for it, which may be dated in another month. */
+  paidBy: z.object({ id: z.uuid(), date: localDateSchema }).nullable(),
+  /** The date a one-tap confirmation records. */
+  suggestedDate: localDateSchema,
+});
+export type GarbageWeek = z.infer<typeof garbageWeekSchema>;
+
+/** What to pay the cleaning person for one Monday-to-Sunday week. */
+export const cleaningPayoutSchema = z.object({
+  weekStart: localDateSchema,
+  /** Visits of the week, including those in the neighbouring month when it crosses one. */
+  dates: z.array(localDateSchema),
+  total: centavosSchema,
+});
+export type CleaningPayout = z.infer<typeof cleaningPayoutSchema>;
 
 export const monthStatusSchema = z.enum(['NOT_OPENED', 'OPEN', 'CLOSED']);
 export type MonthStatus = z.infer<typeof monthStatusSchema>;
@@ -124,6 +183,10 @@ export const monthlyReportSchema = z.object({
     })
     .nullable(),
   accounts: z.array(accountSummarySchema),
+  /** The month's garbage weeks: the ones whose Sunday falls in it. */
+  garbageWeeks: z.array(garbageWeekSchema),
+  /** Weekly cleaning payouts for the weeks that touch the month. */
+  cleaningPayouts: z.array(cleaningPayoutSchema),
 });
 export type MonthlyReport = z.infer<typeof monthlyReportSchema>;
 
