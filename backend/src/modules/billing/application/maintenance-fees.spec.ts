@@ -14,7 +14,7 @@ import { buildingWith } from '../../units/application/testing.js';
 import { Charge } from '../domain/index.js';
 import { GetAccountStatements } from './account-statements.js';
 import { ChargeMaintenanceFees } from './maintenance-fees.js';
-import { InMemoryChargeRepository } from './testing.js';
+import { InMemoryChargeRepository, InMemoryOpeningCreditRepository } from './testing.js';
 
 const m = (text: string) => YearMonth.parse(text);
 const admin: Actor = { role: 'SUPERADMIN', userId: 'u-admin' };
@@ -64,7 +64,7 @@ describe('GetAccountStatements', () => {
       date: LocalDate.of(2026, 10, 3),
       amount: Money.ofPesos(1000),
     };
-    const statements = new GetAccountStatements(charges);
+    const statements = new GetAccountStatements(charges, new InMemoryOpeningCreditRepository());
 
     const statement = await statements.of(u501, [payment]);
     expect(statement.outstandingBalance).toEqual(Money.ofPesos(400));
@@ -95,7 +95,7 @@ describe('GetAccountStatements', () => {
       pay('p1', LocalDate.of(2026, 9, 30), 1000),
       pay('p2', LocalDate.of(2026, 10, 1), 400),
     ];
-    const statements = new GetAccountStatements(charges);
+    const statements = new GetAccountStatements(charges, new InMemoryOpeningCreditRepository());
 
     const september = (await statements.ofAll(payments, m('2026-09'))).find((s) => s.unit === u501);
     expect([september?.outstandingBalance, september?.creditBalance]).toEqual([

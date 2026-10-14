@@ -1,16 +1,28 @@
 import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
 import type { ComponentProps, ReactNode } from 'react';
 import type { Money } from '../../../../shared-kernel/index.js';
-import type { ReportDocument, ReportEntry } from '../../application/index.js';
-import { coverage, money, monthTitle, owed, shortDate, timestamp, week } from './format.js';
+import type { ReportDocument, UnitReportLine } from '../../application/index.js';
+import {
+  currentFeeTone,
+  dayMonth,
+  money,
+  monthTitle,
+  observations,
+  timestamp,
+  visitDays,
+  weekLabel,
+} from './format.js';
 
-// The monthly report in the spirit of the one shared over WhatsApp: the four figures on top,
-// each depto's payment and account, then the expenses by category. Black on white, so it
-// reads well on a phone and prints well too.
+// The building's monthly report as it has been shared over WhatsApp ("Balance
+// Correspondencia 63"): the opening balance, a row per depto with its payment and
+// observations, the expenses grouped by concept, and the closing balance.
 
-const INK = '#111111';
-const MUTED = '#666666';
-const RULE = '#d4d4d4';
+const NAVY = '#1f3355';
+const OWED = '#ffc7ce';
+const PAID_BEFORE = '#c6efce';
+const SHADE = '#d9d9d9';
+const LINE = '#7f7f7f';
+const MUTED = '#595959';
 
 const styles = StyleSheet.create({
   page: {
@@ -18,56 +30,53 @@ const styles = StyleSheet.create({
     paddingBottom: 48,
     paddingHorizontal: 40,
     fontFamily: 'Helvetica',
-    fontSize: 9,
-    color: INK,
+    fontSize: 7.5,
   },
-  building: { fontSize: 8, letterSpacing: 1.5, color: MUTED },
-  title: { fontFamily: 'Helvetica-Bold', fontSize: 18, marginTop: 2 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  headerSide: { alignItems: 'flex-end', gap: 2 },
-  draft: {
-    marginTop: 10,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderWidth: 1,
-    borderColor: INK,
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 8,
-    textAlign: 'center',
-  },
-  summary: {
-    flexDirection: 'row',
-    marginTop: 14,
-    borderWidth: 1,
-    borderColor: INK,
-  },
-  figure: { flex: 1, paddingVertical: 8, paddingHorizontal: 10, gap: 3 },
-  figureDivider: { borderLeftWidth: 1, borderLeftColor: RULE },
-  figureLabel: { fontSize: 7.5, color: MUTED, textTransform: 'uppercase', letterSpacing: 0.8 },
-  figureValue: { fontSize: 12 },
-  figureStrong: { fontFamily: 'Helvetica-Bold', fontSize: 12 },
-  section: { marginTop: 18 },
-  sectionTitle: {
+  building: { fontFamily: 'Helvetica-Bold', fontSize: 13, textAlign: 'center' },
+  topLine: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginTop: 14,
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 8.5,
+  },
+  draft: {
+    marginTop: 8,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: NAVY,
+    fontFamily: 'Helvetica-Bold',
+    textAlign: 'center',
+  },
+  sectionTitle: {
     fontFamily: 'Helvetica-Bold',
     fontSize: 10,
-    paddingBottom: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: INK,
+    textAlign: 'center',
+    marginTop: 14,
+    marginBottom: 8,
   },
-  row: {
+  head: {
     flexDirection: 'row',
-    paddingVertical: 4,
-    borderBottomWidth: 0.5,
-    borderBottomColor: RULE,
+    backgroundColor: NAVY,
+    color: 'white',
+    fontFamily: 'Helvetica-Bold',
   },
-  head: { color: MUTED, fontSize: 7.5, textTransform: 'uppercase', letterSpacing: 0.6 },
-  muted: { color: MUTED },
-  bold: { fontFamily: 'Helvetica-Bold' },
+  headCell: { paddingVertical: 4, paddingHorizontal: 3, textAlign: 'center' },
+  row: { flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: LINE, minHeight: 12 },
+  cell: { paddingVertical: 2, paddingHorizontal: 3, borderLeftWidth: 0.5, borderLeftColor: LINE },
+  lastCell: { borderRightWidth: 0.5, borderRightColor: LINE },
   amount: { textAlign: 'right' },
-  subtotal: { flexDirection: 'row', justifyContent: 'flex-end', paddingTop: 4, gap: 12 },
-  empty: { paddingVertical: 4, color: MUTED },
+  center: { textAlign: 'center' },
+  bold: { fontFamily: 'Helvetica-Bold' },
+  totals: { flexDirection: 'row', marginTop: 4 },
+  group: { flexDirection: 'row', marginTop: 8, borderTopWidth: 0.5, borderTopColor: LINE },
+  concept: {
+    justifyContent: 'center',
+    borderLeftWidth: 0.5,
+    borderLeftColor: LINE,
+    borderBottomWidth: 0.5,
+    borderBottomColor: LINE,
+  },
   footer: {
     position: 'absolute',
     bottom: 24,
@@ -75,7 +84,7 @@ const styles = StyleSheet.create({
     right: 40,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    fontSize: 7.5,
+    fontSize: 7,
     color: MUTED,
   },
 });
@@ -83,187 +92,258 @@ const styles = StyleSheet.create({
 /** One style object, as react-pdf types it (its type lives in a package we do not import). */
 type Style = Exclude<NonNullable<ComponentProps<typeof View>['style']>, readonly unknown[]>;
 
-/** A table cell: flexible by default, or fixed width; amounts align right. */
+// Column widths (points). The page is 532 points wide inside the margins.
+const INCOME = { depto: 36, owner: 146, current: 72, other: 96 } as const;
+const EXPENSE = { concept: 70, date: 120, amount: 75 } as const;
+
 function Cell({
   width,
-  flex,
-  amount,
   children,
   style,
+  last,
 }: {
   width?: number;
-  flex?: number;
-  amount?: boolean;
   children?: ReactNode;
   style?: Style;
+  last?: boolean;
 }) {
   return (
-    <View style={width ? { width } : { flex: flex ?? 1 }}>
-      <Text style={[amount ? styles.amount : {}, style ?? {}]}>{children}</Text>
+    <View
+      style={[
+        styles.cell,
+        width ? { width } : { flex: 1 },
+        last ? styles.lastCell : {},
+        style ?? {},
+      ]}
+    >
+      <Text>{children}</Text>
     </View>
   );
 }
 
-function Section({
-  title,
-  total,
-  children,
+/** A label and an amount under a table's amount column, e.g. "TOTAL BASURA $600.00". */
+function Total({
+  label,
+  value,
+  offset,
+  width,
+  shaded,
+  strong,
 }: {
-  title: string;
-  total?: Money;
-  children: ReactNode;
+  label: string;
+  value: Money;
+  offset: number;
+  width: number;
+  shaded?: boolean;
+  strong?: boolean;
 }) {
+  const box: Style = shaded ? { backgroundColor: SHADE } : {};
+  const text: Style = strong ? { ...styles.bold, fontSize: 10 } : {};
   return (
-    <View style={styles.section}>
-      <View style={styles.sectionTitle} wrap={false}>
-        <Text>{title}</Text>
-        {total && <Text>{money(total)}</Text>}
+    <View style={styles.totals} wrap={false}>
+      <View style={{ width: offset, alignItems: 'flex-end' }}>
+        <Text style={[{ paddingHorizontal: 6, paddingVertical: 2 }, box, text]}>{label}</Text>
       </View>
-      {children}
+      <View style={[{ width, marginLeft: 6, paddingHorizontal: 3, paddingVertical: 2 }, box]}>
+        <Text style={[styles.amount, text]}>{money(value)}</Text>
+      </View>
     </View>
   );
 }
 
-function Summary({ report }: { report: ReportDocument }) {
-  const figures: [string, string, boolean][] = [
-    ['Saldo inicial', money(report.openingBalance), false],
-    ['Ingresos', `+ ${money(report.income)}`, false],
-    ['Egresos', `- ${money(report.expense)}`, false],
-    [
-      report.status === 'CLOSED' ? 'Saldo final' : 'Saldo al día',
-      money(report.closingBalance),
-      true,
-    ],
-  ];
+function UnitRow({ line, report }: { line: UnitReportLine; report: ReportDocument }) {
+  const tone = currentFeeTone(line);
+  const current = line.currentFee?.paidThisMonth;
+  const other = current ? line.paid.minus(current) : line.paid;
+  const fill: Style =
+    tone === 'owed'
+      ? { backgroundColor: OWED }
+      : tone === 'paidBefore'
+        ? { backgroundColor: PAID_BEFORE }
+        : {};
   return (
-    <View style={styles.summary}>
-      {figures.map(([label, value, strong], index) => (
-        <View key={label} style={[styles.figure, index > 0 ? styles.figureDivider : {}]}>
-          <Text style={styles.figureLabel}>{label}</Text>
-          <Text style={strong ? styles.figureStrong : styles.figureValue}>{value}</Text>
-        </View>
-      ))}
+    <View style={styles.row} wrap={false}>
+      <Cell width={INCOME.depto} style={{ ...styles.center, ...styles.bold }}>
+        {line.unit.value}
+      </Cell>
+      <Cell width={INCOME.owner}>{line.ownerName?.toUpperCase() ?? ''}</Cell>
+      <Cell width={INCOME.current} style={{ ...styles.amount, ...fill }}>
+        {current?.isPositive() ? money(current) : ''}
+      </Cell>
+      <Cell width={INCOME.other} style={styles.amount}>
+        {other.isPositive() ? money(other) : ''}
+      </Cell>
+      <Cell last style={{ ...styles.center, fontSize: 6.5 }}>
+        {observations(line, report.month, report.maintenanceFee)}
+      </Cell>
     </View>
   );
 }
 
-function UnitsTable({ report }: { report: ReportDocument }) {
-  const fees = report.byCategory.UNIT_PAYMENT;
+function Income({ report }: { report: ReportDocument }) {
+  const owners = INCOME.depto + INCOME.owner;
   return (
-    <Section title="Cuotas por depto" total={fees}>
-      <View style={[styles.row, styles.head]} fixed>
-        <Cell width={46}>Depto</Cell>
-        <Cell width={70} amount>
-          Pagó
-        </Cell>
-        <Cell flex={1.6} style={{ paddingLeft: 10 }}>
-          Cubre
-        </Cell>
-        <Cell width={70} amount>
-          Adeudo
-        </Cell>
-        <Cell flex={1.2} style={{ paddingLeft: 10 }}>
-          Meses que debe
-        </Cell>
-        <Cell width={64} amount>
-          Adelanto
-        </Cell>
+    <>
+      <Text style={styles.sectionTitle}>INGRESOS</Text>
+      <View style={styles.head} fixed>
+        <Text style={[styles.headCell, { width: INCOME.depto }]}>DEPTO</Text>
+        <Text style={[styles.headCell, { width: INCOME.owner }]}>PROPIETARIO</Text>
+        <Text style={[styles.headCell, { width: INCOME.current }]}>MES EN CURSO</Text>
+        <Text style={[styles.headCell, { width: INCOME.other }]}>ADEUDOS/ADELANTOS</Text>
+        <Text style={[styles.headCell, { flex: 1 }]}>OBSERVACIONES</Text>
       </View>
       {report.units.map((line) => (
-        <View key={line.unit.value} style={styles.row} wrap={false}>
-          <Cell width={46} style={styles.bold}>
-            {line.unit.value}
-          </Cell>
-          <Cell width={70} amount style={line.paid.isZero() ? styles.muted : {}}>
-            {line.paid.isZero() ? '-' : money(line.paid)}
-          </Cell>
-          <Cell flex={1.6} style={{ paddingLeft: 10, ...styles.muted }}>
-            {line.active ? coverage(line.covered) : 'inactivo este mes'}
-          </Cell>
-          <Cell width={70} amount style={line.outstanding.isZero() ? styles.muted : styles.bold}>
-            {line.outstanding.isZero() ? 'al corriente' : money(line.outstanding)}
-          </Cell>
-          <Cell flex={1.2} style={{ paddingLeft: 10, ...styles.muted }}>
-            {owed(line.owed)}
-          </Cell>
-          <Cell width={64} amount style={line.credit.isZero() ? styles.muted : {}}>
-            {line.credit.isZero() ? '-' : money(line.credit)}
-          </Cell>
-        </View>
+        <UnitRow key={line.unit.value} line={line} report={report} />
       ))}
-      <Text style={[styles.muted, { marginTop: 4, fontSize: 7.5 }]}>
-        {report.status === 'CLOSED'
-          ? 'Adeudo y adelanto al cierre del mes.'
-          : 'Adeudo y adelanto a la fecha.'}{' '}
-        Cada pago cubre primero lo más antiguo.
-      </Text>
-    </Section>
+      {report.otherIncome.length > 0 && (
+        <View style={styles.group} wrap={false}>
+          <View style={[styles.concept, { width: owners }]}>
+            <Text style={styles.center}>OTROS INGRESOS</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            {report.otherIncome.map((entry, index) => (
+              <View key={index} style={styles.row}>
+                <Cell width={INCOME.current} style={styles.amount}>
+                  {money(entry.amount)}
+                </Cell>
+                <Cell last style={styles.center}>
+                  {`${dayMonth(entry.date)}  ${entry.description ?? ''}`}
+                </Cell>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+      <Total label="INGRESOS" value={report.income} offset={owners - 6} width={INCOME.current} />
+      <Total
+        label="TOTAL DE INGRESOS"
+        value={report.openingBalance.plus(report.income)}
+        offset={owners - 6}
+        width={INCOME.current}
+        shaded
+      />
+    </>
   );
 }
 
-/** Rows with a date, a description and an amount (other income, other expenses). */
-function EntriesTable({
-  title,
-  entries,
+interface ExpenseRow {
+  readonly key: string;
+  readonly date: string;
+  readonly amount: Money | null;
+  readonly note?: string;
+}
+
+/** A block of expenses with its concept on the left, e.g. BASURA and its weeks. */
+function ExpenseGroup({
+  concept,
+  rows,
   total,
+  totalLabel,
 }: {
-  title: string;
-  entries: readonly ReportEntry[];
+  concept: string;
+  rows: readonly ExpenseRow[];
   total: Money;
+  totalLabel: string;
 }) {
   return (
-    <Section title={title} total={total}>
-      {entries.map((entry, index) => (
-        <View key={index} style={styles.row} wrap={false}>
-          <Cell width={110}>{shortDate(entry.date)}</Cell>
-          <Cell>{entry.description ?? ''}</Cell>
-          <Cell width={80} amount>
-            {money(entry.amount)}
-          </Cell>
+    <>
+      <View style={styles.group} wrap={false}>
+        <View style={[styles.concept, { width: EXPENSE.concept }]}>
+          <Text style={styles.center}>{concept}</Text>
         </View>
-      ))}
-    </Section>
+        <View style={{ flex: 1 }}>
+          {rows.length === 0 && (
+            <View style={styles.row}>
+              <Cell width={EXPENSE.date} />
+              <Cell width={EXPENSE.amount} />
+              <Cell last />
+            </View>
+          )}
+          {rows.map((row) => (
+            <View key={row.key} style={styles.row}>
+              <Cell width={EXPENSE.date} style={styles.center}>
+                {row.date}
+              </Cell>
+              <Cell width={EXPENSE.amount} style={styles.amount}>
+                {row.amount ? money(row.amount) : ''}
+              </Cell>
+              <Cell last style={styles.center}>
+                {row.note ?? ''}
+              </Cell>
+            </View>
+          ))}
+        </View>
+      </View>
+      <Total
+        label={totalLabel}
+        value={total}
+        offset={EXPENSE.concept + EXPENSE.date - 6}
+        width={EXPENSE.amount}
+      />
+    </>
   );
 }
 
 function Expenses({ report }: { report: ReportDocument }) {
   const { byCategory } = report;
+  const offset = EXPENSE.concept + EXPENSE.date - 6;
   return (
     <>
-      <Section title="Basura" total={byCategory.GARBAGE}>
-        {report.garbage.length === 0 && <Text style={styles.empty}>Sin pagos este mes.</Text>}
-        {report.garbage.map((entry, index) => (
-          <View key={index} style={styles.row} wrap={false}>
-            <Cell width={110}>{shortDate(entry.date)}</Cell>
-            <Cell style={styles.muted}>{entry.week && `semana ${week(entry.week)}`}</Cell>
-            <Cell width={80} amount>
-              {money(entry.amount)}
-            </Cell>
-          </View>
-        ))}
-      </Section>
-      <Section title="Limpieza" total={byCategory.CLEANING}>
-        {report.cleaning.length === 0 && <Text style={styles.empty}>Sin visitas este mes.</Text>}
-        {report.cleaning.map((payout) => (
-          <View key={String(payout.weekStart)} style={styles.row} wrap={false}>
-            <Cell width={110}>Semana {week(payout.weekStart)}</Cell>
-            <Cell style={styles.muted}>
-              {payout.dates.length === 1 ? '1 visita' : `${payout.dates.length} visitas`}:{' '}
-              {payout.dates.map(shortDate).join(', ')}
-            </Cell>
-            <Cell width={80} amount>
-              {money(payout.total)}
-            </Cell>
-          </View>
-        ))}
-      </Section>
-      {report.otherExpenses.length > 0 && (
-        <EntriesTable
-          title="Otros egresos"
-          entries={report.otherExpenses}
-          total={byCategory.OTHER_EXPENSE}
-        />
-      )}
+      <Text style={styles.sectionTitle}>EGRESOS</Text>
+      <View style={styles.head} fixed>
+        <Text style={[styles.headCell, { width: EXPENSE.concept }]}>CONCEPTO</Text>
+        <Text style={[styles.headCell, { width: EXPENSE.date }]}>FECHA</Text>
+        <Text style={[styles.headCell, { width: EXPENSE.amount }]}>IMPORTE</Text>
+        <Text style={[styles.headCell, { flex: 1 }]}>OBSERVACIONES</Text>
+      </View>
+      <ExpenseGroup
+        concept="BASURA"
+        rows={report.garbage.map((line, index) => ({
+          key: `${String(line.week)}-${index}`,
+          date: weekLabel(line.week),
+          amount: line.amount,
+        }))}
+        total={byCategory.GARBAGE}
+        totalLabel="TOTAL BASURA"
+      />
+      <ExpenseGroup
+        concept="LIMPIEZA"
+        rows={report.cleaning.map((payout) => ({
+          key: String(payout.weekStart),
+          date: visitDays(payout.dates),
+          amount: payout.total,
+        }))}
+        total={byCategory.CLEANING}
+        totalLabel="TOTAL LIMPIEZA"
+      />
+      <ExpenseGroup
+        concept="OTROS"
+        rows={report.otherExpenses.map((entry, index) => ({
+          key: String(index),
+          date: dayMonth(entry.date),
+          amount: entry.amount,
+          note: entry.description ?? '',
+        }))}
+        total={byCategory.OTHER_EXPENSE}
+        totalLabel="TOTAL OTROS"
+      />
+      <View style={{ marginTop: 8 }} />
+      <Total
+        label="TOTAL DE EGRESOS"
+        value={report.expense}
+        offset={offset}
+        width={EXPENSE.amount}
+        shaded
+      />
+      <View style={{ marginTop: 6 }} />
+      <Total
+        label={report.status === 'CLOSED' ? 'SALDO AL FIN DE MES' : 'SALDO AL DÍA'}
+        value={report.closingBalance}
+        offset={offset}
+        width={EXPENSE.amount}
+        shaded
+        strong
+      />
     </>
   );
 }
@@ -272,55 +352,37 @@ function administeredBy({ scheduledUnit, responsibleUnits }: ReportDocument): st
   if (responsibleUnits.length === 0)
     return `Turno de Depto ${scheduledUnit.value}, sin responsable`;
   const covering = responsibleUnits.filter((unit) => unit !== scheduledUnit);
-  if (covering.length === 0) return `Administra Depto ${scheduledUnit.value}`;
-  return `Turno de Depto ${scheduledUnit.value}, cubre Depto ${covering.map((u) => u.value).join(' y ')}`;
+  if (covering.length === 0) return `Administró Depto ${scheduledUnit.value}`;
+  return `Turno de Depto ${scheduledUnit.value}, cubrió Depto ${covering.map((u) => u.value).join(' y ')}`;
 }
 
 export function MonthlyReportPdf({ report }: { report: ReportDocument }) {
   const title = monthTitle(report.month);
   return (
     <Document
-      title={`Reporte de mantenimiento, ${title}`}
+      title={`Edificio Correspondencia 63, ${title}`}
       author="Edificio Correspondencia 63"
       creator="DepAdmin"
       producer="DepAdmin"
       language="es-MX"
     >
       <Page size="LETTER" style={styles.page}>
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.building}>EDIFICIO CORRESPONDENCIA 63</Text>
-            <Text style={styles.title}>Reporte de mantenimiento</Text>
-            <Text style={{ fontSize: 12, marginTop: 2 }}>{title}</Text>
-          </View>
-          <View style={styles.headerSide}>
-            <Text>{administeredBy(report)}</Text>
-            <Text style={styles.muted}>
-              {report.status === 'CLOSED' ? 'Mes cerrado' : 'Mes abierto'}
-            </Text>
-          </View>
+        <Text style={styles.building}>EDIFICIO CORRESPONDENCIA 63</Text>
+        <View style={styles.topLine}>
+          <Text>{title}</Text>
+          <Text>SALDO A INICIO DE MES {money(report.openingBalance)}</Text>
         </View>
         {report.status === 'OPEN' && (
           <Text style={styles.draft}>
-            BORRADOR: el mes sigue abierto y estas cifras todavía pueden cambiar.
+            BORRADOR: EL MES SIGUE ABIERTO Y ESTAS CIFRAS TODAVÍA PUEDEN CAMBIAR
           </Text>
         )}
-        <Summary report={report} />
-        <UnitsTable report={report} />
-        {report.otherIncome.length > 0 && (
-          <EntriesTable
-            title="Otros ingresos"
-            entries={report.otherIncome}
-            total={report.byCategory.OTHER_INCOME}
-          />
-        )}
+        <Income report={report} />
         <Expenses report={report} />
-        <View style={[styles.subtotal, { marginTop: 12 }]} wrap={false}>
-          <Text style={styles.muted}>Total de egresos</Text>
-          <Text style={styles.bold}>{money(report.expense)}</Text>
-        </View>
         <View style={styles.footer} fixed>
-          <Text>Generado el {timestamp(report.generatedAt)} con DepAdmin</Text>
+          <Text>
+            {administeredBy(report)} · Generado el {timestamp(report.generatedAt)} con DepAdmin
+          </Text>
           <Text render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`} />
         </View>
       </Page>

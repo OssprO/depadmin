@@ -1,7 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { fromDbMonth, toDbMonth } from '../../../platform/prisma/db-values.js';
-import type { UnitInactivePeriod } from '../../../platform/prisma/generated/client.js';
+import type {
+  UnitInactivePeriod,
+  Unit as UnitRow,
+} from '../../../platform/prisma/generated/client.js';
 import { PrismaDatabase } from '../../../platform/prisma/prisma-database.js';
 import { UnitNumber, YearMonthRange } from '../../../shared-kernel/index.js';
 import { Unit, type UnitRepository } from '../domain/index.js';
@@ -15,7 +18,7 @@ export class PrismaUnitRepository implements UnitRepository {
       include: { inactivePeriods: true },
       orderBy: { number: 'asc' },
     });
-    return rows.map((row) => toDomain(row.number, row.inactivePeriods));
+    return rows.map(toDomain);
   }
 
   async findByNumber(number: UnitNumber): Promise<Unit | null> {
@@ -23,7 +26,7 @@ export class PrismaUnitRepository implements UnitRepository {
       where: { number: number.value },
       include: { inactivePeriods: true },
     });
-    return row && toDomain(row.number, row.inactivePeriods);
+    return row && toDomain(row);
   }
 
   /** The history is small, so it is replaced as a whole. */
@@ -31,7 +34,12 @@ export class PrismaUnitRepository implements UnitRepository {
     return this.database.run(async () => {
       const { db } = this.database;
       const number = unit.number.value;
-      await db.unit.upsert({ where: { number }, create: { number }, update: {} });
+      const ownerName = unit.ownerName;
+      await db.unit.upsert({
+        where: { number },
+        create: { number, ownerName },
+        update: { ownerName },
+      });
       await db.unitInactivePeriod.deleteMany({ where: { unitNumber: number } });
       await db.unitInactivePeriod.createMany({
         data: unit.inactivePeriods.map((period) => ({
@@ -45,13 +53,14 @@ export class PrismaUnitRepository implements UnitRepository {
   }
 }
 
-function toDomain(number: number, periods: readonly UnitInactivePeriod[]): Unit {
+function toDomain(row: UnitRow & { inactivePeriods: readonly UnitInactivePeriod[] }): Unit {
   return Unit.restore(
-    UnitNumber.of(number),
-    periods.map((p) =>
+    UnitNumber.of(row.number),
+    row.inactivePeriods.map((p) =>
       p.toMonth
         ? YearMonthRange.between(fromDbMonth(p.fromMonth), fromDbMonth(p.toMonth))
         : YearMonthRange.startingAt(fromDbMonth(p.fromMonth)),
     ),
+    row.ownerName,
   );
 }

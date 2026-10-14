@@ -4,10 +4,11 @@ import type {
   Movement,
   MonthHistory as MonthHistoryResponse,
   MonthlyReport,
+  OpeningBalance as OpeningBalanceResponse,
   UnitNumberValue,
 } from '@depadmin/shared';
 import type { Money, UnitNumber } from '../../../shared-kernel/index.js';
-import type { AccountStatement } from '../../billing/application/index.js';
+import type { AccountStatement, OpeningBalance } from '../../billing/application/index.js';
 import type { MonthHistory, MonthlyReportView, ReportRow } from '../application/index.js';
 
 const unit = (number: UnitNumber) => number.value as UnitNumberValue;
@@ -114,5 +115,17 @@ export function toMonthHistory(history: MonthHistory): MonthHistoryResponse {
       canClose: entry.canClose,
       canReopen: entry.canReopen,
     })),
+  };
+}
+
+export function toOpeningBalance(balance: OpeningBalance): OpeningBalanceResponse {
+  return {
+    unit: unit(balance.unit),
+    debts: balance.charges.map((charge) => ({
+      month: String(charge.month),
+      type: charge.type,
+      amount: centavos(charge.amount),
+    })),
+    credit: centavos(balance.credit),
   };
 }

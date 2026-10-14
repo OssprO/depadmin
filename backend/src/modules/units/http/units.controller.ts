@@ -1,5 +1,7 @@
-import { Body, Controller, Get, HttpCode, Inject, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Inject, Param, Post, Put } from '@nestjs/common';
 import {
+  type RenameOwnerRequest,
+  renameOwnerRequestSchema,
   type SetUnitStatusRequest,
   setUnitStatusRequestSchema,
   type Unit as UnitResponse,
@@ -16,7 +18,7 @@ import {
   UnitNumber,
   YearMonth,
 } from '../../../shared-kernel/index.js';
-import { ListUnits, SetUnitStatus } from '../application/index.js';
+import { ListUnits, RenameUnitOwner, SetUnitStatus } from '../application/index.js';
 import type { Unit } from '../domain/index.js';
 
 @Controller('units')
@@ -24,6 +26,7 @@ export class UnitsController {
   constructor(
     private readonly listUnits: ListUnits,
     private readonly setUnitStatus: SetUnitStatus,
+    private readonly renameOwner: RenameUnitOwner,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
@@ -49,11 +52,23 @@ export class UnitsController {
     });
     return toUnit(unit, this.clock.today().yearMonth);
   }
+
+  @Put(':number/owner')
+  async setOwner(
+    @CurrentActor() actor: Actor,
+    @Param('number', new ZodValidationPipe(z.coerce.number().pipe(unitNumberSchema)))
+    number: UnitNumberValue,
+    @Body(new ZodValidationPipe(renameOwnerRequestSchema)) body: RenameOwnerRequest,
+  ): Promise<UnitResponse> {
+    const unit = await this.renameOwner.execute(actor, UnitNumber.of(number), body.ownerName);
+    return toUnit(unit, this.clock.today().yearMonth);
+  }
 }
 
 function toUnit(unit: Unit, thisMonth: YearMonth): UnitResponse {
   return {
     number: unit.number.value as UnitNumberValue,
+    ownerName: unit.ownerName,
     activeNow: unit.isActiveIn(thisMonth),
     inactivePeriods: unit.inactivePeriods.map((period) => ({
       from: String(period.from),

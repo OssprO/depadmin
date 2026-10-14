@@ -4,6 +4,8 @@ import {
   auditLogPageSchema,
   monthHistorySchema,
   monthlyReportSchema,
+  openingBalancesSchema,
+  unitSchema,
   openMonthResponseSchema,
   problemDetailsSchema,
 } from '@depadmin/shared';
@@ -372,5 +374,59 @@ describe('books API', () => {
       404,
       'REPORT_NOT_FOUND',
     );
+  });
+
+  it('names the owners and loads what each depto carried into the books', async () => {
+    const owner = await http()
+      .put('/api/units/301/owner')
+      .auth(admin, { type: 'bearer' })
+      .send({ ownerName: '  Ana   López ' })
+      .expect(200);
+    expect(unitSchema.parse(owner.body).ownerName).toBe('Ana López');
+    expectProblem(
+      await http()
+        .put('/api/units/301/owner')
+        .auth(owner502, { type: 'bearer' })
+        .send({ ownerName: 'Yo' }),
+      403,
+      'SUPERADMIN_ONLY',
+    );
+
+    await startBooks();
+    const opening = (unit: number, body: object, token = admin) =>
+      http().put(`/api/opening-balances/${unit}`).auth(token, { type: 'bearer' }).send(body);
+    await opening(301, {
+      debts: [
+        { month: '2025-08', type: 'MAINTENANCE_FEE', amount: 60000 },
+        { month: '2026-07', type: 'SHIFT_SKIP_PENALTY', amount: 50000 },
+      ],
+      credit: 0,
+    }).expect(200);
+    await opening(202, { debts: [], credit: 70000 }).expect(200);
+    expectProblem(
+      await opening(301, {
+        debts: [{ month: '2026-08', type: 'MAINTENANCE_FEE', amount: 1 }],
+        credit: 0,
+      }),
+      422,
+      'OPENING_CHARGE_NOT_BEFORE_START',
+    );
+    expectProblem(await opening(301, { debts: [], credit: 0 }, owner502), 403, 'SUPERADMIN_ONLY');
+
+    const loaded = openingBalancesSchema.parse(
+      (await http().get('/api/opening-balances').auth(owner502, { type: 'bearer' }).expect(200))
+        .body,
+    );
+    expect(loaded.balances.find((b) => b.unit === 301)?.debts).toHaveLength(2);
+    expect(loaded.balances.find((b) => b.unit === 202)?.credit).toBe(70000);
+
+    // Once August is open, 202's adelanto covers it and 301 owes its debts plus August.
+    await http().post('/api/months/2026-08/open').auth(admin, { type: 'bearer' }).expect(200);
+    const accounts = accountListResponseSchema.parse(
+      (await http().get('/api/accounts').auth(owner502, { type: 'bearer' }).expect(200)).body,
+    );
+    expect(accounts.find((a) => a.unit === 202)).toMatchObject({ outstanding: 0, credit: 0 });
+    expect(accounts.find((a) => a.unit === 301)?.outstanding).toBe(180000);
+    expect((await month(owner502, '2026-08')).balances?.opening).toBe(500000);
   });
 });

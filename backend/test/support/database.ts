@@ -8,6 +8,7 @@ const RESETTABLE_TABLES = [
   'app_user',
   'cash_movement',
   'charge',
+  'opening_credit',
   'shift_delegation',
   'unit_inactive_period',
   'rate_change',

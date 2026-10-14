@@ -11,18 +11,25 @@ import {
  * month decides that month's charges and shift coverage, so a single boolean is not enough.
  * Status changes take effect for whole months.
  */
+export const OWNER_NAME_MAX_LENGTH = 80;
+
 export class Unit {
   private constructor(
     readonly number: UnitNumber,
     private periods: YearMonthRange[],
+    private owner: string | null,
   ) {}
 
   static create(number: UnitNumber): Unit {
-    return new Unit(number, []);
+    return new Unit(number, [], null);
   }
 
   /** Rebuilds a unit from storage, checking the history is consistent. */
-  static restore(number: UnitNumber, inactivePeriods: readonly YearMonthRange[]): Unit {
+  static restore(
+    number: UnitNumber,
+    inactivePeriods: readonly YearMonthRange[],
+    ownerName: string | null = null,
+  ): Unit {
     const periods = [...inactivePeriods].sort((a, b) => a.from.compareTo(b.from));
     periods.forEach((period, i) => {
       const next = periods[i + 1];
@@ -33,7 +40,24 @@ export class Unit {
         );
       }
     });
-    return new Unit(number, periods);
+    return new Unit(number, periods, ownerName);
+  }
+
+  /** The owner's name as the monthly report shows it; null until the superadmin sets it. */
+  get ownerName(): string | null {
+    return this.owner;
+  }
+
+  /** Blank clears it. Names change when a depto is sold, so it is not part of the history. */
+  renameOwner(name: string | null): void {
+    const trimmed = name?.trim().replace(/\s+/g, ' ') ?? '';
+    if (trimmed.length > OWNER_NAME_MAX_LENGTH) {
+      throw new ValidationError(
+        'OWNER_NAME_TOO_LONG',
+        `Owner names have at most ${OWNER_NAME_MAX_LENGTH} characters`,
+      );
+    }
+    this.owner = trimmed || null;
   }
 
   get inactivePeriods(): readonly YearMonthRange[] {

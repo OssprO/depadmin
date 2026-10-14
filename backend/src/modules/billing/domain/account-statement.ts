@@ -37,6 +37,7 @@ export class AccountStatement {
     /** Adelanto: paid in advance, not yet applied to any charge. */
     readonly creditBalance: Money,
     private readonly allocations: readonly PaymentAllocation[],
+    private readonly payments: ReadonlyMap<string, UnitPayment>,
   ) {}
 
   static build(
@@ -58,7 +59,25 @@ export class AccountStatement {
       return { charge, paid, outstanding, status };
     });
     const outstandingBalance = Money.sum(lines.map((line) => line.outstanding));
-    return new AccountStatement(unit, lines, outstandingBalance, unappliedCredit, allocations);
+    return new AccountStatement(
+      unit,
+      lines,
+      outstandingBalance,
+      unappliedCredit,
+      allocations,
+      new Map(payments.map((payment) => [payment.id, payment])),
+    );
+  }
+
+  /** The payments that went to a charge, and how much each gave, in payment order. */
+  fundingOf(charge: Charge): { payment: UnitPayment; amount: Money }[] {
+    return this.allocations
+      .filter((allocation) => allocation.chargeKey === charge.key)
+      .map((allocation) => ({
+        // Every allocation comes from one of this statement's payments.
+        payment: this.payments.get(allocation.paymentId) as UnitPayment,
+        amount: allocation.amount,
+      }));
   }
 
   get allocationsMade(): readonly PaymentAllocation[] {

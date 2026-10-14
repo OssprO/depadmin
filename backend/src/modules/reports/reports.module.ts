@@ -9,6 +9,7 @@ import {
   GetAccounts,
   GetMonthHistory,
   GetMonthlyReport,
+  GetOpeningBalances,
   GetReportingStart,
   MonthOpening,
   OpenCurrentMonth,
@@ -17,6 +18,7 @@ import {
   ReopenMonth,
   REPORT_RENDERER,
   ReportMonthLedger,
+  SetOpeningBalance,
   SetReportingStart,
 } from './application/index.js';
 import { REPORT_REPOSITORY } from './domain/index.js';
@@ -49,6 +51,8 @@ import { OpenCurrentMonthJob } from './jobs/open-current-month.job.js';
     GetMonthHistory,
     RenderMonthlyReport,
     GetAccounts,
+    GetOpeningBalances,
+    SetOpeningBalance,
     OpenCurrentMonthJob,
   ],
   exports: [MONTH_LEDGER],

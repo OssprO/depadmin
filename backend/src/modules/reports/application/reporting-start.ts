@@ -10,6 +10,7 @@ import {
   type UnitOfWork,
   WriteAccessPolicy,
 } from '../../../shared-kernel/index.js';
+import { ListOpeningBalances } from '../../billing/application/index.js';
 import { REPORT_REPOSITORY, type ReportingStart, type ReportRepository } from '../domain/index.js';
 import { REPORTING_START_AUDIT, ReportAuditAction } from './report-audit.js';
 
@@ -24,8 +25,9 @@ export class GetReportingStart {
 
 /**
  * The superadmin sets where the books start: the first month and the cash on hand at its
- * beginning. The month is fixed once a month has been opened; the cash can be corrected
- * until the first month is closed, since nothing has been frozen from it yet.
+ * beginning. The month is fixed once a month has been opened, or once opening balances
+ * (dated before it) have been recorded; the cash can be corrected until the first month is
+ * closed, since nothing has been frozen from it yet.
  */
 @Injectable()
 export class SetReportingStart {
@@ -35,6 +37,7 @@ export class SetReportingStart {
     @Inject(REPORT_REPOSITORY) private readonly reports: ReportRepository,
     @Inject(UNIT_OF_WORK) private readonly unitOfWork: UnitOfWork,
     @Inject(AUDIT_TRAIL) private readonly audit: AuditTrail,
+    private readonly openingBalances: ListOpeningBalances,
   ) {}
 
   async execute(actor: Actor, start: ReportingStart): Promise<ReportingStart> {
@@ -47,6 +50,13 @@ export class SetReportingStart {
           throw new ConflictError(
             'REPORTING_START_LOCKED',
             `The books already start in ${ledger.start.month}`,
+          );
+        }
+        const moved = !ledger.start.month.equals(start.month);
+        if (moved && (await this.hasOpeningBalances(ledger.start.month))) {
+          throw new ConflictError(
+            'OPENING_BALANCES_SET',
+            'Clear the opening balances before moving the start: they are dated before it',
           );
         }
         if (ledger.reports.some((report) => !report.isOpen)) {
@@ -66,5 +76,9 @@ export class SetReportingStart {
       await this.audit.record(actor, change);
       return start;
     });
+  }
+
+  private async hasOpeningBalances(start: ReportingStart['month']): Promise<boolean> {
+    return (await this.openingBalances.execute(start)).some((balance) => !balance.isEmpty);
   }
 }

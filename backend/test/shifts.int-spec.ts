@@ -175,6 +175,7 @@ describe('units API', () => {
     );
     expect(units.find((unit) => unit.number === 401)).toEqual({
       number: 401,
+      ownerName: null,
       activeNow: true,
       inactivePeriods: [{ from: '2026-12', to: null }],
     });

@@ -69,11 +69,14 @@ enum RateName {
 }
 
 model Unit {
-  number Int @id
+  number    Int     @id
+  /// As the monthly report shows it; set by the superadmin.
+  ownerName String? @map("owner_name")
 
   inactivePeriods  UnitInactivePeriod[]
   movements        CashMovement[]
   charges          Charge[]
+  openingCredit    OpeningCredit?
   delegationsGiven ShiftDelegation[]    @relation("original")
   delegationsTaken ShiftDelegation[]    @relation("delegate")
   owner            User?
@@ -196,6 +199,19 @@ model Charge {
   @@id([unitNumber, month, type])
   @@index([month])
   @@map("charge")
+}
+
+/// Initial load: what a depto had paid in advance when the books started. Its debts from
+/// before then are ordinary charges dated before the start month.
+model OpeningCredit {
+  unitNumber Int      @id @map("unit_number")
+  /// The first month of the books; the credit counts as paid the day before it.
+  month      DateTime @db.Date
+  amount     Int
+
+  unit Unit @relation(fields: [unitNumber], references: [number])
+
+  @@map("opening_credit")
 }
 
 /// A month exists once opened. All snapshot columns are null while open and set when closed.

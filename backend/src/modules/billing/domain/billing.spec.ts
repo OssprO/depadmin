@@ -3,6 +3,7 @@ import { withCode } from '../../../../test/support/domain-error.js';
 import { LocalDate, Money, UnitNumber, YearMonth } from '../../../shared-kernel/index.js';
 import { AccountStatement } from './account-statement.js';
 import { Charge, type ChargeType, missingMaintenanceFees, shiftSkipPenalties } from './charge.js';
+import { OpeningBalance, openingPayment } from './opening-balance.js';
 import { allocatePayments, type UnitPayment } from './payment-allocation.js';
 
 const depto = UnitNumber.of(301);
@@ -176,6 +177,9 @@ describe('AccountStatement', () => {
       '2026-10 400.00',
     ]);
     expect(describe('unknown')).toEqual([]);
+    expect(
+      statement.fundingOf(fee('2026-08')).map((f) => `${f.payment.id} ${f.amount.toString()}`),
+    ).toEqual(['p1 300.00', 'p2 400.00']);
   });
 
   it('recomputes from scratch after a payment is edited or removed', () => {
@@ -183,5 +187,59 @@ describe('AccountStatement', () => {
     expect(before.outstandingBalance.isZero()).toBe(true);
     const after = AccountStatement.build(depto, charges, [pay('p1', '2026-08-03', 700)]);
     expect(after.outstandingBalance.toString()).toBe('1400.00');
+  });
+});
+
+describe('OpeningBalance', () => {
+  const start = YearMonth.parse('2026-09');
+
+  it('carries debts from before the books and an adelanto paid the day before they start', () => {
+    const balance = OpeningBalance.of(
+      depto,
+      start,
+      [
+        fee('2026-08'),
+        fee('2025-08', 'MAINTENANCE_FEE', 600),
+        fee('2026-07', 'SHIFT_SKIP_PENALTY'),
+      ],
+      pesos(0),
+    );
+    expect(balance.charges.map((c) => c.key)).toEqual([
+      '301:2025-08:MAINTENANCE_FEE',
+      '301:2026-07:SHIFT_SKIP_PENALTY',
+      '301:2026-08:MAINTENANCE_FEE',
+    ]);
+    expect(balance.debt).toEqual(pesos(1800));
+    expect(balance.openingCredit).toBeNull();
+
+    const credit = OpeningBalance.of(depto, start, [], pesos(700)).openingCredit!;
+    expect(openingPayment(credit)).toEqual({
+      id: 'opening:301',
+      unit: depto,
+      date: LocalDate.parse('2026-08-31'),
+      amount: pesos(700),
+    });
+    expect(OpeningBalance.empty(depto, start).isEmpty).toBe(true);
+  });
+
+  it('only holds debts from before the start, once each, and no negative adelanto', () => {
+    expect(() => OpeningBalance.of(depto, start, [fee('2026-09')], pesos(0))).toThrow(
+      withCode('OPENING_CHARGE_NOT_BEFORE_START'),
+    );
+    expect(() =>
+      OpeningBalance.of(depto, start, [fee('2026-08'), fee('2026-08')], pesos(0)),
+    ).toThrow(withCode('OPENING_CHARGE_DUPLICATED'));
+    const other = Charge.create(
+      UnitNumber.of(302),
+      YearMonth.parse('2026-08'),
+      'MAINTENANCE_FEE',
+      pesos(700),
+    );
+    expect(() => OpeningBalance.of(depto, start, [other], pesos(0))).toThrow(
+      withCode('OPENING_BALANCE_INVALID'),
+    );
+    expect(() => OpeningBalance.of(depto, start, [], pesos(-1))).toThrow(
+      withCode('OPENING_CREDIT_INVALID'),
+    );
   });
 });

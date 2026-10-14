@@ -69,4 +69,14 @@ describe('Unit', () => {
       ]),
     ).toThrow(withCode('UNIT_HISTORY_INVALID'));
   });
+
+  it('keeps its owner’s name, tidied, or none', () => {
+    const unit = Unit.create(depto301);
+    expect(unit.ownerName).toBeNull();
+    unit.renameOwner('  Raúl   Brindis  Hernández ');
+    expect(unit.ownerName).toBe('Raúl Brindis Hernández');
+    unit.renameOwner('   ');
+    expect(unit.ownerName).toBeNull();
+    expect(() => unit.renameOwner('x'.repeat(81))).toThrow(withCode('OWNER_NAME_TOO_LONG'));
+  });
 });

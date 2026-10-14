@@ -31,6 +31,11 @@ export class UnitStatuses {
     return UnitNumber.all().filter((unit) => this.isActive(unit, month));
   }
 
+  /** The owner's name, as the monthly report shows it (null if not set). */
+  ownerOf(unit: UnitNumber): string | null {
+    return this.byNumber.get(unit)?.ownerName ?? null;
+  }
+
   inactiveIn(month: YearMonth): UnitNumber[] {
     return UnitNumber.all().filter((unit) => !this.isActive(unit, month));
   }
