@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AuditModule } from './modules/audit/audit.module.js';
 import { BillingModule } from './modules/billing/billing.module.js';
 import { CashbookModule } from './modules/cashbook/cashbook.module.js';
 import { IdentityModule } from './modules/identity/identity.module.js';
@@ -19,6 +20,7 @@ import { PrismaModule } from './platform/prisma/prisma.module.js';
     ClockModule,
     PrismaModule,
     HealthModule,
+    AuditModule,
     IdentityModule,
     UnitsModule,
     ShiftsModule,

@@ -24,6 +24,10 @@ export class PrismaDatabase implements UnitOfWork {
     return this.current.getStore() ?? this.client;
   }
 
+  get inTransaction(): boolean {
+    return this.current.getStore() !== undefined;
+  }
+
   run<T>(work: () => Promise<T>): Promise<T> {
     if (this.current.getStore()) return work();
     return this.client.$transaction((tx) => this.current.run(tx, work));
