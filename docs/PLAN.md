@@ -1,6 +1,6 @@
 # Plan de trabajo — DepAdmin (Edificio Correspondencia 63)
 
-**Versión:** 1.6 · **Fecha:** 2026-10-14 · **Base:** `docs/SPEC.md` v0.4
+**Versión:** 1.7 · **Fecha:** 2026-10-14 · **Base:** `docs/SPEC.md` v0.4
 
 Este plan reemplaza a la sección 11 de la spec. Cada fase termina en algo que se puede correr, probar y revisar. Modo de trabajo: Claude explica el porqué de cada decisión, implementa con pruebas y entrega la fase como un PR. Tú revisas y apruebas antes de pasar a la siguiente.
 
@@ -261,13 +261,20 @@ Es la pantalla principal de quien está en turno: la lista de movimientos del me
 
 ### Fase 8: Egresos recurrentes asistidos
 
-Todo vive dentro de la misma lista; esta fase solo agrega atajos para lo que se repite.
+Todo vive dentro de la misma lista; esta fase solo agrega atajos para lo que se repite. El detalle está en el ADR-0017.
 
-- Basura: cada semana aparece en la lista un renglón **pendiente** de $150; se confirma con un toque y se ajusta la fecha real de pago si hace falta. Los pendientes no cuentan en los totales hasta que se confirman.
-- Limpieza: atajo para marcar varias visitas en un minicalendario, que genera un renglón por visita, más un resumen semanal de cuánto pagarle a la persona.
-- Otros egresos: captura libre con fecha, descripción e importe (comprobante opcional; ver pregunta abierta 5).
+- Basura:
+  - Cada semana aparece en el libro un renglón **pendiente** de $150, que se confirma con un toque. Tocarlo abre la hoja para ajustar la fecha real del pago antes de guardar.
+  - Los pendientes no cuentan en los totales hasta que se confirman.
+  - Cada renglón de basura guarda la semana que paga (su lunes), así que una semana pagada tarde o en otro mes ya no aparece como pendiente.
+  - Una semana se paga una sola vez; lo garantizan el dominio y la base.
+  - La semana es del mes donde cae su domingo, el día de pago sugerido (pregunta 4).
+- Limpieza:
+  - Un atajo marca varias visitas en un minicalendario del mes y genera un renglón por visita, todas o ninguna.
+  - Debajo de la lista, un resumen semanal (lunes a domingo) de cuánto pagarle a la persona, que incluye las visitas del mes vecino cuando la semana cruza de mes.
+- Otros egresos: captura libre con fecha, descripción e importe, sin comprobantes (pregunta 5).
 
-**Conceptos:** sugerencias frente a hechos registrados, reglas configurables con vigencia.
+**Conceptos:** sugerencias frente a hechos registrados, invariantes que cruzan agregados (una semana por pago), restricciones de exclusión.
 
 ### Fase 9: Reporte mensual e histórico
 
@@ -292,7 +299,7 @@ Todo vive dentro de la misma lista; esta fase solo agrega atajos para lo que se 
 - Carga inicial: adeudos o adelantos vigentes por depto al mes de corte (el mes y el saldo de caja ya se capturan desde la fase 7). Los PDFs anteriores se suben como archivo de consulta.
 - Alta de los 10 usuarios (el mecanismo ya existe desde la fase 3: contraseña temporal y cambio obligatorio en el primer login).
 - Limpieza periódica de refresh tokens vencidos y división del bundle del frontend por rutas.
-- Responder 409 (no 500) cuando la base rechaza dos delegaciones simultáneas sobre los mismos meses.
+- Responder 409 (no 500) cuando la base rechaza dos delegaciones simultáneas sobre los mismos meses, o dos pagos de basura de la misma semana.
 - PWA (manifest e ícono, instalable en el celular).
 - Accesibilidad, estados vacíos y de error, revisión de rendimiento (Lighthouse) y de seguridad (OWASP ASVS nivel 1).
 - Pruebas E2E de los flujos críticos completos.
@@ -308,8 +315,8 @@ Cada una tiene un valor por defecto para no bloquear el avance. Se confirman en 
 | 1   | Si un depto está **inactivo**, ¿la rotación lo salta y todos los turnos siguientes se recorren, o su periodo lo cubre otro depto sin mover el resto?                          | **Respondida:** no se recorre; el superadmin asigna quién cubre con una delegación. Mientras tanto, solo escribe el superadmin                                                  | 1    |
 | 2   | **Ventana de cierre:** el reporte de septiembre suele cerrarse en los primeros días de octubre, cuando el turno ya cambió. ¿Quién puede escribir en un mes que sigue abierto? | **Respondida:** el depto en turno, mientras conserve el turno y 5 días más (la entrega). En ese plazo cierra sus meses y decide el siguiente turno; después, solo el superadmin | 1    |
 | 3   | ¿Los cargos de cuota se generan el día 1 de cada mes aunque nadie abra el reporte?                                                                                            | Se generan al abrir el reporte, con un job diario de respaldo que lo hace solo                                                                                                  | 7    |
-| 4   | ¿Qué día de la semana se paga la basura?                                                                                                                                      | Se sugiere el domingo y el usuario lo ajusta                                                                                                                                    | 8    |
-| 5   | ¿Quieres adjuntar fotos de comprobantes en los egresos? Implica almacenar archivos en el VPS y respaldarlos.                                                                  | No en la primera versión                                                                                                                                                        | 8    |
+| 4   | ¿Qué día de la semana se paga la basura?                                                                                                                                      | **Aplicado:** se sugiere el domingo y el usuario ajusta la fecha                                                                                                                | 8    |
+| 5   | ¿Quieres adjuntar fotos de comprobantes en los egresos? Implica almacenar archivos en el VPS y respaldarlos.                                                                  | **Aplicado:** no en la primera versión                                                                                                                                          | 8    |
 | 6   | Necesito **uno o dos PDFs reales** del reporte actual para replicar su formato.                                                                                               | —                                                                                                                                                                               | 10   |
 | 7   | Mes de corte, saldo de caja y adeudos o adelantos vigentes por depto para la carga inicial.                                                                                   | —                                                                                                                                                                               | 11   |
 | 8   | Dominio y subdominio, y acceso SSH al VPS (distribución y si ya tiene Docker).                                                                                                | —                                                                                                                                                                               | 5    |
