@@ -1,6 +1,6 @@
 # Plan de trabajo — DepAdmin (Edificio Correspondencia 63)
 
-**Versión:** 1.7 · **Fecha:** 2026-10-14 · **Base:** `docs/SPEC.md` v0.4
+**Versión:** 1.8 · **Fecha:** 2026-10-14 · **Base:** `docs/SPEC.md` v0.4
 
 Este plan reemplaza a la sección 11 de la spec. Cada fase termina en algo que se puede correr, probar y revisar. Modo de trabajo: Claude explica el porqué de cada decisión, implementa con pruebas y entrega la fase como un PR. Tú revisas y apruebas antes de pasar a la siguiente.
 
@@ -278,11 +278,15 @@ Todo vive dentro de la misma lista; esta fase solo agrega atajos para lo que se 
 
 ### Fase 9: Reporte mensual e histórico
 
-- Ciclo de vida del mes sobre la lista de la fase 7 (abrir ya existe desde la fase 7): cerrar (lo hace el administrador saliente dentro de su ventana o el superadmin; se congela la lista y se guarda la foto, con una advertencia si quedan renglones de basura pendientes) y reabrir (solo superadmin, con recálculo en cascada y auditoría).
-- Dashboard: saldo actual, ingresos y egresos del mes, deptos con adeudo y blueprint.
-- Histórico navegable por mes: cada mes cerrado se ve como su lista congelada más el resumen.
-- Un mes cerrado también congela las delegaciones y sus multas de ese mes (fase 6). El estado de los deptos ya no puede cambiar en meses abiertos (fase 7).
-- Job diario de respaldo que abra el mes en curso si nadie lo abrió (pregunta 3); necesita un actor de sistema para la bitácora.
+El detalle está en el ADR-0018.
+
+- Cerrar un mes una vez que terminó (desde el día 1 siguiente), en orden. Lo hace el administrador saliente dentro de su ventana o el superadmin. Se congela la lista y se guarda la foto. Antes de confirmar, la pantalla avisa qué semanas de basura quedaron sin registrar.
+- Reabrir, solo el superadmin. Al volver a cerrar se reexpresan en cascada los meses cerrados siguientes, y cada cambio queda en la bitácora con sus saldos.
+- Histórico (`GET /api/months`): cada mes con sus cuatro cifras, congeladas si está cerrado y en vivo si está abierto; cada uno abre su libro.
+- Dashboard (Inicio): pendientes (meses por cerrar y basura por confirmar), caja con los ingresos y egresos del mes, blueprint del turno y deptos con adeudo.
+- Un mes cerrado congela sus delegaciones y sus multas (fase 6). El estado de los deptos ya no podía cambiar en meses abiertos (fase 7).
+- Job diario (00:05, Ciudad de México) que abre el mes en curso si nadie lo abrió (pregunta 3), registrado en la bitácora como «Sistema».
+- La basura se paga el sábado (pregunta 4).
 
 **Conceptos:** máquinas de estado, snapshots frente a cálculo en vivo.
 
@@ -299,7 +303,7 @@ Todo vive dentro de la misma lista; esta fase solo agrega atajos para lo que se 
 - Carga inicial: adeudos o adelantos vigentes por depto al mes de corte (el mes y el saldo de caja ya se capturan desde la fase 7). Los PDFs anteriores se suben como archivo de consulta.
 - Alta de los 10 usuarios (el mecanismo ya existe desde la fase 3: contraseña temporal y cambio obligatorio en el primer login).
 - Limpieza periódica de refresh tokens vencidos y división del bundle del frontend por rutas.
-- Responder 409 (no 500) cuando la base rechaza dos delegaciones simultáneas sobre los mismos meses, o dos pagos de basura de la misma semana.
+- Responder 409 (no 500) cuando la base rechaza dos delegaciones simultáneas sobre los mismos meses, o dos pagos de basura de la misma semana. Bloquear el mes mientras se cierra, para que un renglón agregado al mismo tiempo no quede fuera de la foto.
 - PWA (manifest e ícono, instalable en el celular).
 - Accesibilidad, estados vacíos y de error, revisión de rendimiento (Lighthouse) y de seguridad (OWASP ASVS nivel 1).
 - Pruebas E2E de los flujos críticos completos.
@@ -314,7 +318,7 @@ Cada una tiene un valor por defecto para no bloquear el avance. Se confirman en 
 | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
 | 1   | Si un depto está **inactivo**, ¿la rotación lo salta y todos los turnos siguientes se recorren, o su periodo lo cubre otro depto sin mover el resto?                          | **Respondida:** no se recorre; el superadmin asigna quién cubre con una delegación. Mientras tanto, solo escribe el superadmin                                                  | 1    |
 | 2   | **Ventana de cierre:** el reporte de septiembre suele cerrarse en los primeros días de octubre, cuando el turno ya cambió. ¿Quién puede escribir en un mes que sigue abierto? | **Respondida:** el depto en turno, mientras conserve el turno y 5 días más (la entrega). En ese plazo cierra sus meses y decide el siguiente turno; después, solo el superadmin | 1    |
-| 3   | ¿Los cargos de cuota se generan el día 1 de cada mes aunque nadie abra el reporte?                                                                                            | Se generan al abrir el reporte, con un job diario de respaldo que lo hace solo                                                                                                  | 7    |
+| 3   | ¿Los cargos de cuota se generan el día 1 de cada mes aunque nadie abra el reporte?                                                                                            | **Aplicado:** se generan al abrir el mes; un job diario lo abre a las 00:05 si nadie lo hizo                                                                                    | 7    |
 | 4   | ¿Qué día de la semana se paga la basura?                                                                                                                                      | **Respondida:** el sábado; se sugiere ese día y el usuario ajusta la fecha. La limpieza se paga el miércoles o el viernes                                                       | 8    |
 | 5   | ¿Quieres adjuntar fotos de comprobantes en los egresos? Implica almacenar archivos en el VPS y respaldarlos.                                                                  | **Aplicado:** no en la primera versión                                                                                                                                          | 8    |
 | 6   | Necesito **uno o dos PDFs reales** del reporte actual para replicar su formato.                                                                                               | —                                                                                                                                                                               | 10   |
