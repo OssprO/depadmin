@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import {
+  auditLogPageSchema,
   currentUserSchema,
   passwordResetResponseSchema,
   problemDetailsSchema,
@@ -185,6 +186,59 @@ describe('auth API', () => {
 
       const { session } = await login('502', temporaryPassword);
       expect(session.user.mustChangePassword).toBe(true);
+    });
+
+    it('leaves a trail of password changes that every user can read, without secrets', async () => {
+      const admin = await login('admin', ADMIN_PASSWORD);
+      const target = userListResponseSchema
+        .parse((await http().get('/api/users').auth(admin.accessToken, { type: 'bearer' })).body)
+        .find((u) => u.username === '502')!;
+      const { temporaryPassword } = passwordResetResponseSchema.parse(
+        (
+          await http()
+            .post(`/api/users/${target.id}/password-reset`)
+            .auth(admin.accessToken, { type: 'bearer' })
+        ).body,
+      );
+      const owner = await login('502', temporaryPassword);
+      await http()
+        .post('/api/auth/password')
+        .auth(owner.accessToken, { type: 'bearer' })
+        .send({ currentPassword: temporaryPassword, newPassword: 'mi contraseña del 502' })
+        .expect(200);
+
+      // An owner reads the whole log too (spec: full read access).
+      const reader = await login('501', OWNER_PASSWORD);
+      const response = await http()
+        .get('/api/audit-log')
+        .query({ entity: 'user', entityId: target.id })
+        .auth(reader.accessToken, { type: 'bearer' })
+        .expect(200);
+      const { entries } = auditLogPageSchema.parse(response.body);
+
+      expect(entries.map((e) => [e.action, e.actor, e.entityLabel])).toEqual([
+        ['USER_PASSWORD_CHANGED', { role: 'OWNER', unit: 502 }, '502'],
+        ['USER_PASSWORD_RESET', { role: 'SUPERADMIN', unit: null }, '502'],
+      ]);
+      expect(entries[1]?.changes).toEqual([
+        { field: 'password', redacted: true },
+        { field: 'mustChangePassword', before: false, after: true },
+      ]);
+      const raw = JSON.stringify(response.body);
+      expect(raw).not.toContain(temporaryPassword);
+      expect(raw).not.toContain('$argon2');
+    });
+
+    it('validates the audit log filters', async () => {
+      const { accessToken } = await login('501', OWNER_PASSWORD);
+      const list = (query: Record<string, string>) =>
+        http().get('/api/audit-log').query(query).auth(accessToken, { type: 'bearer' });
+
+      expectProblem(await list({ actor: 'admin' }), 400, 'VALIDATION_FAILED');
+      expectProblem(await list({ actor: '999' }), 422, 'UNIT_NUMBER_INVALID');
+      expectProblem(await list({ limit: '500' }), 400, 'VALIDATION_FAILED');
+      await list({ actor: 'superadmin', limit: '5' }).expect(200);
+      expectProblem(await http().get('/api/audit-log'), 401, 'UNAUTHENTICATED');
     });
 
     it('is off limits to owners', async () => {

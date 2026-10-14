@@ -1,4 +1,5 @@
 // In-memory adapters for the identity use case specs. Excluded from the build.
+import { FakeUnitOfWork, RecordingAuditTrail } from '../../../../test/support/audit-trail.js';
 import {
   type Actor,
   type Clock,
@@ -152,7 +153,9 @@ export function identityFixture() {
   const secrets = new FakeSecrets();
   const clock = new FixedClock();
   const sessions = new SessionIssuer(fakeAccessTokens, secrets, refreshTokens, clock);
-  return { users, refreshTokens, secrets, clock, sessions };
+  const unitOfWork = new FakeUnitOfWork();
+  const audit = new RecordingAuditTrail(unitOfWork);
+  return { users, refreshTokens, secrets, clock, sessions, unitOfWork, audit };
 }
 
 export async function givenOwner(

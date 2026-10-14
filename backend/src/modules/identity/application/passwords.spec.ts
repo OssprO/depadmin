@@ -26,7 +26,8 @@ describe('passwords and accounts', () => {
       fx.users,
       fx.refreshTokens,
       fakeHasher,
-      immediateUnitOfWork,
+      fx.unitOfWork,
+      fx.audit,
       fx.clock,
       fx.sessions,
     );
@@ -35,7 +36,8 @@ describe('passwords and accounts', () => {
       fx.refreshTokens,
       fakeHasher,
       fx.secrets,
-      immediateUnitOfWork,
+      fx.unitOfWork,
+      fx.audit,
       fx.clock,
     );
     await givenSuperadmin(fx.users);
@@ -63,6 +65,25 @@ describe('passwords and accounts', () => {
       await expect(signIn.execute({ username: '501', password: 'old password' })).rejects.toThrow(
         withCode('INVALID_CREDENTIALS'),
       );
+    });
+
+    it('records the change in the audit log, without the password', async () => {
+      const actor = await actorOf('u-501');
+      await change.execute(actor, { currentPassword: 'old password', newPassword: 'new password' });
+
+      expect(fx.audit.entries).toEqual([
+        {
+          actor,
+          change: {
+            action: 'USER_PASSWORD_CHANGED',
+            entity: 'user',
+            entityId: 'u-501',
+            entityLabel: '501',
+            changes: [{ field: 'password', redacted: true }],
+          },
+        },
+      ]);
+      expect(JSON.stringify(fx.audit.entries)).not.toContain('hashed:');
     });
 
     it('requires the current password', async () => {
@@ -96,6 +117,39 @@ describe('passwords and accounts', () => {
         newPassword: 'my own password',
       });
       expect((await fx.users.findById('u-502'))?.mustChangePassword).toBe(false);
+    });
+
+    it('records who reset whose password, without the temporary one', async () => {
+      const admin = await actorOf('u-admin');
+      const { temporaryPassword } = await reset.execute(admin, 'u-502');
+
+      expect(fx.audit.entries).toEqual([
+        {
+          actor: admin,
+          change: expect.objectContaining({
+            action: 'USER_PASSWORD_RESET',
+            entityId: 'u-502',
+            entityLabel: '502',
+            changes: [
+              { field: 'password', redacted: true },
+              { field: 'mustChangePassword', before: false, after: true },
+            ],
+          }) as unknown,
+        },
+      ]);
+      expect(JSON.stringify(fx.audit.entries)).not.toContain(temporaryPassword);
+    });
+
+    it('records nothing when it is refused', async () => {
+      await expect(reset.execute(await actorOf('u-501'), 'u-502')).rejects.toThrow();
+      await expect(
+        change.execute(await actorOf('u-501'), {
+          currentPassword: 'guess',
+          newPassword: 'x'.repeat(12),
+        }),
+      ).rejects.toThrow();
+
+      expect(fx.audit.entries).toEqual([]);
     });
 
     it('signs the user out everywhere', async () => {
