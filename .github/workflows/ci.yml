@@ -15,7 +15,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
 
@@ -40,3 +40,12 @@ jobs:
       - run: pnpm test:int
       - run: pnpm test:e2e
       - run: pnpm build
+      # Browser tests run against the build: a real database, the API and the SPA.
+      - run: pnpm --filter @depadmin/e2e exec playwright install --with-deps chromium
+      - run: pnpm test:browser
+      - uses: actions/upload-artifact@v5
+        if: failure()
+        with:
+          name: playwright-traces
+          path: e2e/test-results/
+          retention-days: 7
