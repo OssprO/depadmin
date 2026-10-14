@@ -1,8 +1,10 @@
 /**
  * How a domain error should be reported to the caller. The HTTP layer maps each kind to a
- * status code (validation → 422, conflict → 409, forbidden → 403, not_found → 404).
+ * status code (validation → 422, conflict → 409, unauthenticated → 401, forbidden → 403,
+ * not_found → 404).
  */
-export type DomainErrorKind = 'validation' | 'conflict' | 'forbidden' | 'not_found';
+export type DomainErrorKind =
+  'validation' | 'conflict' | 'unauthenticated' | 'forbidden' | 'not_found';
 
 /**
  * Base class for every business-rule failure. `code` is a stable, machine-readable identifier
@@ -28,6 +30,11 @@ export class ValidationError extends DomainError {
 /** A valid request that clashes with the current state (e.g. editing a closed month). */
 export class ConflictError extends DomainError {
   readonly kind = 'conflict';
+}
+
+/** The caller could not be identified: bad credentials or a missing, expired or revoked session. */
+export class UnauthenticatedError extends DomainError {
+  readonly kind = 'unauthenticated';
 }
 
 /** The actor is identified but not allowed to do this. */

@@ -1,22 +1,32 @@
-import { SystemStatusCard } from '@/features/system-status/SystemStatusCard';
+import { type QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { RouterProvider } from '@tanstack/react-router';
+import { useEffect } from 'react';
+import type { createAppRouter } from './router';
 
-export function App() {
+interface AppProps {
+  readonly router: ReturnType<typeof createAppRouter>;
+  readonly queryClient: QueryClient;
+}
+
+export function App({ router, queryClient }: AppProps) {
+  const { session } = router.options.context;
+
+  // When the session ends behind the scenes (expired, revoked, signed out in another
+  // device), drop cached data and re-run the guards, which send the user to the login.
+  useEffect(
+    () =>
+      session.subscribe(() => {
+        if (session.getSnapshot().status === 'anonymous') {
+          queryClient.clear();
+          void router.invalidate();
+        }
+      }),
+    [session, queryClient, router],
+  );
+
   return (
-    <div className="mx-auto flex min-h-svh w-full max-w-md flex-col px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-      <header className="mb-6">
-        <p className="text-xs tracking-widest text-muted-foreground uppercase">
-          Edificio Correspondencia 63
-        </p>
-        <h1 className="font-heading text-2xl font-bold">DepAdmin</h1>
-      </header>
-
-      <main className="flex flex-1 flex-col gap-4">
-        <SystemStatusCard />
-      </main>
-
-      <footer className="mt-6 text-center text-xs text-muted-foreground">
-        Administración de cuotas de mantenimiento
-      </footer>
-    </div>
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
   );
 }

@@ -2,7 +2,9 @@ import { Controller, Get } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { HealthResponse } from '@depadmin/shared';
 import type { Env } from '../config/env.js';
+import { Public } from '../http/auth.js';
 
+@Public()
 @Controller('health')
 export class HealthController {
   constructor(private readonly config: ConfigService<Env, true>) {}

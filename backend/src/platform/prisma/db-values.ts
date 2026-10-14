@@ -1,4 +1,4 @@
-import { LocalDate, Money, YearMonth } from '../../shared-kernel/index.js';
+import { Instant, LocalDate, Money, YearMonth } from '../../shared-kernel/index.js';
 
 // Conversions between domain value objects and Prisma column values. Prisma reads DATE
 // columns as JS Dates at UTC midnight, so only the UTC calendar fields are meaningful.
@@ -22,4 +22,12 @@ export function fromDbMonth(value: Date): YearMonth {
 
 export function fromDbMoney(centavos: number): Money {
   return Money.ofCentavos(centavos);
+}
+
+export function toDbInstant(instant: Instant): Date {
+  return new Date(instant.epochMillis);
+}
+
+export function fromDbInstant(value: Date): Instant {
+  return Instant.ofEpochMillis(value.getTime());
 }

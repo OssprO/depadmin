@@ -1,5 +1,7 @@
+export * from './actor.js';
 export * from './clock.js';
 export * from './domain-error.js';
+export * from './instant.js';
 export * from './local-date.js';
 export * from './money.js';
 export * from './unit-number.js';

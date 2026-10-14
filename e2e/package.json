@@ -1,0 +1,15 @@
+{
+  "name": "@depadmin/e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:browser": "playwright test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.0",
+    "@testcontainers/postgresql": "^12.2.0",
+    "@types/node": "^24.13.3",
+    "typescript": "~6.0.2"
+  }
+}

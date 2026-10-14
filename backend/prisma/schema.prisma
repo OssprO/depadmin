@@ -42,6 +42,13 @@ enum ChargeType {
   @@map("charge_type")
 }
 
+enum Role {
+  SUPERADMIN
+  OWNER
+
+  @@map("role")
+}
+
 enum RateName {
   MAINTENANCE_FEE
   CLEANING_PER_VISIT
@@ -59,8 +66,46 @@ model Unit {
   charges          Charge[]
   delegationsGiven ShiftDelegation[]    @relation("original")
   delegationsTaken ShiftDelegation[]    @relation("delegate")
+  owner            User?
 
   @@map("unit")
+}
+
+/// "user" is a reserved word in PostgreSQL, hence app_user.
+model User {
+  id                 String   @id @db.Uuid
+  username           String   @unique
+  role               Role
+  /// One owner per depto; null for the superadmin.
+  unitNumber         Int?     @unique @map("unit_number")
+  /// Null until the superadmin gives the owner a first (temporary) password.
+  passwordHash       String?  @map("password_hash")
+  mustChangePassword Boolean  @default(false) @map("must_change_password")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  unit          Unit?          @relation(fields: [unitNumber], references: [number], onDelete: Restrict)
+  refreshTokens RefreshToken[]
+
+  @@map("app_user")
+}
+
+/// One link of a session's rotation chain. Only the SHA-256 of the token is stored.
+model RefreshToken {
+  id        String    @id @db.Uuid
+  sessionId String    @map("session_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz
+  rotatedAt DateTime? @map("rotated_at") @db.Timestamptz
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([userId])
+  @@map("refresh_token")
 }
 
 model UnitInactivePeriod {

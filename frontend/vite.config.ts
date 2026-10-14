@@ -11,9 +11,10 @@ export default defineConfig({
     },
   },
   server: {
-    // Same-origin in dev, as in production behind Caddy: no CORS needed.
+    // Same-origin in dev, as in production behind Caddy: no CORS needed. `vite preview`
+    // reuses it; the browser tests point it at their own API with API_URL.
     proxy: {
-      '/api': 'http://localhost:3000',
+      '/api': process.env['API_URL'] ?? 'http://localhost:3000',
     },
   },
 });

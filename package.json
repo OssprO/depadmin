@@ -15,6 +15,7 @@
     "test": "pnpm --recursive test",
     "test:int": "pnpm --filter @depadmin/backend test:int",
     "test:e2e": "pnpm --recursive test:e2e",
+    "test:browser": "pnpm --filter @depadmin/e2e test:browser",
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",

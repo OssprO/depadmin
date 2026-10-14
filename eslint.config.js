@@ -216,6 +216,11 @@ export default defineConfig([
     languageOptions: { globals: globals.browser },
     rules: {
       '@typescript-eslint/consistent-type-imports': 'error',
+      // Route guards stop a navigation with `throw redirect(...)`, TanStack Router's idiom.
+      '@typescript-eslint/only-throw-error': [
+        'error',
+        { allow: [{ from: 'package', package: '@tanstack/router-core', name: 'Redirect' }] },
+      ],
     },
   },
   {

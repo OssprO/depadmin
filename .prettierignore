@@ -2,3 +2,5 @@ pnpm-lock.yaml
 **/dist
 **/coverage
 backend/src/platform/prisma/generated
+e2e/test-results
+e2e/playwright-report

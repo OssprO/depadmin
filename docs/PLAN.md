@@ -1,6 +1,6 @@
 # Plan de trabajo — DepAdmin (Edificio Correspondencia 63)
 
-**Versión:** 1.2 · **Fecha:** 2026-10-12 · **Base:** `docs/SPEC.md` v0.4
+**Versión:** 1.3 · **Fecha:** 2026-10-13 · **Base:** `docs/SPEC.md` v0.4
 
 Este plan reemplaza a la sección 11 de la spec. Cada fase termina en algo que se puede correr, probar y revisar. Modo de trabajo: Claude explica el porqué de cada decisión, implementa con pruebas y entrega la fase como un PR. Tú revisas y apruebas antes de pasar a la siguiente.
 
@@ -182,9 +182,17 @@ Todo sin base de datos ni HTTP, solo lógica y pruebas.
 
 ### Fase 3: Identidad, sesión y shell del frontend
 
-- Backend: login, refresh con rotación y detección de reuso, logout, cambio de contraseña, reseteo de contraseña por el superadmin. Guard de autenticación JWT y decorador `@CurrentUser`. Rate limiting en login (`@nestjs/throttler`). Helmet y CORS restringido.
-- Frontend: TanStack Router y Query, cliente HTTP con refresh automático en 401, pantalla de login, layout móvil (barra inferior de navegación), rutas protegidas por rol.
-- Primer E2E con Playwright: login, recarga de página con la sesión persistida y logout.
+- Backend:
+  - Login, refresh con rotación y detección de reuso, logout, cambio de contraseña y contraseña temporal generada por el superadmin.
+  - Un guard JWT global, seguro por defecto (`@Public()` para excluir una ruta), y el decorador `@CurrentActor()`.
+  - Rate limiting en el login (`@nestjs/throttler`) y Helmet. No se usa CORS, porque la API y la web comparten origen.
+  - Errores con Problem Details y un pipe de validación Zod. Detalle en el ADR-0013.
+- Tabla de usuarios: una cuenta por depto, sin contraseña hasta que el superadmin da acceso, más el superadmin, que se crea en el seed.
+- Frontend:
+  - TanStack Router (árbol en código) y Query.
+  - Un cliente HTTP que refresca ante un 401, con las peticiones agrupadas y un candado entre pestañas.
+  - Pantallas: login, layout móvil con barra inferior, cambio de contraseña (obligatorio tras una contraseña temporal), cuenta y _Usuarios_, solo para el superadmin.
+- Primer E2E con Playwright (`e2e/`, Pixel 7) contra el sistema construido. Cubre login, recarga con la sesión persistida y logout, más el alta de un dueño con contraseña temporal.
 
 **Conceptos:** ciclo de vida de los tokens, cookies seguras, guards frente a políticas de dominio.
 
@@ -194,13 +202,15 @@ Va antes de las funcionalidades de escritura para que todas la usen desde el pri
 
 - Puerto `AuditTrail` y adaptador Prisma. Los casos de uso registran cambios a nivel de campo (antes y después) dentro de su transacción, mediante un decorador o clase base de caso de uso (DRY).
 - Endpoint de consulta paginado y filtrable; pantalla de bitácora (solo lectura).
+- Auditar también el cambio y el reseteo de contraseñas de la fase 3 (sin guardar hashes en la bitácora).
 
 **Conceptos:** trazabilidad, inmutabilidad, por qué se audita en la capa de aplicación y no con un interceptor HTTP.
 
 ### Fase 5: Despliegue temprano (walking skeleton)
 
 - Dockerfiles multi-stage (api, web), `infra/docker-compose.yml`, Caddyfile con tu dominio.
-- Migraciones automáticas al desplegar; secretos fuera del repo.
+- Migraciones automáticas al desplegar; secretos fuera del repo (`JWT_SECRET`, credenciales del superadmin para el seed).
+- `trust proxy` en Express para que el límite de intentos de login vea la IP real detrás de Caddy.
 - Backups diarios con `pg_dump` y retención, más una prueba de restauración documentada.
 - CD con GitHub Actions: imagen al registry (GHCR) y despliegue por SSH al VPS.
 - Desde aquí, cada fase termina desplegada en producción.
@@ -261,7 +271,8 @@ Todo vive dentro de la misma lista; esta fase solo agrega atajos para lo que se 
 ### Fase 11: Carga inicial, pulido y endurecimiento
 
 - Pantalla o script de carga inicial: mes de corte, saldo de caja y adeudos o adelantos vigentes por depto. Los PDFs anteriores se suben como archivo de consulta.
-- Alta de los 10 usuarios con contraseña temporal y cambio obligatorio en el primer login.
+- Alta de los 10 usuarios (el mecanismo ya existe desde la fase 3: contraseña temporal y cambio obligatorio en el primer login).
+- Limpieza periódica de refresh tokens vencidos y división del bundle del frontend por rutas.
 - PWA (manifest e ícono, instalable en el celular).
 - Accesibilidad, estados vacíos y de error, revisión de rendimiento (Lighthouse) y de seguridad (OWASP ASVS nivel 1).
 - Pruebas E2E de los flujos críticos completos.
@@ -282,5 +293,5 @@ Cada una tiene un valor por defecto para no bloquear el avance. Se confirman en 
 | 6   | Necesito **uno o dos PDFs reales** del reporte actual para replicar su formato.                                                                                               | —                                                                                                                                                                               | 10   |
 | 7   | Mes de corte, saldo de caja y adeudos o adelantos vigentes por depto para la carga inicial.                                                                                   | —                                                                                                                                                                               | 11   |
 | 8   | Dominio y subdominio, y acceso SSH al VPS (distribución y si ya tiene Docker).                                                                                                | —                                                                                                                                                                               | 5    |
-| 9   | ¿Los dueños pueden cambiar su propia contraseña? ¿Hay recuperación por email?                                                                                                 | Cambio propio sí; sin email: el superadmin resetea                                                                                                                              | 3    |
-| 10  | ¿Puede haber varios usuarios por depto (por ejemplo, pareja o inquilino con solo lectura)?                                                                                    | Un usuario por depto, como dice la spec                                                                                                                                         | 2    |
+| 9   | ¿Los dueños pueden cambiar su propia contraseña? ¿Hay recuperación por email?                                                                                                 | **Aplicado:** cambio propio sí; sin email: el superadmin genera una contraseña temporal                                                                                         | 3    |
+| 10  | ¿Puede haber varios usuarios por depto (por ejemplo, pareja o inquilino con solo lectura)?                                                                                    | **Aplicado:** un usuario por depto, como dice la spec                                                                                                                           | 3    |

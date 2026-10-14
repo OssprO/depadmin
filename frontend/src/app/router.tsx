@@ -1,0 +1,109 @@
+import type { QueryClient } from '@tanstack/react-query';
+import {
+  createRootRouteWithContext,
+  createRoute,
+  createRouter,
+  Outlet,
+  redirect,
+  type RouterHistory,
+} from '@tanstack/react-router';
+import { AccountPage } from '@/features/account/routes/AccountPage';
+import { UsersPage } from '@/features/admin/routes/UsersPage';
+import { ChangePasswordPage } from '@/features/auth/routes/ChangePasswordPage';
+import { LoginPage } from '@/features/auth/routes/LoginPage';
+import { HomePage } from '@/features/dashboard/routes/HomePage';
+import { safeRedirect } from '@/lib/safe-redirect';
+import type { SessionStore } from '@/lib/session';
+import { AppLayout } from './AppLayout';
+import { NotFound, RouteError } from './RouteError';
+
+export interface RouterContext {
+  readonly queryClient: QueryClient;
+  readonly session: SessionStore;
+}
+
+const CHANGE_PASSWORD = '/account/password';
+
+// The route tree is declared in code, in one place, while each screen lives in its feature
+// folder. Guards run in `beforeLoad`, before anything renders. They are about navigation
+// only: the API enforces the same rules on every request.
+
+const rootRoute = createRootRouteWithContext<RouterContext>()({
+  component: Outlet,
+  errorComponent: RouteError,
+  notFoundComponent: NotFound,
+});
+
+const loginRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/login',
+  validateSearch: (search: Record<string, unknown>): { redirect?: string } =>
+    typeof search['redirect'] === 'string' ? { redirect: search['redirect'] } : {},
+  beforeLoad: async ({ context, search }) => {
+    if (await context.session.restore()) throw redirect({ href: safeRedirect(search.redirect) });
+  },
+  component: LoginPage,
+});
+
+/** Everything below requires a session. */
+const appRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: 'app',
+  beforeLoad: async ({ context, location }) => {
+    const user = await context.session.restore();
+    if (!user) throw redirect({ to: '/login', search: { redirect: location.href } });
+    if (user.mustChangePassword && location.pathname !== CHANGE_PASSWORD) {
+      throw redirect({ to: CHANGE_PASSWORD });
+    }
+    return { user };
+  },
+  component: AppLayout,
+});
+
+const homeRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/',
+  component: HomePage,
+});
+
+const accountRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/account',
+  component: AccountPage,
+});
+
+const changePasswordRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: CHANGE_PASSWORD,
+  component: ChangePasswordPage,
+});
+
+const usersRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/admin/users',
+  beforeLoad: ({ context }) => {
+    if (context.user.role !== 'SUPERADMIN') throw redirect({ to: '/' });
+  },
+  component: UsersPage,
+});
+
+const routeTree = rootRoute.addChildren([
+  loginRoute,
+  appRoute.addChildren([homeRoute, accountRoute, changePasswordRoute, usersRoute]),
+]);
+
+export function createAppRouter(context: RouterContext, history?: RouterHistory) {
+  return createRouter({
+    routeTree,
+    context,
+    ...(history && { history }),
+    defaultPreload: 'intent',
+    scrollRestoration: true,
+  });
+}
+
+declare module '@tanstack/react-router' {
+  interface Register {
+    router: ReturnType<typeof createAppRouter>;
+  }
+}

@@ -6,6 +6,8 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['silent', 'fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   APP_VERSION: z.string().min(1).default('dev'),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
+  /** Signs access tokens. Generate one with `openssl rand -base64 48`. */
+  JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
 });
 
 export type Env = z.infer<typeof envSchema>;

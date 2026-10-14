@@ -4,6 +4,8 @@ import { UnitNumber } from '../../src/shared-kernel/index.js';
 
 // Every table but audit_log, which is append-only even for tests.
 const RESETTABLE_TABLES = [
+  'refresh_token',
+  'app_user',
   'cash_movement',
   'charge',
   'shift_delegation',
