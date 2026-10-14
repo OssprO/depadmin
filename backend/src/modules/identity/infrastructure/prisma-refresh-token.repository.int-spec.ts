@@ -84,4 +84,13 @@ describe('PrismaRefreshTokenRepository', () => {
     // A revocation is stamped once.
     expect((await repository().findByHash(phone.tokenHash))?.revokedAt).toEqual(now);
   });
+
+  it('deletes the tokens that expired before a moment, and only those', async () => {
+    const token = newToken();
+    await repository().add(token);
+
+    expect(await repository().deleteExpired(token.expiresAt)).toBe(0);
+    expect(await repository().deleteExpired(token.expiresAt.plusDays(1))).toBe(1);
+    expect(await repository().findByHash(token.tokenHash)).toBeNull();
+  });
 });

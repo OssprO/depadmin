@@ -63,6 +63,8 @@ export class CloseMonth {
       responsibility: await this.calendars.execute(month),
     });
     return this.unitOfWork.run(async () => {
+      // Rows being written now finish first; new ones wait and then find the month closed.
+      await this.reports.lockMonth(month, 'exclusive');
       const ledger = requireLedger(await this.reports.loadLedger());
       const blocker = ledger.closingBlocker(month, today);
       if (blocker) throw blocker;

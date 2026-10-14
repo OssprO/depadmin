@@ -5,6 +5,7 @@ import {
   ChangePassword,
   GetCurrentUser,
   ListUsers,
+  PurgeExpiredSessions,
   RefreshSession,
   ResetPassword,
   SessionIssuer,
@@ -26,6 +27,7 @@ import { CryptoSecretGenerator } from './infrastructure/crypto-secret-generator.
 import { JoseAccessTokenService } from './infrastructure/jose-access-token-service.js';
 import { PrismaRefreshTokenRepository } from './infrastructure/prisma-refresh-token.repository.js';
 import { PrismaUserRepository } from './infrastructure/prisma-user.repository.js';
+import { PurgeExpiredSessionsJob } from './jobs/purge-expired-sessions.job.js';
 
 @Module({
   // Only routes that opt in with LoginThrottlerGuard are limited; the values are per route.
@@ -47,6 +49,8 @@ import { PrismaUserRepository } from './infrastructure/prisma-user.repository.js
     ResetPassword,
     GetCurrentUser,
     ListUsers,
+    PurgeExpiredSessions,
+    PurgeExpiredSessionsJob,
   ],
 })
 export class IdentityModule {}

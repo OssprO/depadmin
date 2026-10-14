@@ -1,8 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { fromDbDate, fromDbMoney, toDbDate } from '../../../platform/prisma/db-values.js';
 import type { CashMovement as MovementRow } from '../../../platform/prisma/generated/client.js';
+import { translateViolations } from '../../../platform/prisma/db-errors.js';
 import { PrismaDatabase } from '../../../platform/prisma/prisma-database.js';
-import { LocalDate, UnitNumber, type YearMonth } from '../../../shared-kernel/index.js';
+import {
+  ConflictError,
+  LocalDate,
+  UnitNumber,
+  type YearMonth,
+} from '../../../shared-kernel/index.js';
 import { CashMovement, type CashMovementRepository } from '../domain/index.js';
 
 @Injectable()
@@ -55,6 +61,13 @@ export class PrismaCashMovementRepository implements CashMovementRepository {
   }
 
   save(movements: readonly CashMovement[]): Promise<void> {
+    return translateViolations(() => this.saveRows(movements), {
+      cash_movement_one_garbage_per_week: () =>
+        new ConflictError('GARBAGE_WEEK_PAID', 'Another row paid that week at the same time'),
+    });
+  }
+
+  private saveRows(movements: readonly CashMovement[]): Promise<void> {
     return this.database.run(async () => {
       const { db } = this.database;
       for (const movement of movements) {

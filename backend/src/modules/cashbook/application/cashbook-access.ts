@@ -21,7 +21,8 @@ import {
 /**
  * The checks every change to a month's rows shares, in one place: the actor may write the
  * month (the superadmin, or its responsible owner within the write window), and the month
- * has been opened. Closed months are refused by `MonthlyCashbook` itself. Rules that reach
+ * has been opened, held open until the write commits so a close cannot slip in between.
+ * Closed months are refused by `MonthlyCashbook` itself. Rules that reach
  * beyond one month (a garbage week paid from another month) are checked here too.
  */
 @Injectable()
@@ -42,6 +43,7 @@ export class CashbookAccess {
       today: this.clock.today(),
       responsibility: await this.calendars.execute(month),
     });
+    await this.ledger.holdOpen(month);
     const status = await this.ledger.statusOf(month);
     if (status === 'NOT_OPENED') {
       throw new ConflictError('MONTH_NOT_OPENED', `Open ${month} before recording in it`);

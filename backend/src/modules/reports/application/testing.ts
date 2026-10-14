@@ -58,6 +58,11 @@ export class InMemoryReportRepository implements ReportRepository {
     return Promise.resolve();
   }
 
+  /** Locks only matter between concurrent transactions, which the specs do not run. */
+  lockMonth(): Promise<void> {
+    return Promise.resolve();
+  }
+
   save(reports: readonly MonthlyReport[]): Promise<void> {
     for (const report of reports) {
       this.reports.set(String(report.month), MonthlyReport.restore(report.month, report.snapshot));

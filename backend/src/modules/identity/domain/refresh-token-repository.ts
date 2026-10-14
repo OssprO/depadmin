@@ -12,6 +12,8 @@ export interface RefreshTokenRepository {
   rotate(rotated: RefreshToken, next: RefreshToken): Promise<boolean>;
   revokeSession(sessionId: string, at: Instant): Promise<void>;
   revokeAllOf(userId: string, at: Instant): Promise<void>;
+  /** Deletes the tokens that expired before `at`; returns how many. */
+  deleteExpired(at: Instant): Promise<number>;
 }
 
 export const REFRESH_TOKEN_REPOSITORY = Symbol('RefreshTokenRepository');
