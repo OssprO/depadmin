@@ -1,4 +1,4 @@
-import { ReceiptIcon, UserCircleIcon, WrenchIcon } from '@phosphor-icons/react';
+import { ListBulletsIcon, ReceiptIcon, UserCircleIcon, WrenchIcon } from '@phosphor-icons/react';
 import { MenuEntry, MenuList } from '@/components/MenuList';
 import { useCurrentUser } from '@/lib/use-session';
 
@@ -10,6 +10,12 @@ export function MorePage() {
     <div className="flex flex-col gap-4">
       <h1 className="font-heading text-lg font-bold">Más</h1>
       <MenuList>
+        <MenuEntry
+          to="/history"
+          icon={<ListBulletsIcon />}
+          title="Histórico"
+          description="Todos los meses con su saldo"
+        />
         <MenuEntry
           to="/accounts"
           icon={<ReceiptIcon />}

@@ -1,4 +1,10 @@
-import type { AccountSummary, Movement, MonthlyReport } from '@depadmin/shared';
+import type {
+  AccountSummary,
+  MonthHistory,
+  MonthHistoryEntry,
+  Movement,
+  MonthlyReport,
+} from '@depadmin/shared';
 import { UNIT_NUMBERS } from '@depadmin/shared';
 import { addDays } from '@/lib/format';
 
@@ -82,5 +88,27 @@ export function octoberReport(overrides: Partial<MonthlyReport> = {}): MonthlyRe
     })),
     cleaningPayouts: [{ weekStart: '2026-09-28', dates: ['2026-10-04'], total: 27000 }],
     ...overrides,
+  };
+}
+
+/** The history on 2 November 2026: October is over and still open; the rest are closed. */
+export function historyOf(overrides: Partial<MonthHistoryEntry>[] = []): MonthHistory {
+  const months: MonthHistoryEntry[] = [
+    ['2026-10', 'OPEN', 570000, 613000],
+    ['2026-09', 'CLOSED', 500000, 570000],
+    ['2026-08', 'CLOSED', 450000, 500000],
+  ].map(([month = '', status, opening = 0, closing = 0]) => ({
+    month: String(month),
+    status: status as 'OPEN' | 'CLOSED',
+    openingBalance: Number(opening),
+    income: 140000,
+    expense: Number(opening) + 140000 - Number(closing),
+    closingBalance: Number(closing),
+    canClose: false,
+    canReopen: false,
+  }));
+  return {
+    reportingStarted: true,
+    months: months.map((entry, i) => ({ ...entry, ...overrides[i] })),
   };
 }

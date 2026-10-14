@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { connectSession } from '@/lib/http';
 import { garbageRow, octoberReport, paymentRow } from '@/test/books';
-import { fakeApi, owner501, sessionFor, superadmin } from '@/test/fake-api';
+import { fakeApi, owner501, problem, sessionFor, superadmin } from '@/test/fake-api';
 import { renderApp } from '@/test/render-app';
 
 const october =
@@ -311,5 +311,94 @@ describe('BookPage', () => {
     renderApp('/book/2026-13');
 
     expect(await screen.findByText(/no existe/i)).toBeInTheDocument();
+  });
+});
+
+describe('closing and reopening a month', () => {
+  afterEach(() => {
+    connectSession(null);
+    vi.unstubAllGlobals();
+  });
+
+  // September is over: its outgoing owner closes it in the handover.
+  const september = octoberReport({
+    month: '2026-09',
+    movements: [paymentRow],
+    canClose: true,
+    garbageWeeks: octoberReport().garbageWeeks.slice(0, 1),
+  });
+
+  it('warns about unpaid garbage weeks before closing, then closes', async () => {
+    const api = fakeApi({
+      'POST /api/auth/refresh': sessionFor(owner501),
+      'GET /api/months/2026-09': () => Response.json(september),
+      'POST /api/months/2026-09/close': () => new Response(null, { status: 204 }),
+    });
+    renderApp('/book/2026-09');
+
+    const closing = await screen.findByRole('region', { name: 'Cierre del mes' });
+    await userEvent.click(within(closing).getByRole('button', { name: 'Cerrar el mes' }));
+
+    const dialog = await screen.findByRole('alertdialog', { name: '¿Cerrar septiembre 2026?' });
+    expect(dialog).toHaveTextContent('Saldo final: $6,130.00');
+    expect(dialog).toHaveTextContent(
+      'Queda 1 semana de basura sin registrar: 28 sep – 4 oct. Si ya se pagaron, regístralas antes de cerrar.',
+    );
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cerrar el mes' }));
+
+    await vi.waitFor(() => expect(api.callsTo('POST /api/months/2026-09/close')).toHaveLength(1));
+    await vi.waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+  });
+
+  it('shows why closing failed and keeps the dialog open', async () => {
+    fakeApi({
+      'POST /api/auth/refresh': sessionFor(owner501),
+      'GET /api/months/2026-09': () => Response.json(september),
+      'POST /api/months/2026-09/close': () => problem(409, 'PREVIOUS_MONTH_OPEN'),
+    });
+    renderApp('/book/2026-09');
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Cerrar el mes' }));
+    const dialog = await screen.findByRole('alertdialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cerrar el mes' }));
+
+    expect(
+      await within(dialog).findByText('Los meses se cierran en orden: cierra primero el anterior.'),
+    ).toBeInTheDocument();
+  });
+
+  it('lets the superadmin reopen a closed month', async () => {
+    const api = fakeApi({
+      'POST /api/auth/refresh': sessionFor(superadmin),
+      'GET /api/months/2026-09': () =>
+        Response.json({
+          ...september,
+          status: 'CLOSED',
+          canWrite: false,
+          canClose: false,
+          canReopen: true,
+        }),
+      'POST /api/months/2026-09/reopen': () => new Response(null, { status: 204 }),
+    });
+    renderApp('/book/2026-09');
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Reabrir el mes' }));
+    const dialog = await screen.findByRole('alertdialog', { name: '¿Reabrir septiembre 2026?' });
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Reabrir' }));
+
+    await vi.waitFor(() => expect(api.callsTo('POST /api/months/2026-09/reopen')).toHaveLength(1));
+  });
+
+  it('tells everyone else that a closed month is frozen', async () => {
+    fakeApi({
+      'POST /api/auth/refresh': sessionFor(owner501),
+      'GET /api/months/2026-09': () =>
+        Response.json({ ...september, status: 'CLOSED', canWrite: false, canClose: false }),
+    });
+    renderApp('/book/2026-09');
+
+    expect(await screen.findByText('Mes cerrado: la lista está congelada.')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Cierre del mes' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reabrir el mes' })).not.toBeInTheDocument();
   });
 });

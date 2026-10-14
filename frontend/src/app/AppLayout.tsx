@@ -55,7 +55,7 @@ export function AppLayout() {
         >
           <div className="mx-auto flex max-w-md">
             <NavItem to="/" icon={<HouseIcon />} label="Inicio" />
-            <NavItem to="/book" icon={<BookOpenTextIcon />} label="Libro" />
+            <NavItem to="/book" icon={<BookOpenTextIcon />} label="Libro" sections={['/history']} />
             <NavItem to="/shifts" icon={<CalendarDotsIcon />} label="Turnos" />
             <NavItem to="/audit" icon={<ClockCounterClockwiseIcon />} label="Bitácora" />
             <NavItem

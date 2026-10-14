@@ -25,6 +25,8 @@ const MESSAGES: Record<string, string> = {
   DELEGATE_INACTIVE: 'El depto que cubre está inactivo en esos meses.',
   DELEGATION_NOT_FOUND: 'Esa delegación ya no existe.',
   DELEGATION_ALREADY_CANCELLED: 'Esa delegación ya estaba cancelada.',
+  DELEGATION_MONTH_CLOSED:
+    'Ese mes ya está cerrado, y con él quién lo cubrió. El superadmin tendría que reabrirlo.',
   CALENDAR_RANGE_INVALID: 'Ese rango de meses no es válido.',
   // Deptos and rates
   UNIT_NOT_FOUND: 'Ese depto no existe.',
@@ -42,6 +44,10 @@ const MESSAGES: Record<string, string> = {
   MONTH_NOT_OPENED: 'Ese mes no se ha abierto.',
   MONTH_CLOSED: 'Ese mes está cerrado; solo el superadmin puede reabrirlo.',
   MONTH_OUT_OF_ORDER: 'Los meses se abren en orden.',
+  MONTH_IN_PROGRESS: 'El mes todavía no termina; se cierra a partir del día 1 siguiente.',
+  MONTH_ALREADY_CLOSED: 'Ese mes ya estaba cerrado.',
+  PREVIOUS_MONTH_OPEN: 'Los meses se cierran en orden: cierra primero el anterior.',
+  MONTH_NOT_CLOSED: 'Ese mes no está cerrado.',
   REPORT_NOT_FOUND: 'Ese mes no se ha abierto.',
   MOVEMENT_NOT_FOUND: 'Ese movimiento ya no existe.',
   MOVEMENT_REMOVED: 'Ese movimiento ya se había borrado.',

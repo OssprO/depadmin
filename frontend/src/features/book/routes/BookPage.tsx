@@ -1,11 +1,12 @@
 import type { Movement } from '@depadmin/shared';
-import { CaretLeftIcon, CaretRightIcon, PlusIcon } from '@phosphor-icons/react';
+import { CaretLeftIcon, CaretRightIcon, ListBulletsIcon, PlusIcon } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { addMonths, buildingToday, formatMonth } from '@/lib/format';
+import { addMonths, buildingToday, formatMonth, formatMonthName } from '@/lib/format';
 import { monthQueryOptions } from '../api';
+import { MonthClosingCard } from '../components/MonthClosingCard';
 import { MonthSummary } from '../components/MonthSummary';
 import { MovementList } from '../components/MovementList';
 import { CleaningCard } from '../components/CleaningCard';
@@ -90,13 +91,28 @@ export function BookPage({ month }: { month: string }) {
             report={data}
             onMarkVisits={data.canWrite ? () => setEditing({ kind: 'visits' }) : undefined}
           />
+          <MonthClosingCard report={data} />
           {!data.canWrite && data.status === 'OPEN' && (
             <p className="text-xs/relaxed text-muted-foreground">
               Solo lectura: lo anota el depto en turno.
             </p>
           )}
+          {data.canWrite && month >= thisMonth && (
+            <p className="text-xs/relaxed text-muted-foreground">
+              Se cierra a partir del 1 de {formatMonthName(addMonths(month, 1))}, ya con todo
+              anotado.
+            </p>
+          )}
+          {data.status === 'CLOSED' && !data.canReopen && (
+            <p className="text-xs/relaxed text-muted-foreground">
+              Mes cerrado: la lista está congelada.
+            </p>
+          )}
         </>
       )}
+      <Button variant="ghost" size="sm" className="self-start" render={<Link to="/history" />}>
+        <ListBulletsIcon /> Todos los meses
+      </Button>
 
       {data?.canWrite && (
         <Button

@@ -21,6 +21,7 @@ import { AuditLogPage } from '@/features/audit/routes/AuditLogPage';
 import { ChangePasswordPage } from '@/features/auth/routes/ChangePasswordPage';
 import { LoginPage } from '@/features/auth/routes/LoginPage';
 import { BookPage } from '@/features/book/routes/BookPage';
+import { HistoryPage } from '@/features/book/routes/HistoryPage';
 import { HomePage } from '@/features/dashboard/routes/HomePage';
 import { MorePage } from '@/features/more/routes/MorePage';
 import { ShiftsPage } from '@/features/shifts/routes/ShiftsPage';
@@ -116,6 +117,13 @@ const bookRoute = createRoute({
   },
 });
 
+/** Every month since the books started. */
+const historyRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/history',
+  component: HistoryPage,
+});
+
 const accountsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/accounts',
@@ -206,6 +214,7 @@ const routeTree = rootRoute.addChildren([
     homeRoute,
     bookIndexRoute,
     bookRoute,
+    historyRoute,
     accountsRoute,
     accountStatementRoute,
     moreRoute,

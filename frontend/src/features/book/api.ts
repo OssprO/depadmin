@@ -1,6 +1,7 @@
 import {
   type CleaningVisitsRequest,
   type MovementRequest,
+  monthHistorySchema,
   monthlyReportSchema,
   openMonthResponseSchema,
 } from '@depadmin/shared';
@@ -14,6 +15,12 @@ export function monthQueryOptions(month: string) {
     queryFn: () => getJson(`/months/${month}`, monthlyReportSchema),
   });
 }
+
+/** Every opened month, newest first. Under the same key as the months, so it refreshes with them. */
+export const historyQueryOptions = queryOptions({
+  queryKey: ['months'],
+  queryFn: () => getJson('/months', monthHistorySchema),
+});
 
 /**
  * Any change to the books moves balances (in later months too), accounts and the audit log,
@@ -34,6 +41,26 @@ export function useOpenMonth() {
   return useMutation({
     mutationFn: (month: string) =>
       sendJson('POST', `/months/${month}/open`, undefined, openMonthResponseSchema),
+    onSuccess: refresh,
+  });
+}
+
+export function useCloseMonth() {
+  const refresh = useRefreshBooks();
+  return useMutation({
+    mutationFn: async (month: string) => {
+      await apiFetch(`/months/${month}/close`, { method: 'POST' });
+    },
+    onSuccess: refresh,
+  });
+}
+
+export function useReopenMonth() {
+  const refresh = useRefreshBooks();
+  return useMutation({
+    mutationFn: async (month: string) => {
+      await apiFetch(`/months/${month}/reopen`, { method: 'POST' });
+    },
     onSuccess: refresh,
   });
 }

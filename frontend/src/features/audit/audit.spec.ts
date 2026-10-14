@@ -30,6 +30,26 @@ describe('describeEntry', () => {
       ],
     });
     expect(describeEntry(entry({ actor: { role: 'OWNER', unit: 501 } })).actor).toBe('Depto 501');
+    expect(describeEntry(entry({ actor: { role: 'SYSTEM', unit: null } })).actor).toBe('Sistema');
+  });
+
+  it('describes a month closing with its frozen figures', () => {
+    const text = describeEntry(
+      entry({
+        action: 'MONTH_CLOSED',
+        entity: 'monthly_report',
+        entityLabel: '2026-09',
+        changes: [
+          { field: 'status', before: 'OPEN', after: 'CLOSED' },
+          { field: 'closingBalance', before: null, after: 640000 },
+        ],
+      }),
+    );
+    expect(text).toMatchObject({ title: 'Mes cerrado', subject: 'Mes 2026-09' });
+    expect(text.changes).toEqual([
+      { field: 'Estado', text: 'Abierto → Cerrado' },
+      { field: 'Saldo final', text: '$6,400.00' },
+    ]);
   });
 
   it('shows codes it does not know as they are', () => {
@@ -53,6 +73,7 @@ describe('audit filters', () => {
       actor: 501,
     });
     expect(auditFiltersFrom({ actor: 'superadmin' })).toEqual({ actor: 'superadmin' });
+    expect(auditFiltersFrom({ actor: 'system' })).toEqual({ actor: 'system' });
     expect(auditFiltersFrom({ entity: 'toString', actor: 999, other: 'x' })).toEqual({});
     expect(auditFiltersFrom({ actor: '501' })).toEqual({});
   });
