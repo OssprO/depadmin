@@ -2,9 +2,9 @@ import { Inject, Injectable } from '@nestjs/common';
 import { toDbInstant } from '../../../platform/prisma/db-values.js';
 import { PrismaDatabase } from '../../../platform/prisma/prisma-database.js';
 import {
-  type Actor,
   type AuditedChange,
   type AuditTrail,
+  type ChangeAuthor,
   CLOCK,
   type Clock,
 } from '../../../shared-kernel/index.js';
@@ -21,7 +21,7 @@ export class PrismaAuditTrail implements AuditTrail {
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
-  async record(actor: Actor, change: AuditedChange): Promise<void> {
+  async record(actor: ChangeAuthor, change: AuditedChange): Promise<void> {
     if (!this.database.inTransaction) {
       throw new Error(`Audit entry ${change.action} written outside a unit of work`);
     }

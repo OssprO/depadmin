@@ -49,6 +49,16 @@ enum Role {
   @@map("role")
 }
 
+/// Who a change is recorded under: a user's role, or the app itself for scheduled jobs.
+/// Separate from Role so that no user can ever be the system.
+enum AuditActorRole {
+  SUPERADMIN
+  OWNER
+  SYSTEM
+
+  @@map("audit_actor_role")
+}
+
 enum RateName {
   MAINTENANCE_FEE
   CLEANING_PER_VISIT
@@ -204,16 +214,16 @@ model MonthlyReport {
 /// Who acted and what was touched are copied in, not referenced: the log must read the
 /// same years later, whatever happens to the users and rows it mentions.
 model AuditLog {
-  id          BigInt   @id @default(autoincrement())
-  occurredAt  DateTime @default(now()) @map("occurred_at") @db.Timestamptz
-  actorId     String   @map("actor_id")
-  actorRole   Role     @map("actor_role")
+  id          BigInt         @id @default(autoincrement())
+  occurredAt  DateTime       @default(now()) @map("occurred_at") @db.Timestamptz
+  actorId     String         @map("actor_id")
+  actorRole   AuditActorRole @map("actor_role")
   /// The owner's depto; null for the superadmin.
-  actorUnit   Int?     @map("actor_unit")
+  actorUnit   Int?           @map("actor_unit")
   action      String
   entity      String
-  entityId    String   @map("entity_id")
-  entityLabel String   @map("entity_label")
+  entityId    String         @map("entity_id")
+  entityLabel String         @map("entity_label")
   /// [{ field, before, after }] or [{ field, redacted: true }]
   changes     Json
 

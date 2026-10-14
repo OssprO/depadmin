@@ -37,10 +37,12 @@ describe('ListAuditLog', () => {
 
     await list.execute({ entity: 'user', entityId: 'u-1', actor: 501, before: '42', limit: 10 });
     await list.execute({ actor: 'superadmin' });
+    await list.execute({ actor: 'system' });
 
     expect(reader.calls.map((c) => c.filter)).toEqual([
       { entity: 'user', entityId: 'u-1', actor: UnitNumber.of(501) },
       { entity: undefined, entityId: undefined, actor: 'SUPERADMIN' },
+      { entity: undefined, entityId: undefined, actor: 'SYSTEM' },
     ]);
     expect(reader.calls[0]?.page).toEqual({ before: '42', limit: 10 });
   });

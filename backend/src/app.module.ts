@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AuditModule } from './modules/audit/audit.module.js';
 import { BillingModule } from './modules/billing/billing.module.js';
 import { CashbookModule } from './modules/cashbook/cashbook.module.js';
@@ -19,6 +20,8 @@ import { PrismaModule } from './platform/prisma/prisma.module.js';
     LoggerModule,
     ClockModule,
     PrismaModule,
+    // Runs the modules' @Cron jobs (each in its module's jobs/ folder).
+    ScheduleModule.forRoot(),
     HealthModule,
     AuditModule,
     IdentityModule,

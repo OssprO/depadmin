@@ -37,6 +37,7 @@ export function useTestApp(options: { clock?: Clock } = {}): {
     process.env['DATABASE_URL'] = inject('databaseUrl');
     process.env['JWT_SECRET'] = TEST_JWT_SECRET;
     process.env['LOG_LEVEL'] = 'silent';
+    process.env['JOBS_ENABLED'] = 'false';
     // Imported only now: the config module validates the environment when it loads.
     const { AppModule } = await import('../../src/app.module.js');
     const { configureApp } = await import('../../src/platform/http/configure-app.js');

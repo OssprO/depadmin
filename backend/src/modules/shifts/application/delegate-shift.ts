@@ -7,6 +7,8 @@ import {
   CLOCK,
   type Clock,
   creationOf,
+  MONTH_LEDGER,
+  type MonthLedger,
   UNIT_OF_WORK,
   type UnitNumber,
   type UnitOfWork,
@@ -22,6 +24,7 @@ import {
   ShiftDelegation,
   type ShiftDelegationRepository,
 } from '../domain/index.js';
+import { assertNoneClosed } from './closed-months.js';
 import { DELEGATION_AUDIT, DelegationAuditAction } from './shift-audit.js';
 import { LoadShiftCalendar } from './shift-calendar.js';
 
@@ -42,7 +45,7 @@ export interface DelegateShiftCommand {
  *   month before (their shift plus the grace days).
  *
  * A skipped shift charges the skipped depto the penalty for each delegated month, in the
- * same transaction.
+ * same transaction. Closed months cannot be delegated.
  */
 @Injectable()
 export class DelegateShift {
@@ -53,6 +56,7 @@ export class DelegateShift {
     @Inject(UNIT_OF_WORK) private readonly unitOfWork: UnitOfWork,
     @Inject(AUDIT_TRAIL) private readonly audit: AuditTrail,
     @Inject(CLOCK) private readonly clock: Clock,
+    @Inject(MONTH_LEDGER) private readonly ledger: MonthLedger,
     private readonly calendars: LoadShiftCalendar,
     private readonly penalties: ChargeShiftSkipPenalties,
   ) {}
@@ -83,6 +87,7 @@ export class DelegateShift {
         });
       }
       calendar.scheduler.assertCanDelegate(delegation, calendar.delegations, calendar.units);
+      await assertNoneClosed(this.ledger, from.through(to));
 
       await this.delegations.save(delegation);
       await this.audit.record(

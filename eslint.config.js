@@ -28,7 +28,15 @@ const hexagonalPolicies = [
       to: {
         element: {
           types: {
-            anyOf: ['domain', 'application', 'infrastructure', 'http', 'composition', 'platform'],
+            anyOf: [
+              'domain',
+              'application',
+              'infrastructure',
+              'http',
+              'jobs',
+              'composition',
+              'platform',
+            ],
           },
         },
       },
@@ -40,7 +48,15 @@ const hexagonalPolicies = [
       to: {
         element: {
           types: {
-            anyOf: ['domain', 'application', 'infrastructure', 'http', 'composition', 'platform'],
+            anyOf: [
+              'domain',
+              'application',
+              'infrastructure',
+              'http',
+              'jobs',
+              'composition',
+              'platform',
+            ],
           },
         },
       },
@@ -55,7 +71,9 @@ const hexagonalPolicies = [
   {
     from: { element: { type: 'application' } },
     disallow: {
-      to: { element: { types: { anyOf: ['domain', 'infrastructure', 'http', 'composition'] } } },
+      to: {
+        element: { types: { anyOf: ['domain', 'infrastructure', 'http', 'jobs', 'composition'] } },
+      },
     },
   },
   {
@@ -67,11 +85,16 @@ const hexagonalPolicies = [
     disallow: { to: { module: { origin: 'external', source: '@prisma/*' } } },
   },
 
-  // Adapters implement ports of their own module and never call each other directly.
+  // Adapters implement ports of their own module and never call each other directly. Driving
+  // adapters (http, jobs) call use cases; driven ones (infrastructure) implement ports.
   {
-    from: { element: { types: { anyOf: ['infrastructure', 'http'] } } },
+    from: { element: { types: { anyOf: ['infrastructure', 'http', 'jobs'] } } },
     disallow: {
-      to: { element: { types: { anyOf: ['domain', 'infrastructure', 'http', 'composition'] } } },
+      to: {
+        element: {
+          types: { anyOf: ['domain', 'infrastructure', 'http', 'jobs', 'composition'] },
+        },
+      },
     },
   },
   {
@@ -84,12 +107,20 @@ const hexagonalPolicies = [
     from: { element: { type: 'http' } },
     allow: { to: { element: { types: { anyOf: ['domain', 'http'] }, captured: sameModule } } },
   },
+  {
+    from: { element: { type: 'jobs' } },
+    allow: { to: { element: { types: { anyOf: ['domain', 'jobs'] }, captured: sameModule } } },
+  },
 
   // A Nest module wires its own layers; other modules are reached through their Nest module.
   {
     from: { element: { type: 'composition' } },
     disallow: {
-      to: { element: { types: { anyOf: ['domain', 'application', 'infrastructure', 'http'] } } },
+      to: {
+        element: {
+          types: { anyOf: ['domain', 'application', 'infrastructure', 'http', 'jobs'] },
+        },
+      },
     },
   },
   {
@@ -97,7 +128,7 @@ const hexagonalPolicies = [
     allow: {
       to: {
         element: {
-          types: { anyOf: ['domain', 'application', 'infrastructure', 'http'] },
+          types: { anyOf: ['domain', 'application', 'infrastructure', 'http', 'jobs'] },
           captured: sameModule,
         },
       },
@@ -110,7 +141,9 @@ const hexagonalPolicies = [
     disallow: {
       to: {
         element: {
-          types: { anyOf: ['domain', 'application', 'infrastructure', 'http', 'composition'] },
+          types: {
+            anyOf: ['domain', 'application', 'infrastructure', 'http', 'jobs', 'composition'],
+          },
         },
       },
     },
@@ -170,6 +203,13 @@ export default defineConfig([
         {
           type: 'http',
           pattern: 'backend/src/modules/*/http/**',
+          partialMatch: false,
+          capture: ['module'],
+        },
+        // Scheduled jobs: driving adapters triggered by the clock instead of a request.
+        {
+          type: 'jobs',
+          pattern: 'backend/src/modules/*/jobs/**',
           partialMatch: false,
           capture: ['module'],
         },

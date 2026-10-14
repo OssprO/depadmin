@@ -1,4 +1,4 @@
-import type { Actor } from './actor.js';
+import type { ChangeAuthor } from './actor.js';
 
 /** A field value as the audit log stores it: JSON scalars only. */
 export type AuditValue = string | number | boolean | null;
@@ -35,7 +35,7 @@ export interface AuditedChange {
  * unit of work as the change itself, so either both are saved or neither is.
  */
 export interface AuditTrail {
-  record(actor: Actor, change: AuditedChange): Promise<void>;
+  record(author: ChangeAuthor, change: AuditedChange): Promise<void>;
 }
 
 export const AUDIT_TRAIL = Symbol('AuditTrail');

@@ -1,7 +1,7 @@
 import type {
-  Actor,
   AuditedChange,
   AuditTrail,
+  ChangeAuthor,
   UnitOfWork,
 } from '../../src/shared-kernel/index.js';
 
@@ -39,11 +39,11 @@ export class FakeUnitOfWork implements UnitOfWork {
  * outside a unit of work, and like a transaction it drops them if the work fails.
  */
 export class RecordingAuditTrail implements AuditTrail {
-  readonly entries: { actor: Actor; change: AuditedChange }[] = [];
+  readonly entries: { actor: ChangeAuthor; change: AuditedChange }[] = [];
 
   constructor(private readonly unitOfWork: FakeUnitOfWork) {}
 
-  record(actor: Actor, change: AuditedChange): Promise<void> {
+  record(actor: ChangeAuthor, change: AuditedChange): Promise<void> {
     this.unitOfWork.onCommit(() => this.entries.push({ actor, change }));
     return Promise.resolve();
   }

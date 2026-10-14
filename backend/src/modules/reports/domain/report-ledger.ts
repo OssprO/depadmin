@@ -1,5 +1,6 @@
 import {
   ConflictError,
+  LocalDate,
   type Money,
   NotFoundError,
   ValidationError,
@@ -89,15 +90,33 @@ export class ReportLedger {
   }
 
   /**
+   * Why a month cannot be closed on `today`, or null if it can. A month closes once it is
+   * over (its rows may still come until its last day) and after the month before it.
+   */
+  closingBlocker(month: YearMonth, today: LocalDate): ConflictError | null {
+    const index = this.chain.findIndex((r) => r.month.equals(month));
+    const report = this.chain[index];
+    if (!report) return new ConflictError('MONTH_NOT_OPENED', `${month} has not been opened`);
+    if (!report.isOpen) return new ConflictError('MONTH_ALREADY_CLOSED', `${month} is closed`);
+    if (!today.isAfter(LocalDate.lastOf(month))) {
+      return new ConflictError('MONTH_IN_PROGRESS', `${month} is not over on ${today}`);
+    }
+    const previous = this.chain[index - 1];
+    if (previous?.isOpen) {
+      return new ConflictError('PREVIOUS_MONTH_OPEN', `Close ${previous.month} before ${month}`);
+    }
+    return null;
+  }
+
+  /**
    * Closes a month with its live totals, then restates the later closed months that follow
    * it without a gap. Returns every report that changed, for persistence.
    */
-  closeMonth(month: YearMonth, live: LiveTotals): MonthlyReport[] {
+  closeMonth(month: YearMonth, live: LiveTotals, today: LocalDate): MonthlyReport[] {
+    const blocker = this.closingBlocker(month, today);
+    if (blocker) throw blocker;
     const index = this.indexOf(month);
     const previous = this.chain[index - 1];
-    if (previous?.isOpen) {
-      throw new ConflictError('PREVIOUS_MONTH_OPEN', `Close ${previous.month} before ${month}`);
-    }
     const report = this.chain[index] as MonthlyReport;
     const openingBalance = previous?.snapshot?.closingBalance ?? this.start.openingBalance;
     let carried = report.close(openingBalance, live(month)).closingBalance;

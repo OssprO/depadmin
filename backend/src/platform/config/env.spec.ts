@@ -14,7 +14,13 @@ describe('validateEnv', () => {
       APP_VERSION: 'dev',
       DATABASE_URL,
       JWT_SECRET,
+      JOBS_ENABLED: true,
     });
+  });
+
+  it('reads JOBS_ENABLED as a boolean', () => {
+    expect(validateEnv({ ...required, JOBS_ENABLED: 'false' }).JOBS_ENABLED).toBe(false);
+    expect(() => validateEnv({ ...required, JOBS_ENABLED: 'maybe' })).toThrow(/JOBS_ENABLED/);
   });
 
   it('coerces PORT from string', () => {

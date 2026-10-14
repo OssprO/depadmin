@@ -2,12 +2,14 @@ import {
   accountListResponseSchema,
   accountStatementSchema,
   auditLogPageSchema,
+  monthHistorySchema,
   monthlyReportSchema,
   openMonthResponseSchema,
   problemDetailsSchema,
 } from '@depadmin/shared';
 import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { OpenCurrentMonth } from '../src/modules/reports/application/index.js';
 import { RateSettings } from '../src/modules/settings/domain/index.js';
 import { PrismaRateSettingsRepository } from '../src/modules/settings/infrastructure/prisma-rate-settings.repository.js';
 import { LocalDate } from '../src/shared-kernel/index.js';
@@ -22,6 +24,7 @@ const api = useTestApp({ clock: FixedClock.on('2026-10-02') });
 const http = () => request(api.app.getHttpServer());
 
 let admin: string;
+let owner501: string;
 let owner502: string;
 
 beforeEach(async () => {
@@ -29,7 +32,11 @@ beforeEach(async () => {
     RateSettings.startingOn(LocalDate.of(2026, 8, 1)),
   );
   await givenAccounts(ctx.database, [401, 501, 502]);
-  [admin, owner502] = await Promise.all([tokenFor(api.app, 'admin'), tokenFor(api.app, '502')]);
+  [admin, owner501, owner502] = await Promise.all([
+    tokenFor(api.app, 'admin'),
+    tokenFor(api.app, '501'),
+    tokenFor(api.app, '502'),
+  ]);
 });
 
 const expectProblem = (response: request.Response, status: number, code: string) => {
@@ -249,5 +256,93 @@ describe('books API', () => {
       { weekStart: '2026-09-28', dates: ['2026-10-01', '2026-10-02'], total: 54000 },
     ]);
     expect(october.totals.expense).toBe(69000);
+  });
+
+  it('closes the outgoing owner’s months, lists them and lets the superadmin reopen one', async () => {
+    await startBooks();
+    await http().post('/api/months/2026-10/open').auth(admin, { type: 'bearer' }).expect(200);
+    await addRow(owner501, {
+      date: '2026-09-05',
+      category: 'UNIT_PAYMENT',
+      amount: 70000,
+      unit: 401,
+    }).expect(201);
+    const close = (token: string, value: string) =>
+      http().post(`/api/months/${value}/close`).auth(token, { type: 'bearer' });
+
+    expectProblem(await close(owner501, '2026-09'), 409, 'PREVIOUS_MONTH_OPEN');
+    expectProblem(await close(owner502, '2026-08'), 403, 'NOT_RESPONSIBLE');
+    expectProblem(await close(admin, '2026-10'), 409, 'MONTH_IN_PROGRESS');
+    expect((await month(owner501, '2026-08')).canClose).toBe(true);
+    await close(owner501, '2026-08').expect(204);
+    await close(owner501, '2026-09').expect(204);
+
+    const history = monthHistorySchema.parse(
+      (await http().get('/api/months').auth(owner502, { type: 'bearer' }).expect(200)).body,
+    );
+    expect(history.months.map((e) => [e.month, e.status, e.closingBalance])).toEqual([
+      ['2026-10', 'OPEN', 570000],
+      ['2026-09', 'CLOSED', 570000],
+      ['2026-08', 'CLOSED', 500000],
+    ]);
+    const stored = await ctx.database.client.monthlyReport.findMany({ orderBy: { month: 'asc' } });
+    expect(stored.map((row) => [row.closingBalance, row.closedAt !== null])).toEqual([
+      [500000, true],
+      [570000, true],
+      [null, false],
+    ]);
+    expectProblem(
+      await addRow(owner501, {
+        date: '2026-09-06',
+        category: 'UNIT_PAYMENT',
+        amount: 70000,
+        unit: 402,
+      }),
+      409,
+      'MONTH_CLOSED',
+    );
+
+    const reopen = (token: string, value: string) =>
+      http().post(`/api/months/${value}/reopen`).auth(token, { type: 'bearer' });
+    expectProblem(await reopen(owner501, '2026-09'), 403, 'SUPERADMIN_ONLY');
+    await reopen(admin, '2026-09').expect(204);
+    expect(await month(owner501, '2026-09')).toMatchObject({ status: 'OPEN', canWrite: true });
+
+    const log = auditLogPageSchema.parse(
+      (
+        await http()
+          .get('/api/audit-log?entity=monthly_report&entityId=2026-09')
+          .auth(admin, { type: 'bearer' })
+          .expect(200)
+      ).body,
+    );
+    // The log is never truncated: other tests opened September too, earlier.
+    expect(log.entries.slice(0, 3).map((entry) => [entry.action, entry.actor])).toEqual([
+      ['MONTH_REOPENED', { role: 'SUPERADMIN', unit: null }],
+      ['MONTH_CLOSED', { role: 'OWNER', unit: 501 }],
+      ['MONTH_OPENED', { role: 'SUPERADMIN', unit: null }],
+    ]);
+  });
+
+  it('opens the month as the system when nobody did, and logs it as such', async () => {
+    await startBooks();
+
+    const opened = await api.app.get(OpenCurrentMonth).execute();
+
+    expect(opened.map((report) => String(report.month))).toEqual(['2026-08', '2026-09', '2026-10']);
+    const log = auditLogPageSchema.parse(
+      (
+        await http()
+          .get('/api/audit-log?actor=system&entity=monthly_report')
+          .auth(owner502, { type: 'bearer' })
+          .expect(200)
+      ).body,
+    );
+    expect(log.entries.map((entry) => [entry.entityId, entry.actor])).toEqual([
+      ['2026-10', { role: 'SYSTEM', unit: null }],
+      ['2026-09', { role: 'SYSTEM', unit: null }],
+      ['2026-08', { role: 'SYSTEM', unit: null }],
+    ]);
+    expect((await month(owner502, '2026-10')).status).toBe('OPEN');
   });
 });
