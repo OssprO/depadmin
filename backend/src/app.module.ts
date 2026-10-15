@@ -3,6 +3,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { AuditModule } from './modules/audit/audit.module.js';
 import { BillingModule } from './modules/billing/billing.module.js';
 import { CashbookModule } from './modules/cashbook/cashbook.module.js';
+import { HistoryModule } from './modules/history/history.module.js';
 import { IdentityModule } from './modules/identity/identity.module.js';
 import { ReportsModule } from './modules/reports/reports.module.js';
 import { SettingsModule } from './modules/settings/settings.module.js';
@@ -31,6 +32,7 @@ import { PrismaModule } from './platform/prisma/prisma.module.js';
     CashbookModule,
     BillingModule,
     ReportsModule,
+    HistoryModule,
   ],
 })
 export class AppModule {}

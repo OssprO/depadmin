@@ -13,6 +13,8 @@ Conceptos de dominio que usan todos los módulos. TypeScript puro: no importa pa
 | `Instant`                                                                                         | Un momento exacto (milisegundos desde 1970), para vencimientos.                          |
 | `Actor`                                                                                           | Quién actúa: el superadmin o el dueño de un depto.                                       |
 | `WriteAccessPolicy`                                                                               | Quién puede escribir, cerrar y entregar un mes (ventana del turno más 5 días de gracia). |
+| `movement` (`MovementCategory`, `CATEGORY_RULES`, `validateMovement`)                             | Un renglón de caja y sus reglas por categoría, para el libro y el historial.             |
+| `MonthLedger`, `HistoryBoundary`                                                                  | Puertos para preguntar a `reports` si un mes está abierto y a `history` dónde termina.   |
 | `UnitOfWork`                                                                                      | Puerto para correr un caso de uso en una transacción.                                    |
 | `AuditTrail`, `trackChanges`, `Redacted`                                                          | Puerto de la bitácora y el cálculo de cambios por campo (ADR-0014).                      |
 | `DomainError` y subclases (`ValidationError`, `ConflictError`, `ForbiddenError`, `NotFoundError`) | Fallos de reglas de negocio con un `code` estable que el frontend traduce.               |

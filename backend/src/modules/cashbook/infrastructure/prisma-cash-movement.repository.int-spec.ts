@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { useTestDatabase } from '../../../../test/support/database.js';
-import { LocalDate, Money, UnitNumber, YearMonth } from '../../../shared-kernel/index.js';
-import { CashMovement, type MovementDetails } from '../domain/index.js';
+import {
+  LocalDate,
+  Money,
+  type MovementDetails,
+  UnitNumber,
+  YearMonth,
+} from '../../../shared-kernel/index.js';
+import { CashMovement } from '../domain/index.js';
 import { PrismaCashMovementRepository } from './prisma-cash-movement.repository.js';
 
 const ctx = useTestDatabase();

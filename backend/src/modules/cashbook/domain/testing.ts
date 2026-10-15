@@ -1,5 +1,9 @@
-import { LocalDate, Money, UnitNumber } from '../../../shared-kernel/index.js';
-import type { MovementDetails } from './cash-movement.js';
+import {
+  LocalDate,
+  Money,
+  type MovementDetails,
+  UnitNumber,
+} from '../../../shared-kernel/index.js';
 
 // Test builders shared by the cashbook specs.
 

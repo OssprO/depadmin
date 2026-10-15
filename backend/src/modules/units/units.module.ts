@@ -12,6 +12,6 @@ import { PrismaUnitRepository } from './infrastructure/prisma-unit.repository.js
     SetUnitStatus,
     RenameUnitOwner,
   ],
-  exports: [ListUnits],
+  exports: [ListUnits, RenameUnitOwner],
 })
 export class UnitsModule {}

@@ -59,6 +59,16 @@ describe('HTTP platform (e2e)', () => {
     );
   });
 
+  it('rejects a body over the size limit as a problem, not as a server error', async () => {
+    expectProblem(
+      await request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({ username: 'x'.repeat(1_100_000), password: 'x' }),
+      413,
+      'PAYLOAD_TOO_LARGE',
+    );
+  });
+
   it('treats a refresh without a cookie as an invalid session', async () => {
     expectProblem(
       await request(app.getHttpServer()).post('/api/auth/refresh'),

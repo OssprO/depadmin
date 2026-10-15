@@ -21,6 +21,7 @@ import {
   ReadCashbook,
   type WeeklyCleaningPayout,
   weeklyCleaningPayouts,
+  weeksWithinBooks,
 } from '../../cashbook/application/index.js';
 import { GetRates } from '../../settings/application/index.js';
 import { LoadShiftCalendar } from '../../shifts/application/index.js';
@@ -212,7 +213,7 @@ export class RenderMonthlyReport {
         };
       }),
       otherIncome: entries('OTHER_INCOME'),
-      garbage: garbageOf(month, rows, weeks),
+      garbage: garbageOf(month, rows, weeksWithinBooks(weeks, ledger.start.month)),
       cleaning: weeklyCleaningPayouts(rows),
       otherExpenses: entries('OTHER_EXPENSE'),
       generatedAt: this.clock.now(),

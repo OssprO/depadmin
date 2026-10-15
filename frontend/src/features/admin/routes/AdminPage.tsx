@@ -1,4 +1,10 @@
-import { BuildingsIcon, FlagIcon, ScalesIcon, UsersThreeIcon } from '@phosphor-icons/react';
+import {
+  ArchiveIcon,
+  BuildingsIcon,
+  FlagIcon,
+  ScalesIcon,
+  UsersThreeIcon,
+} from '@phosphor-icons/react';
 import { MenuEntry, MenuList } from '@/components/MenuList';
 
 /** The superadmin's tools. */
@@ -30,6 +36,12 @@ export function AdminPage() {
           icon={<ScalesIcon />}
           title="Carga inicial"
           description="Adeudos y adelantos de cada depto al empezar"
+        />
+        <MenuEntry
+          to="/admin/history"
+          icon={<ArchiveIcon />}
+          title="Historial"
+          description="Los balances en papel desde 2022, para revisarlos"
         />
       </MenuList>
     </div>

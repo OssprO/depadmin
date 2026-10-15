@@ -61,9 +61,25 @@ export class ProblemDetailsFilter implements ExceptionFilter {
       if (status >= 500) this.logger.error(exception);
       return problem(status, CODE_BY_STATUS[status] ?? `HTTP_${status}`, exception.message);
     }
+    const clientStatus = clientErrorStatus(exception);
+    if (clientStatus) {
+      return problem(clientStatus, CODE_BY_STATUS[clientStatus] ?? `HTTP_${clientStatus}`);
+    }
     this.logger.error(exception);
     return problem(HttpStatus.INTERNAL_SERVER_ERROR, 'INTERNAL_ERROR');
   }
+}
+
+/**
+ * The status of a client error raised by Express middleware (body-parser's "payload too
+ * large", for one). Those are `http-errors` objects, not Nest exceptions; they carry a 4xx
+ * `status` and mark it safe to show with `expose`.
+ */
+function clientErrorStatus(exception: unknown): number | null {
+  const { status, expose } = (exception ?? {}) as { status?: unknown; expose?: unknown };
+  return typeof status === 'number' && status >= 400 && status < 500 && expose === true
+    ? status
+    : null;
 }
 
 function problem(status: number, code: string, detail?: string): ProblemDetails {

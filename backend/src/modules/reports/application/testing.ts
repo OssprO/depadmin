@@ -2,6 +2,7 @@
 // Excluded from the build.
 import { FakeUnitOfWork, RecordingAuditTrail } from '../../../../test/support/audit-trail.js';
 import { FixedClock } from '../../../../test/support/clock.js';
+import { FakeHistoryBoundary } from '../../../../test/support/history-boundary.js';
 import type { YearMonthRange } from '../../../shared-kernel/index.js';
 import {
   ChargeMaintenanceFees,
@@ -108,13 +109,15 @@ export function booksFixture(
     new ChargeMaintenanceFees(charges, unitOfWork, audit, rates, units),
   );
   const renderer = new RecordingReportRenderer();
+  const pastHistory = new FakeHistoryBoundary();
   return {
     clock,
     audit,
     renderer,
     charges,
     accounts,
-    setStart: new SetReportingStart(reports, unitOfWork, audit, openingBalances),
+    pastHistory,
+    setStart: new SetReportingStart(reports, unitOfWork, audit, openingBalances, pastHistory),
     getOpening: new GetOpeningBalances(reports, openingBalances),
     setOpening: new SetOpeningBalance(
       reports,

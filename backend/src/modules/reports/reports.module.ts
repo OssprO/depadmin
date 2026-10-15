@@ -55,6 +55,6 @@ import { OpenCurrentMonthJob } from './jobs/open-current-month.job.js';
     SetOpeningBalance,
     OpenCurrentMonthJob,
   ],
-  exports: [MONTH_LEDGER],
+  exports: [MONTH_LEDGER, GetReportingStart],
 })
 export class ReportsModule {}

@@ -7,9 +7,7 @@ export type {
   CashMovement,
   GarbageWeek,
   MonthlyCashbook,
-  MovementCategory,
-  MovementDetails,
   WeeklyCleaningPayout,
 } from '../domain/index.js';
 // Pure helpers other modules apply to the rows they read.
-export { weeklyCleaningPayouts } from '../domain/index.js';
+export { weeklyCleaningPayouts, weeksWithinBooks } from '../domain/index.js';
