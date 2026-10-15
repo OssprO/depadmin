@@ -25,5 +25,6 @@ Cada ADR documenta una decisión: el contexto, lo que se decidió y sus consecue
 | [0019](0019-reporte-pdf.md)                         | Reporte mensual en PDF                                           | Aceptado |
 | [0020](0020-carga-inicial-y-formato-del-reporte.md) | Carga inicial y reporte con el formato del edificio              | Aceptado |
 | [0021](0021-concurrencia.md)                        | Peticiones simultáneas: la base de datos tiene la última palabra | Aceptado |
+| [0022](0022-historial.md)                           | El historial del edificio, aparte de los libros                  | Aceptado |
 
 Plantilla: copia cualquier ADR y conserva las secciones _Contexto_, _Decisión_ y _Consecuencias_.
