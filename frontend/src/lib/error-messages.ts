@@ -70,6 +70,25 @@ const MESSAGES: Record<string, string> = {
   MOVEMENT_WEEK_INVALID: 'La semana se indica por su lunes.',
   GARBAGE_WEEK_PAID: 'Esa semana de basura ya está pagada.',
   CLEANING_VISIT_RECORDED: 'Uno de esos días ya tiene su visita de limpieza.',
+  PAYLOAD_TOO_LARGE: 'El archivo es demasiado grande.',
+  VALIDATION_FAILED: 'Hay datos que no son válidos. Revísalos e inténtalo de nuevo.',
+  // The building's history
+  HISTORY_NOT_IMPORTED: 'Todavía no se importa el historial.',
+  HISTORY_ALREADY_IMPORTED: 'Ya hay un historial. Descártalo antes de importar otro.',
+  HISTORY_VERIFIED: 'El historial ya se verificó y quedó fijo.',
+  HISTORY_OVERLAPS_BOOKS:
+    'El historial y los libros no pueden compartir meses: los libros empiezan después del historial.',
+  HISTORY_MONTH_OUTSIDE: 'Ese mes no está dentro del historial.',
+  HISTORY_SPAN_INVALID: 'Los meses del historial no son válidos.',
+  HISTORY_FILE_INVALID:
+    'El archivo tiene un error: revisa los meses y las fechas de sus renglones.',
+  SHEET_DAY_INVALID: 'Ese día no existe en el mes.',
+  SHEET_SOURCE_INVALID: 'Escribe de dónde sale la hoja.',
+  SHEET_FIGURES_INVALID: 'Los ingresos y egresos no pueden ser negativos.',
+  SHEET_NOTES_DUPLICATED: 'Cada depto lleva una sola observación por hoja.',
+  SHEET_TEXT_TOO_LONG: 'Un texto es demasiado largo.',
+  SHEET_DUPLICATED: 'Ese mes ya tiene una hoja que empieza ese día.',
+  SHEET_NOT_FOUND: 'Esa hoja ya no existe.',
 };
 
 const GENERIC = 'Algo salió mal. Inténtalo de nuevo.';

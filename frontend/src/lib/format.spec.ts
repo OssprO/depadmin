@@ -15,6 +15,7 @@ import {
   formatTime,
   formatWeek,
   parsePesos,
+  parseSignedPesos,
   pesosInput,
 } from './format';
 
@@ -77,9 +78,17 @@ describe('pesos in forms', () => {
     expect(parsePesos('-5')).toBeNaN();
   });
 
+  it('reads balances, which may be negative', () => {
+    expect(parseSignedPesos('-1506.81')).toBe(-150681);
+    expect(parseSignedPesos('712.25')).toBe(71225);
+    expect(parseSignedPesos('--5')).toBeNaN();
+    expect(parseSignedPesos('')).toBeNaN();
+  });
+
   it('writes centavos back without needless decimals', () => {
     expect(pesosInput(70000)).toBe('700');
     expect(pesosInput(15050)).toBe('150.50');
+    expect(pesosInput(-150681)).toBe('-1506.81');
   });
 
   it('knows the building’s date', () => {

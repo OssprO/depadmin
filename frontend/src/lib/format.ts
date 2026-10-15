@@ -115,6 +115,16 @@ export function parsePesos(text: string): number {
   return Math.round(Number(trimmed.replace(',', '.')) * 100);
 }
 
+/** A balance as typed in a form: like an amount, but it may be negative (a cash shortfall). */
+export const SIGNED_PESOS_PATTERN = /^-?\d{1,7}([.,]\d{1,2})?$/;
+
+/** "-1506.81" → -150681; NaN if it is not a balance. */
+export function parseSignedPesos(text: string): number {
+  const trimmed = text.trim();
+  if (!SIGNED_PESOS_PATTERN.test(trimmed)) return Number.NaN;
+  return Math.round(Number(trimmed.replace(',', '.')) * 100);
+}
+
 /** Centavos as a form value: 70000 → "700", 15050 → "150.50". */
 export function pesosInput(centavos: number): string {
   return centavos % 100 === 0 ? String(centavos / 100) : (centavos / 100).toFixed(2);

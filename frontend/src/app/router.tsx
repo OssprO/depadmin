@@ -54,6 +54,14 @@ const ChangePasswordPage = lazyRouteComponent(
   () => import('@/features/auth/routes/ChangePasswordPage'),
   'ChangePasswordPage',
 );
+const HistoricalMonthPage = lazyRouteComponent(
+  () => import('@/features/historical/routes/HistoricalMonthPage'),
+  'HistoricalMonthPage',
+);
+const HistoryReviewPage = lazyRouteComponent(
+  () => import('@/features/historical/routes/HistoryReviewPage'),
+  'HistoryReviewPage',
+);
 const HistoryPage = lazyRouteComponent(
   () => import('@/features/book/routes/HistoryPage'),
   'HistoryPage',
@@ -256,6 +264,29 @@ const openingBalancesRoute = createRoute({
   component: OpeningBalancesPage,
 });
 
+/** The building's history before the platform, in review (ADR-0022). */
+const historyReviewRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/history',
+  component: HistoryReviewPage,
+});
+
+const historicalMonthRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/history/$month',
+  params: {
+    parse: ({ month }) => {
+      if (!yearMonthSchema.safeParse(month).success) throw notFound();
+      return { month };
+    },
+    stringify: ({ month }) => ({ month }),
+  },
+  component: function HistoricalMonthRoute() {
+    const { month } = historicalMonthRoute.useParams();
+    return <HistoricalMonthPage key={month} month={month} />;
+  },
+});
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([
@@ -276,6 +307,8 @@ const routeTree = rootRoute.addChildren([
       unitsRoute,
       reportingStartRoute,
       openingBalancesRoute,
+      historyReviewRoute,
+      historicalMonthRoute,
     ]),
   ]),
 ]);

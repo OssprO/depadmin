@@ -27,10 +27,12 @@ interface MovementListProps {
   readonly movements: readonly Movement[];
   /** Set when the rows can be edited: tapping one opens it. */
   readonly onSelect?: ((movement: Movement) => void) | undefined;
+  /** What each payment covered. Off for the history, which keeps no accounts. */
+  readonly showCoverage?: boolean;
 }
 
 /** The month's rows, grouped by day, as the report will list them. */
-export function MovementList({ movements, onSelect }: MovementListProps) {
+export function MovementList({ movements, onSelect, showCoverage = true }: MovementListProps) {
   if (movements.length === 0) {
     return <p className="text-xs/relaxed text-muted-foreground">Sin movimientos todavía.</p>;
   }
@@ -47,7 +49,7 @@ export function MovementList({ movements, onSelect }: MovementListProps) {
             const Icon = ICONS[movement.category];
             const income = isIncome(movement.category);
             const detail =
-              describeCoverage(movement) ??
+              (showCoverage ? describeCoverage(movement) : null) ??
               (movement.week && `semana ${formatWeek(movement.week)}`);
             const content = (
               <>
