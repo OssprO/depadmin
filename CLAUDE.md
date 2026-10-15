@@ -13,7 +13,7 @@ Mobile-first web app to manage maintenance fees for a 10-unit building ("Edifici
 
 **Working mode:** one phase per PR. Explain the reasoning behind a design before implementing, include tests, and wait for the user's approval before starting the next phase.
 
-**Current state:** phases 0–4, 6–10 and 11a are merged into `develop`. Phase 11b (`feat/fase-11b-endurecimiento`) hardens the app: racing writes answer 409, a month locks while it closes, expired sessions are purged nightly, screens load on demand, the app installs as a PWA, axe checks every screen, and `docs/SEGURIDAD.md` records the OWASP ASVS L1 review. Only phase 5 (deployment, postponed) remains of the plan.
+**Current state:** phases 0–4, 6–10 and 11a are merged into `develop`. Phase 11b (`feat/fase-11b-endurecimiento`) hardens the app: racing writes answer 409, a month locks while it closes, expired sessions are purged nightly, screens load on demand, the app installs as a PWA, axe checks every screen, and `docs/SEGURIDAD.md` records the OWASP ASVS L1 review. Only phase 5 (deployment, postponed) remains of the plan. Stage 2 (`docs/PLAN-ETAPA-2.md`) continues the numbering from phase 12; its historical data lives outside the repo in `../../Documents/importacion/`, because it names the neighbors.
 
 ## Layout & tooling
 
