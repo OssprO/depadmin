@@ -59,12 +59,13 @@ export function toHistoryPreview(preview: ImportPreview): HistoryPreview {
 }
 
 function toSheet(sheet: PaperSheet): PaperSheetResponse {
-  const { month, fromDay, source, figures, alerts, lines } = sheet.details;
+  const { month, fromDay, source, responsible, figures, alerts, lines } = sheet.details;
   return {
     id: sheet.id,
     month: String(month),
     fromDay,
     source,
+    responsible,
     opening: maybe(figures.opening),
     income: maybe(figures.income),
     expense: maybe(figures.expense),

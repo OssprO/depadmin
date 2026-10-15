@@ -126,6 +126,7 @@ function toSheetDetails(body: SheetRequest): Omit<SheetDetails, 'month'> {
   return {
     fromDay: body.fromDay,
     source: body.source,
+    responsible: body.responsible,
     figures: {
       opening: money(body.opening),
       income: money(body.income),
@@ -148,7 +149,10 @@ function toHistoryFile(body: HistoryFileRequest): HistoryFile {
     openingBalance: Money.ofCentavos(body.openingBalance),
     months: body.months.map((entry) => ({
       month: YearMonth.parse(entry.month),
-      sheets: entry.sheets.map(toSheetDetails),
+      sheets: entry.sheets.map((sheet) => ({
+        ...toSheetDetails(sheet),
+        movements: sheet.movements.map(toMovementDetails),
+      })),
       movements: entry.movements.map(toMovementDetails),
     })),
     owners: body.owners.map((owner) => ({ unit: UnitNumber.of(owner.unit), name: owner.name })),

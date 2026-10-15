@@ -180,13 +180,19 @@ describe('the report of a month of the history', () => {
     ]) {
       await fx.add.execute(admin, row);
     }
+    // Paid on the day the administration changed hands, and listed on the first sheet.
+    const handover = await fx.add.execute(admin, garbage('2026-07-10', '2026-07-06'));
     fx.paper.set('2026-07', [
       {
         fromDay: 10,
+        responsible: 'Responsable: depto 201',
+        movementIds: [],
         lines: [line(201, 'LIQUIDA JUNIO', { current: Money.ZERO, other: pesos(700) })],
       },
       {
         fromDay: 1,
+        responsible: null,
+        movementIds: [handover.id],
         lines: [
           line(101, 'ADELANTA AGOSTO', { ownerName: 'DUEÑA DE ENTONCES' }),
           line(102, 'LIQUIDA JUNIO', { current: pesos(700), other: pesos(700) }),
@@ -205,15 +211,16 @@ describe('the report of a month of the history', () => {
       administration: null,
       openingBalance: pesos(1000),
       income: pesos(2800),
-      expense: pesos(150),
-      closingBalance: pesos(3650),
+      expense: pesos(300),
+      closingBalance: pesos(3500),
     });
     expect(second).toMatchObject({
       days: { from: 10, to: 31 },
-      openingBalance: pesos(3650),
+      responsible: 'Responsable: depto 201',
+      openingBalance: pesos(3500),
       income: pesos(700),
       expense: pesos(400),
-      closingBalance: pesos(3950),
+      closingBalance: pesos(3800),
     });
     const unit = (doc: ReportDocument | undefined, n: number) =>
       doc!.units.find((u) => u.unit.value === n)!;
@@ -239,7 +246,7 @@ describe('the report of a month of the history', () => {
       paper: { current: Money.ZERO, other: Money.ZERO, text: '' },
     });
     // Only the weeks paid, as the paper listed them; no accounts before the cut-over.
-    expect(first!.garbage.map((g) => String(g.week))).toEqual(['2026-06-29']);
+    expect(first!.garbage.map((g) => String(g.week))).toEqual(['2026-06-29', '2026-07-06']);
     expect(second!.garbage).toEqual([]);
     expect(unit(first, 101)).toMatchObject({ owed: [], currentFee: null });
     await fx.pdf.execute(m('2026-07'));

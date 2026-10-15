@@ -18,7 +18,14 @@ export interface PaperLine {
 /** A paper sheet of a month of the history: from its first day, or from a mid-month handover. */
 export interface PaperPage {
   readonly fromDay: number;
+  /** Who the sheet says administered it, as written («Responsable: …»); null if it does not. */
+  readonly responsible: string | null;
   readonly lines: readonly PaperLine[];
+  /**
+   * The rows the sheet lists, by id. A row on the day the administration changed hands can
+   * be on either sheet, so the paper says which; rows not listed go by their date.
+   */
+  readonly movementIds: readonly string[];
 }
 
 /**

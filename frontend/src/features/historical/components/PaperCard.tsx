@@ -73,12 +73,12 @@ function Figures({ month }: { month: PaperMonth }) {
   );
 }
 
-/** A depto's line on the sheet, as the PDF prints it. */
+/** A depto's line on the sheet, as the PDF prints it: blank amounts are left out. */
 function lineText(line: PaperSheet['lines'][number]): string {
   const parts = [
     line.ownerName,
-    line.current !== null ? `mes en curso ${formatMoney(line.current)}` : null,
-    line.other !== null ? `adeudos/adelantos ${formatMoney(line.other)}` : null,
+    line.current ? `mes en curso ${formatMoney(line.current)}` : null,
+    line.other ? `adeudos/adelantos ${formatMoney(line.other)}` : null,
     line.text,
   ];
   return parts.filter(Boolean).join(' · ');
@@ -93,6 +93,7 @@ function SheetDetails({ sheet, onEdit }: { sheet: PaperSheet; onEdit: (() => voi
             {sheet.fromDay === 1 ? 'Hoja' : `Hoja desde el día ${sheet.fromDay}`}
           </h3>
           <p className="text-muted-foreground">{sheet.source}</p>
+          {sheet.responsible && <p>{sheet.responsible}</p>}
         </div>
         {onEdit && (
           <Button variant="outline" size="sm" onClick={onEdit}>

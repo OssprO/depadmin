@@ -164,7 +164,7 @@ export class RecordCleaningVisits {
  * The history's rows in bulk, from the import (ADR-0023): every row in a month of the
  * history that is open, all or none, checked by the same rules as one added by hand (each
  * week's garbage paid once included), and outside the audit log like any row of the
- * history. Same-day rows keep the order they come in.
+ * history. Same-day rows keep the order they come in, and the rows come back in it too.
  */
 @Injectable()
 export class ImportMovements {
@@ -189,9 +189,11 @@ export class ImportMovements {
           );
         }
         const cashbook = await this.access.forWriting(actor, month);
-        for (const details of rows.filter((row) => row.date.yearMonth.equals(month))) {
-          imported.push(cashbook.add(randomUUID(), details));
-        }
+        rows.forEach((details, index) => {
+          if (details.date.yearMonth.equals(month)) {
+            imported[index] = cashbook.add(randomUUID(), details);
+          }
+        });
       }
       const garbage = imported.filter((movement) => movement.details.week);
       const weeks = garbage

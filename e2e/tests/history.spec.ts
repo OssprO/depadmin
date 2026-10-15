@@ -63,6 +63,7 @@ const file = {
         {
           fromDay: 1,
           source: 'PDF MAY-JUL 2022 p1',
+          responsible: null,
           opening: 71225,
           income: 120000,
           expense: 15000,
@@ -72,13 +73,14 @@ const file = {
             line(101, '', { ownerName: 'DUEÑA DE ENTONCES' }),
             line(301, 'PAGÓ EN JULIO 2022'),
           ],
+          movements: [
+            row('2022-05-01', 'UNIT_PAYMENT', 60000, { unit: 101 }),
+            row('2022-05-01', 'UNIT_PAYMENT', 60000, { unit: 102 }),
+            row('2022-05-14', 'GARBAGE', 15000, { week: '2022-05-09' }),
+          ],
         },
       ],
-      movements: [
-        row('2022-05-01', 'UNIT_PAYMENT', 60000, { unit: 101 }),
-        row('2022-05-01', 'UNIT_PAYMENT', 60000, { unit: 102 }),
-        row('2022-05-14', 'GARBAGE', 15000, { week: '2022-05-09' }),
-      ],
+      movements: [],
     },
     { month: '2022-06', sheets: [], movements: [] },
   ],

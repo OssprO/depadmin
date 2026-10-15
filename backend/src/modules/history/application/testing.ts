@@ -21,7 +21,8 @@ import {
 import { GetHistory, GetPaperMonth } from './review-history.js';
 
 /** Stored copies, so a use case that forgets to save is caught. */
-const copySheet = (sheet: PaperSheet) => PaperSheet.create(sheet.id, sheet.details);
+const copySheet = (sheet: PaperSheet) =>
+  PaperSheet.create(sheet.id, sheet.details, sheet.movementIds);
 
 export class InMemoryPaperSheetRepository implements PaperSheetRepository {
   private readonly sheets = new Map<string, PaperSheet>();
@@ -80,7 +81,7 @@ export function historyFixture(today = '2026-10-02') {
   };
 }
 
-type SheetData = Omit<SheetDetails, 'month'>;
+type SheetData = Omit<SheetDetails, 'month'> & { movements?: MovementDetails[] };
 
 /** A history file built from the specs' rows and sheets. */
 export function historyFile(
@@ -92,7 +93,7 @@ export function historyFile(
     openingBalance,
     months: Object.entries(months).map(([month, entry]) => ({
       month: YearMonth.parse(month),
-      sheets: entry.sheets ?? [],
+      sheets: (entry.sheets ?? []).map((sheet) => ({ ...sheet, movements: sheet.movements ?? [] })),
       movements: entry.movements ?? [],
     })),
     owners: Object.entries(owners).map(([unit, name]) => ({

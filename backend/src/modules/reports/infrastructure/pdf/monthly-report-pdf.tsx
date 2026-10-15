@@ -356,8 +356,8 @@ function closingLabel({ status, days, month }: ReportDocument): string {
 }
 
 /** Who administered the month, as far as the platform knows (not before the rotation). */
-function administeredBy({ administration }: ReportDocument): string | null {
-  if (!administration) return null;
+function administeredBy({ administration, responsible }: ReportDocument): string | null {
+  if (!administration) return responsible;
   const { scheduledUnit, responsibleUnits } = administration;
   if (responsibleUnits.length === 0)
     return `Turno de Depto ${scheduledUnit.value}, sin responsable`;

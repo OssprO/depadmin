@@ -43,17 +43,19 @@ export class PrismaPaperSheetRepository implements PaperSheetRepository {
       () =>
         this.database.run(async () => {
           for (const sheet of sheets) {
-            const { month, fromDay, source, figures, alerts, lines } = sheet.details;
+            const { month, fromDay, source, responsible, figures, alerts, lines } = sheet.details;
             const data = {
               month: toDbMonth(month),
               fromDay,
               source,
+              responsible,
               paperOpening: centavos(figures.opening),
               paperIncome: centavos(figures.income),
               paperExpense: centavos(figures.expense),
               paperClosing: centavos(figures.closing),
               alerts: [...alerts],
               lines: lines.map(toStoredLine),
+              movementIds: [...sheet.movementIds],
             };
             await this.database.db.paperSheet.upsert({
               where: { id: sheet.id },
@@ -87,23 +89,28 @@ const toStoredLine = (line: PaperLine): StoredLine => ({
 
 function toSheet(row: SheetRow): PaperSheet {
   const lines = row.lines as unknown as StoredLine[];
-  return PaperSheet.create(row.id, {
-    month: fromDbMonth(row.month),
-    fromDay: row.fromDay,
-    source: row.source,
-    figures: {
-      opening: money(row.paperOpening),
-      income: money(row.paperIncome),
-      expense: money(row.paperExpense),
-      closing: money(row.paperClosing),
+  return PaperSheet.create(
+    row.id,
+    {
+      month: fromDbMonth(row.month),
+      fromDay: row.fromDay,
+      source: row.source,
+      responsible: row.responsible,
+      figures: {
+        opening: money(row.paperOpening),
+        income: money(row.paperIncome),
+        expense: money(row.paperExpense),
+        closing: money(row.paperClosing),
+      },
+      alerts: row.alerts,
+      lines: lines.map((line) => ({
+        unit: UnitNumber.of(line.unit),
+        ownerName: line.ownerName,
+        current: money(line.current),
+        other: money(line.other),
+        text: line.text,
+      })),
     },
-    alerts: row.alerts,
-    lines: lines.map((line) => ({
-      unit: UnitNumber.of(line.unit),
-      ownerName: line.ownerName,
-      current: money(line.current),
-      other: money(line.other),
-      text: line.text,
-    })),
-  });
+    row.movementIds,
+  );
 }

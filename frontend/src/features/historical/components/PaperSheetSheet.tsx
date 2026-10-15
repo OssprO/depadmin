@@ -59,6 +59,7 @@ interface LineValues {
 interface FormValues extends Record<Figure, string> {
   fromDay: string;
   source: string;
+  responsible: string;
   alerts: string;
   lines: Record<string, LineValues>;
 }
@@ -87,6 +88,7 @@ const formSchema = z
   .object({
     fromDay: z.string().regex(/^\d{1,2}$/, 'Escribe el día, por ejemplo 1 o 10'),
     source: z.string(),
+    responsible: z.string().trim(),
     opening: figure(true),
     income: figure(false),
     expense: figure(false),
@@ -97,6 +99,7 @@ const formSchema = z
   .transform((form): SheetRequest => ({
     fromDay: Number(form.fromDay),
     source: form.source,
+    responsible: form.responsible || null,
     opening: form.opening,
     income: form.income,
     expense: form.expense,
@@ -120,6 +123,7 @@ function valuesFor(sheet: PaperSheet | null): FormValues {
   return {
     fromDay: String(sheet?.fromDay ?? 1),
     source: sheet?.source ?? '',
+    responsible: sheet?.responsible ?? '',
     opening: amount(sheet?.opening ?? null),
     income: amount(sheet?.income ?? null),
     expense: amount(sheet?.expense ?? null),
@@ -225,6 +229,17 @@ export function PaperSheetSheet({ month, sheet, onClose }: PaperSheetSheetProps)
                 <FieldError errors={[errors.source]} />
               </Field>
             </div>
+            <Field data-invalid={!!errors.responsible}>
+              <FieldLabel htmlFor="sheet-responsible">Responsable</FieldLabel>
+              <Input
+                id="sheet-responsible"
+                autoComplete="off"
+                placeholder="Si la hoja dice quién administró"
+                aria-invalid={!!errors.responsible}
+                {...form.register('responsible')}
+              />
+              <FieldError errors={[errors.responsible]} />
+            </Field>
             <div className="grid grid-cols-2 gap-3">
               {FIGURES.map(({ name, label }) => (
                 <Field key={name} data-invalid={!!errors[name]}>

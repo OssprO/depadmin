@@ -32,6 +32,24 @@ describe('ReactPdfReportRenderer', () => {
     expect(pages(pdf)).toBe(1);
   }, 20_000);
 
+  it('renders a month of the history sheet by sheet, as its paper', async () => {
+    const fx = booksFixture('2026-10-03');
+    await fx.startWithHistory.execute(admin, {
+      month: m('2026-06'),
+      openingBalance: pesos(1000),
+      cutover: m('2026-08'),
+    });
+    await fx.add.execute(admin, payment('2026-07-02', 401, 1400));
+    await fx.add.execute(admin, expense('2026-07-20', 'OTHER_EXPENSE', 50, 'Focos'));
+    fx.paper.set('2026-07', [
+      { fromDay: 1, responsible: null, movementIds: [], lines: [] },
+      { fromDay: 10, responsible: 'Responsable: depto 402', movementIds: [], lines: [] },
+    ]);
+    const pdf = await renderer.render(await fx.pdf.documents(m('2026-07')));
+
+    expect(pages(pdf)).toBe(2);
+  }, 20_000);
+
   it('continues on more pages when the month has many rows', async () => {
     const pdf = await renderer.render([await september(60)]);
 

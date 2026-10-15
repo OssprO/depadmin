@@ -266,6 +266,8 @@ model PaperSheet {
   fromDay      Int      @map("from_day") @db.SmallInt
   /// Where it was transcribed from (a PDF page or a photo).
   source       String
+  /// Who the sheet says administered it («Responsable: …»), as written.
+  responsible  String?
   paperOpening Int?     @map("paper_opening")
   paperIncome  Int?     @map("paper_income")
   paperExpense Int?     @map("paper_expense")
@@ -274,6 +276,8 @@ model PaperSheet {
   alerts       String[]
   /// [{ unit, ownerName, current, other, text }]: the sheet's line per depto, as written.
   lines        Json
+  /// The rows the sheet lists (from the import); other rows of its month go by their date.
+  movementIds  String[] @map("movement_ids") @db.Uuid
 
   @@unique([month, fromDay])
   @@map("paper_sheet")

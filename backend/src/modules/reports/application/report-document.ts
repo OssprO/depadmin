@@ -132,6 +132,8 @@ export interface ReportDocument {
     readonly scheduledUnit: UnitNumber;
     readonly responsibleUnits: readonly UnitNumber[];
   } | null;
+  /** For a sheet of the history, who it says administered it, as written; null otherwise. */
+  readonly responsible: string | null;
   readonly openingBalance: Money;
   readonly income: Money;
   readonly expense: Money;
@@ -223,6 +225,7 @@ export class RenderMonthlyReport {
       month,
       status: report.status,
       days: null,
+      responsible: null,
       administration: {
         scheduledUnit: assignment.scheduledUnit,
         responsibleUnits: assignment.responsibleUnits,
@@ -289,15 +292,16 @@ export class RenderMonthlyReport {
       this.feeFor(month),
     ]);
     const sheets: readonly PaperPage[] =
-      pages.length > 0 ? sortedPages(pages) : [{ fromDay: 1, lines: [] }];
+      pages.length > 0
+        ? sortedPages(pages)
+        : [{ fromDay: 1, responsible: null, lines: [], movementIds: [] }];
+    const pageOf = sheetOfRow(sheets);
     let opening = ledger.balancesOf(month, live).openingBalance;
     const generatedAt = this.clock.now();
 
     return sheets.map((sheet, index) => {
       const until = sheets[index + 1]?.fromDay ?? Number.POSITIVE_INFINITY;
-      const rows = book.movements.filter(
-        (row) => (index === 0 || row.date.day >= sheet.fromDay) && row.date.day < until,
-      );
+      const rows = book.movements.filter((row) => pageOf(row) === index);
       const totals = totalsOf(rows);
       const entries = (category: CashMovement['category']) =>
         rows.filter((row) => row.category === category).map(toEntry);
@@ -309,6 +313,7 @@ export class RenderMonthlyReport {
             ? { from: sheet.fromDay, to: Math.min(until - 1, month.daysInMonth) }
             : null,
         administration: null,
+        responsible: sheet.responsible,
         openingBalance: opening,
         income: totals.income,
         expense: totals.expense,
@@ -335,6 +340,21 @@ export class RenderMonthlyReport {
 
 const sortedPages = (pages: readonly PaperPage[]) =>
   [...pages].sort((a, b) => a.fromDay - b.fromDay);
+
+/**
+ * Which sheet a row belongs to: the one that lists it (a row on the day the administration
+ * changed hands can be on either), or else the last one started by its date.
+ */
+function sheetOfRow(sheets: readonly PaperPage[]): (row: CashMovement) => number {
+  const listed = new Map<string, number>();
+  sheets.forEach((sheet, index) => {
+    for (const id of sheet.movementIds) listed.set(id, index);
+  });
+  return (row) => {
+    const byDate = sheets.findLastIndex((sheet) => sheet.fromDay <= row.date.day);
+    return listed.get(row.id) ?? Math.max(byDate, 0);
+  };
+}
 
 /**
  * A depto on a sheet of the history: its payments in the sheet's rows, split the way the

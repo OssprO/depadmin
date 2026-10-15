@@ -28,6 +28,7 @@ export const sheetDetails = (
   month: m(month),
   fromDay: 1,
   source: 'PDF p1',
+  responsible: null,
   figures: noFigures,
   alerts: [],
   lines: [],

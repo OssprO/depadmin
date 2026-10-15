@@ -116,7 +116,9 @@ export class SheetPaperRecord implements PaperRecord {
   async pagesOf(month: YearMonth): Promise<PaperPage[]> {
     return (await this.sheets.findSheets(month)).map((sheet) => ({
       fromDay: sheet.details.fromDay,
+      responsible: sheet.details.responsible,
       lines: sheet.details.lines,
+      movementIds: sheet.movementIds,
     }));
   }
 }

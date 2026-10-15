@@ -24,6 +24,8 @@ export interface SheetDetails {
   readonly fromDay: number;
   /** Where it was transcribed from: a PDF page or a photo. */
   readonly source: string;
+  /** Who the sheet says administered it, as written; null if it does not say. */
+  readonly responsible: string | null;
   readonly figures: PaperFigures;
   /** Transcription remarks: what does not add up, what is missing. */
   readonly alerts: readonly string[];
@@ -35,16 +37,22 @@ export interface SheetDetails {
  * One paper sheet of the history: a month, or the part of one that an administrator handed
  * over mid-month. The rows are not part of it (they belong to the month's books); it keeps
  * what is needed to check them and to print the month as it circulated: the paper's own
- * figures, its remarks and its line per depto.
+ * figures, its remarks and its line per depto, and which rows it listed (from the import:
+ * a row on the day the administration changed hands can be on either sheet).
  */
 export class PaperSheet {
   private constructor(
     readonly id: string,
     private current: SheetDetails,
+    readonly movementIds: readonly string[],
   ) {}
 
-  static create(id: string, details: SheetDetails): PaperSheet {
-    return new PaperSheet(id, validate(details));
+  static create(
+    id: string,
+    details: SheetDetails,
+    movementIds: readonly string[] = [],
+  ): PaperSheet {
+    return new PaperSheet(id, validate(details), [...movementIds]);
   }
 
   get details(): SheetDetails {
@@ -104,7 +112,14 @@ function validate(details: SheetDetails): SheetDetails {
       );
     }
   });
-  return { month, fromDay, source, figures, alerts, lines };
+  const responsible = details.responsible?.trim() || null;
+  if (responsible && responsible.length > SHEET_SOURCE_MAX_LENGTH) {
+    throw new ValidationError(
+      'SHEET_TEXT_TOO_LONG',
+      `Use at most ${SHEET_SOURCE_MAX_LENGTH} characters`,
+    );
+  }
+  return { month, fromDay, source, responsible, figures, alerts, lines };
 }
 
 /** A line with its text trimmed; a blank owner is none, and amounts are not negative. */

@@ -61,8 +61,8 @@ export function HistoryPage() {
                             {entry.status === 'OPEN' ? 'Abierto' : 'Cerrado'}
                           </Badge>
                         )}
-                        {/* Before the platform: captured from its paper sheet. */}
-                        {entry.historical && <Badge variant="outline">Del papel</Badge>}
+                        {/* Before the platform: the building's history, from its paper sheets. */}
+                        {entry.historical && <Badge variant="outline">Historial</Badge>}
                       </span>
                       <span className="text-muted-foreground tabular-nums">
                         + {formatMoney(entry.income)} · − {formatMoney(entry.expense)}

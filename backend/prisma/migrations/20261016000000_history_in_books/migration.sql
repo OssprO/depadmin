@@ -17,12 +17,14 @@ CREATE TABLE "paper_sheet" (
     "month" DATE NOT NULL,
     "from_day" SMALLINT NOT NULL,
     "source" TEXT NOT NULL,
+    "responsible" TEXT,
     "paper_opening" INTEGER,
     "paper_income" INTEGER,
     "paper_expense" INTEGER,
     "paper_closing" INTEGER,
     "alerts" TEXT[],
     "lines" JSONB NOT NULL,
+    "movement_ids" UUID[],
 
     CONSTRAINT "paper_sheet_pkey" PRIMARY KEY ("id")
 );

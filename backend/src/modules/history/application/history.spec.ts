@@ -24,12 +24,12 @@ const file = () =>
             },
             lines: [note(301, 'PAGÓ EN JULIO 2022')],
             alerts: ['Cuota de $600 más $100 de administración fuera de la caja'],
+            movements: [
+              payment('2022-05-01', 101, 600),
+              payment('2022-05-01', 102, 600),
+              garbage('2022-05-14', '2022-05-09'),
+            ],
           },
-        ],
-        movements: [
-          payment('2022-05-01', 101, 600),
-          payment('2022-05-01', 102, 600),
-          garbage('2022-05-14', '2022-05-09'),
         ],
       },
       '2022-06': { movements: [expense('2022-06-13', 'OTHER_EXPENSE', 511, 'LUZ')] },
@@ -196,6 +196,9 @@ describe('reviewing the history', () => {
     const fx = await imported();
     const [page] = await fx.paperRecord.pagesOf(m('2022-05'));
     expect(page).toMatchObject({ fromDay: 1, lines: [note(301, 'PAGÓ EN JULIO 2022')] });
+    // With the rows it lists, as the import brought them.
+    const may = await fx.view.execute(admin, m('2022-05'));
+    expect(page!.movementIds).toEqual(may.rows.map((row) => row.movement.id));
     expect(await fx.paperRecord.pagesOf(m('2022-06'))).toEqual([]);
   });
 });

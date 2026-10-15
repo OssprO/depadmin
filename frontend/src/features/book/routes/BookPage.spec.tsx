@@ -46,6 +46,7 @@ const mayPaper = (canEdit = true) => ({
       month: '2022-05',
       fromDay: 1,
       source: 'PDF MAY-JUL 2022 p1',
+      responsible: 'Responsable: Emilia (202)',
       opening: 71225,
       income: 145000,
       expense: 27000,
@@ -108,6 +109,7 @@ describe('BookPage', () => {
     const income = screen.getByRole('row', { name: /^Ingresos/ });
     expect(within(income).getByText('+ $1,450.00')).toBeInTheDocument();
     expect(screen.getByText('Cuota de $600 más $100 de administración')).toBeInTheDocument();
+    expect(screen.getByText('Responsable: Emilia (202)')).toBeInTheDocument();
     expect(
       screen.getByText('NOMBRE · adeudos/adelantos $700.00 · PAGÓ EN AGOSTO'),
     ).toBeInTheDocument();
@@ -127,6 +129,7 @@ describe('BookPage', () => {
     );
     expect(api.callsTo(`PUT /api/history/sheets/${SHEET_ID}`)[0]?.body).toMatchObject({
       income: 145000,
+      responsible: 'Responsable: Emilia (202)',
       lines: [{ unit: 401, ownerName: 'NOMBRE', current: 70000, other: 70000, text: '' }],
     });
   });

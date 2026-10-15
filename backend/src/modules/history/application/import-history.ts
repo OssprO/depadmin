@@ -29,6 +29,11 @@ import {
 } from '../domain/index.js';
 import type { HistoryReview } from './review-history.js';
 
+/** A sheet of the file, with the rows it lists. */
+export type FileSheet = Omit<SheetDetails, 'month'> & {
+  readonly movements: readonly MovementDetails[];
+};
+
 /** The import file (`historial.json`), once its JSON has been checked and parsed. */
 export interface HistoryFile {
   /** Cash on hand when the first month began. */
@@ -36,7 +41,8 @@ export interface HistoryFile {
   /** The months with paper; one missing between two comes in empty. */
   readonly months: readonly {
     readonly month: YearMonth;
-    readonly sheets: readonly Omit<SheetDetails, 'month'>[];
+    readonly sheets: readonly FileSheet[];
+    /** Rows of a month without paper. */
     readonly movements: readonly MovementDetails[];
   }[];
   /** Owners' names as the current administration roster lists them. */
@@ -53,7 +59,8 @@ export interface ImportPreview extends HistoryReview {
 interface History {
   readonly months: readonly YearMonth[];
   readonly cutover: YearMonth;
-  readonly sheets: readonly PaperSheet[];
+  /** Each sheet, and where its rows are in `rows`. */
+  readonly sheets: readonly { readonly sheet: PaperSheet; readonly rows: readonly number[] }[];
   readonly rows: readonly MovementDetails[];
 }
 
@@ -72,31 +79,36 @@ function historyOf(file: HistoryFile): History {
       throw new ValidationError('HISTORY_FILE_INVALID', `${entry.month} appears twice`);
     }
   });
-  const sheets: PaperSheet[] = [];
+  const sheets: History['sheets'][number][] = [];
   const rows: MovementDetails[] = [];
   const weeks = new Set<string>();
+  /** Checks a row of `month` and adds it, returning where it is. */
+  const add = (month: YearMonth, details: MovementDetails): number => {
+    if (!details.date.yearMonth.equals(month)) {
+      throw new ValidationError(
+        'HISTORY_FILE_INVALID',
+        `A row dated ${details.date} is listed under ${month}`,
+      );
+    }
+    const row = validateMovement(details);
+    if (row.week) {
+      if (weeks.has(String(row.week))) {
+        throw new ConflictError('GARBAGE_WEEK_PAID', `The week of ${row.week} is paid twice`);
+      }
+      weeks.add(String(row.week));
+    }
+    return rows.push(row) - 1;
+  };
   for (const { month, sheets: monthSheets, movements } of entries) {
-    for (const details of monthSheets) {
+    for (const { movements: listed, ...details } of monthSheets) {
       const sheet = PaperSheet.create(randomUUID(), { ...details, month });
-      assertNewSheetDay(sheet, sheets);
-      sheets.push(sheet);
+      assertNewSheetDay(
+        sheet,
+        sheets.map((entry) => entry.sheet),
+      );
+      sheets.push({ sheet, rows: listed.map((row) => add(month, row)) });
     }
-    for (const details of movements) {
-      if (!details.date.yearMonth.equals(month)) {
-        throw new ValidationError(
-          'HISTORY_FILE_INVALID',
-          `A row dated ${details.date} is listed under ${month}`,
-        );
-      }
-      const row = validateMovement(details);
-      if (row.week) {
-        if (weeks.has(String(row.week))) {
-          throw new ConflictError('GARBAGE_WEEK_PAID', `The week of ${row.week} is paid twice`);
-        }
-        weeks.add(String(row.week));
-      }
-      rows.push(row);
-    }
+    for (const details of movements) add(month, details);
   }
   return {
     months: first.month.through(last.month),
@@ -128,7 +140,10 @@ function reviewOf(file: HistoryFile, history: History): HistoryReview {
     openingBalance: file.openingBalance,
     closing: chained.at(-1)!.closing,
     months: chained.map((figures) => ({
-      review: reviewMonth(figures, history.sheets),
+      review: reviewMonth(
+        figures,
+        history.sheets.map((entry) => entry.sheet),
+      ),
       status: 'OPEN',
     })),
   };
@@ -194,8 +209,16 @@ export class ImportHistory {
         cutover: history.cutover,
       });
       if (file.rates.length > 0) await this.earlierRates.execute(actor, file.rates);
-      await this.movements.execute(actor, history.rows);
-      await this.sheets.saveSheets(history.sheets);
+      const imported = await this.movements.execute(actor, history.rows);
+      await this.sheets.saveSheets(
+        history.sheets.map(({ sheet, rows }) =>
+          PaperSheet.create(
+            sheet.id,
+            sheet.details,
+            rows.map((index) => imported[index]!.id),
+          ),
+        ),
+      );
       for (const { unit, name } of file.owners) {
         await this.renameOwner.execute(actor, unit, name);
       }

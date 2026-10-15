@@ -44,6 +44,12 @@ export const sheetRequestSchema = z.object({
     .trim()
     .min(1, 'Di de dónde sale la hoja')
     .max(SHEET_SOURCE_MAX_LENGTH, `Usa como máximo ${SHEET_SOURCE_MAX_LENGTH} caracteres`),
+  /** Who the sheet says administered it («Responsable: …»), as written; null if it does not. */
+  responsible: z
+    .string()
+    .trim()
+    .max(SHEET_SOURCE_MAX_LENGTH, `Usa como máximo ${SHEET_SOURCE_MAX_LENGTH} caracteres`)
+    .nullable(),
   opening: centavosSchema.nullable(),
   income: centavosSchema.nonnegative('No puede ser negativo').nullable(),
   expense: centavosSchema.nonnegative('No puede ser negativo').nullable(),
@@ -88,7 +94,11 @@ export const historyFileSchema = z.object({
     .array(
       z.object({
         month: yearMonthSchema,
-        sheets: z.array(sheetRequestSchema).max(5),
+        /** Each sheet with the rows it lists, so its report keeps them as the paper did. */
+        sheets: z
+          .array(sheetRequestSchema.extend({ movements: z.array(movementRequestSchema).max(500) }))
+          .max(5),
+        /** Rows of a month without paper. */
         movements: z.array(movementRequestSchema).max(500),
       }),
     )

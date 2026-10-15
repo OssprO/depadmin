@@ -64,10 +64,12 @@ function file(): HistoryFile {
       ),
     };
   });
+  months[0]!.movements = [];
   months[0]!.sheets = [
     {
       fromDay: 1,
       source: 'PDF MAY-JUL 2022 p1',
+      responsible: null,
       opening: 71225,
       income: 60000,
       expense: 15000,
@@ -76,24 +78,24 @@ function file(): HistoryFile {
       lines: [
         { unit: 301, ownerName: null, current: null, other: null, text: 'PAGÓ EN JULIO 2022' },
       ],
-    },
-  ];
-  months[0]!.movements = [
-    {
-      date: '2022-05-01',
-      category: 'UNIT_PAYMENT',
-      amount: 60000,
-      unit: 101,
-      description: null,
-      week: null,
-    },
-    {
-      date: '2022-05-14',
-      category: 'GARBAGE',
-      amount: 15000,
-      unit: null,
-      description: null,
-      week: '2022-05-09',
+      movements: [
+        {
+          date: '2022-05-01',
+          category: 'UNIT_PAYMENT',
+          amount: 60000,
+          unit: 101,
+          description: null,
+          week: null,
+        },
+        {
+          date: '2022-05-14',
+          category: 'GARBAGE',
+          amount: 15000,
+          unit: null,
+          description: null,
+          week: '2022-05-09',
+        },
+      ],
     },
   ];
   return {
@@ -143,6 +145,7 @@ const imported = () =>
 const sheetBody = {
   fromDay: 1,
   source: 'foto nueva',
+  responsible: null,
   opening: null,
   income: null,
   expense: null,

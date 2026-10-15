@@ -25,7 +25,7 @@ describe('HistoryPage', () => {
     expect(rows.map((row) => row.textContent)).toEqual([
       'octubre 2026Por cerrar+ $1,400.00 · − $970.00$6,130.00saldo actual',
       'septiembre 2026Cerrado+ $1,400.00 · − $700.00$5,700.00saldo final',
-      'agosto 2026CerradoDel papel+ $1,400.00 · − $900.00$5,000.00saldo final',
+      'agosto 2026CerradoHistorial+ $1,400.00 · − $900.00$5,000.00saldo final',
     ]);
 
     await userEvent.click(within(rows[1]!).getByRole('link'));
