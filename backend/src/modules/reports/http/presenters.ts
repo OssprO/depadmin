@@ -61,6 +61,7 @@ export function toMonthlyReport(view: MonthlyReportView): MonthlyReport {
     month: String(view.month),
     status: view.status,
     reportingStarted: view.reportingStarted,
+    historical: view.historical,
     balances: balances && {
       opening: centavos(balances.opening),
       closing: centavos(balances.closing),
@@ -112,6 +113,7 @@ export function toMonthHistory(history: MonthHistory): MonthHistoryResponse {
       income: centavos(entry.income),
       expense: centavos(entry.expense),
       closingBalance: centavos(entry.closingBalance),
+      historical: entry.historical,
       canClose: entry.canClose,
       canReopen: entry.canReopen,
     })),

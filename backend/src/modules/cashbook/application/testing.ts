@@ -45,6 +45,10 @@ export class InMemoryCashMovementRepository implements CashMovementRepository {
     return Promise.resolve();
   }
 
+  insert(movements: readonly CashMovement[]): Promise<void> {
+    return this.save(movements);
+  }
+
   private all(): CashMovement[] {
     return [...this.rows.values()].map(copy);
   }

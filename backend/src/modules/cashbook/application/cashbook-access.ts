@@ -51,6 +51,16 @@ export class CashbookAccess {
     return MonthlyCashbook.of(month, status === 'OPEN', await this.movements.findByMonth(month));
   }
 
+  /**
+   * Whether the month is of the building's history, before the cut-over. Its rows are a
+   * transcription of its paper, checked by closing the month, and the audit log starts at
+   * the cut-over, so changes to them are not audited (ADR-0023).
+   */
+  async isHistory(month: YearMonth): Promise<boolean> {
+    const cutover = await this.ledger.cutover();
+    return cutover !== null && month.isBefore(cutover);
+  }
+
   /** Before saving a row: the garbage week it pays for is not paid by another row. */
   async assertConsistent(movement: CashMovement): Promise<void> {
     const { week } = movement.details;

@@ -42,6 +42,7 @@ describe('Money', () => {
     expect(big.compareTo(Money.ofPesos(700))).toBe(0);
     expect(big.isGreaterThan(small)).toBe(true);
     expect(Money.min(big, small)).toBe(small);
+    expect(Money.max(small, big)).toBe(big);
     expect(small.isPositive()).toBe(true);
     expect(small.negate().isNegative()).toBe(true);
     expect(Money.ZERO.isPositive()).toBe(false);

@@ -24,13 +24,21 @@ export class PrismaReportRepository implements ReportRepository {
     if (!start) return null;
     const rows = await db.monthlyReport.findMany({ orderBy: { month: 'asc' } });
     return ReportLedger.restore(
-      { month: fromDbMonth(start.month), openingBalance: fromDbMoney(start.openingBalance) },
+      {
+        month: fromDbMonth(start.month),
+        openingBalance: fromDbMoney(start.openingBalance),
+        cutover: fromDbMonth(start.cutover),
+      },
       rows.map(toDomain),
     );
   }
 
   async saveStart(start: ReportingStart): Promise<void> {
-    const data = { month: toDbMonth(start.month), openingBalance: start.openingBalance.centavos };
+    const data = {
+      month: toDbMonth(start.month),
+      openingBalance: start.openingBalance.centavos,
+      cutover: toDbMonth(start.cutover),
+    };
     await this.database.db.reportingStart.upsert({
       where: { id: 1 },
       create: { id: 1, ...data },

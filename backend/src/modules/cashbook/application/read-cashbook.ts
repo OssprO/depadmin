@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
-  type LocalDate,
+  LocalDate,
   MONTH_LEDGER,
   type MonthLedger,
   type UnitNumber,
@@ -8,6 +8,7 @@ import {
 } from '../../../shared-kernel/index.js';
 import {
   CASH_MOVEMENT_REPOSITORY,
+  type CashbookTotals,
   type CashMovement,
   type CashMovementRepository,
   cleaningPayoutsOf,
@@ -34,6 +35,28 @@ export class ReadCashbook {
       this.movements.findByMonth(month),
     ]);
     return MonthlyCashbook.of(month, status === 'OPEN', rows);
+  }
+
+  /**
+   * The totals of several months at once, by month: one read however many months there are
+   * (the history keeps dozens open while it is checked against its paper).
+   */
+  async totalsOf(months: readonly YearMonth[]): Promise<Map<string, CashbookTotals>> {
+    const sorted = [...months].sort((a, b) => a.compareTo(b));
+    const first = sorted[0];
+    const last = sorted.at(-1);
+    if (!first || !last) return new Map();
+    const rows = await this.movements.findBetween(LocalDate.firstOf(first), LocalDate.lastOf(last));
+    return new Map(
+      sorted.map((month) => {
+        const book = MonthlyCashbook.of(
+          month,
+          false,
+          rows.filter((row) => row.month.equals(month)),
+        );
+        return [String(month), book.totals()];
+      }),
+    );
   }
 
   /** The month's garbage weeks: paid, pending (a suggestion) or upcoming. */

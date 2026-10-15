@@ -1,99 +1,106 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { Actor, Money, YearMonth } from '../../../shared-kernel/index.js';
-import { GetReportingStart } from '../../reports/application/index.js';
 import {
-  type HistoricalBooks,
-  type HistoricalMovement,
-  HISTORY_REPOSITORY,
-  type HistoryRepository,
+  type Actor,
+  type Money,
+  NotFoundError,
+  WriteAccessPolicy,
+  type YearMonth,
+} from '../../../shared-kernel/index.js';
+import { GetMonthHistory, type MonthHistoryEntry } from '../../reports/application/index.js';
+import {
+  type MonthFigures,
   type MonthReview,
-  type PaperSheet,
-  reviewHistory,
+  PAPER_SHEET_REPOSITORY,
+  type PaperSheetRepository,
+  reviewMonth,
 } from '../domain/index.js';
-import { HistoryAccess } from './history-access.js';
 
-/** Where the live books take over from the history. */
-export interface Cutover {
-  /** The first month of the live books. */
-  readonly month: YearMonth;
-  /** The cash on hand the superadmin captured for it. */
-  readonly openingBalance: Money;
-  /**
-   * The captured cash minus what the history closes with; zero when they agree. Null when
-   * months lie between the two, so there is nothing to compare.
-   */
-  readonly difference: Money | null;
-}
-
+/** The history's months next to their paper: what the superadmin checks before closing them. */
 export interface HistoryReview {
-  readonly books: HistoricalBooks;
-  readonly months: readonly MonthReview[];
-  /** What the history's last month closes with. */
+  readonly firstMonth: YearMonth;
+  readonly lastMonth: YearMonth;
+  /** The first month kept live, which opens with what the history closes with. */
+  readonly cutover: YearMonth;
+  readonly openingBalance: Money;
+  /** What the last month closes with. */
   readonly closing: Money;
-  /** Null until the live books have a start. */
-  readonly cutover: Cutover | null;
+  readonly months: readonly {
+    readonly review: MonthReview;
+    /** Closing a month of the history is checking it against its paper. */
+    readonly status: MonthHistoryEntry['status'];
+  }[];
 }
 
-/** The whole history added up, and how it meets the live books. */
-export function reviewOf(
-  books: HistoricalBooks,
-  sheets: readonly PaperSheet[],
-  movements: readonly HistoricalMovement[],
-  start: { readonly month: YearMonth; readonly openingBalance: Money } | null,
-): HistoryReview {
-  const months = reviewHistory(books, sheets, movements);
-  const closing = months.at(-1)?.closing ?? books.openingBalance;
-  const cutover = start && {
-    month: start.month,
-    openingBalance: start.openingBalance,
-    difference: start.month.equals(books.lastMonth.next())
-      ? start.openingBalance.minus(closing)
-      : null,
-  };
-  return { books, months, closing, cutover };
+const figuresOf = (entry: MonthHistoryEntry): MonthFigures => ({
+  month: entry.month,
+  opening: entry.openingBalance,
+  income: entry.income,
+  expense: entry.expense,
+  closing: entry.closingBalance,
+});
+
+/** The months of the history in order, as the books add them up; none without a history. */
+async function historyMonths(months: GetMonthHistory, actor: Actor): Promise<MonthHistoryEntry[]> {
+  const { months: entries } = await months.execute(actor);
+  return entries.filter((entry) => entry.historical).reverse();
 }
 
+/** The whole history next to its paper, for the superadmin; null without one. */
 @Injectable()
 export class GetHistory {
+  private readonly policy = new WriteAccessPolicy();
+
   constructor(
-    @Inject(HISTORY_REPOSITORY) private readonly history: HistoryRepository,
-    private readonly access: HistoryAccess,
-    private readonly start: GetReportingStart,
+    @Inject(PAPER_SHEET_REPOSITORY) private readonly sheets: PaperSheetRepository,
+    private readonly months: GetMonthHistory,
   ) {}
 
-  /** Null while no history has been imported. */
   async execute(actor: Actor): Promise<HistoryReview | null> {
-    const books = await this.access.find(actor);
-    if (!books) return null;
-    const [sheets, movements, start] = await Promise.all([
-      this.history.findSheets(),
-      this.history.findMovements(),
-      this.start.execute(),
+    this.policy.assertCanAdminister(actor);
+    const [entries, sheets] = await Promise.all([
+      historyMonths(this.months, actor),
+      this.sheets.findSheets(),
     ]);
-    return reviewOf(books, sheets, movements, start);
+    const first = entries[0];
+    const last = entries.at(-1);
+    if (!first || !last) return null;
+    return {
+      firstMonth: first.month,
+      lastMonth: last.month,
+      cutover: last.month.next(),
+      openingBalance: first.openingBalance,
+      closing: last.closingBalance,
+      months: entries.map((entry) => ({
+        review: reviewMonth(figuresOf(entry), sheets),
+        status: entry.status,
+      })),
+    };
   }
 }
 
+/** One month of the history next to its sheets. Everyone may read it, like its report. */
 @Injectable()
-export class GetHistoricalMonth {
+export class GetPaperMonth {
   constructor(
-    @Inject(HISTORY_REPOSITORY) private readonly history: HistoryRepository,
-    private readonly access: HistoryAccess,
+    @Inject(PAPER_SHEET_REPOSITORY) private readonly sheets: PaperSheetRepository,
+    private readonly months: GetMonthHistory,
   ) {}
 
-  /** The month with its sheets and rows, and the books' state (whether it can change). */
   async execute(
     actor: Actor,
     month: YearMonth,
-  ): Promise<{ books: HistoricalBooks; month: MonthReview }> {
-    const books = await this.access.forReading(actor);
-    books.assertCovers(month);
-    // Its opening balance carries every earlier month, so all of them are added up.
-    const [sheets, movements] = await Promise.all([
-      this.history.findSheets(),
-      this.history.findMovements(),
+  ): Promise<{ review: MonthReview; canEdit: boolean }> {
+    const [entries, sheets] = await Promise.all([
+      historyMonths(this.months, actor),
+      this.sheets.findSheets(month),
     ]);
-    const review = reviewHistory(books, sheets, movements).find((m) => m.month.equals(month));
-    return { books, month: review! };
+    const entry = entries.find((candidate) => candidate.month.equals(month));
+    if (!entry) {
+      throw new NotFoundError('MONTH_NOT_HISTORY', `${month} is not a month of the history`);
+    }
+    return {
+      review: reviewMonth(figuresOf(entry), sheets),
+      canEdit: actor.role === 'SUPERADMIN' && entry.status === 'OPEN',
+    };
   }
 }

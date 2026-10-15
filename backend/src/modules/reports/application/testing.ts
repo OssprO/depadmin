@@ -2,7 +2,7 @@
 // Excluded from the build.
 import { FakeUnitOfWork, RecordingAuditTrail } from '../../../../test/support/audit-trail.js';
 import { FixedClock } from '../../../../test/support/clock.js';
-import { FakeHistoryBoundary } from '../../../../test/support/history-boundary.js';
+import { FakePaperRecord } from '../../../../test/support/paper-record.js';
 import type { YearMonthRange } from '../../../shared-kernel/index.js';
 import {
   ChargeMaintenanceFees,
@@ -14,9 +14,15 @@ import {
   InMemoryChargeRepository,
   InMemoryOpeningCreditRepository,
 } from '../../billing/application/testing.js';
-import { AddMovement, CashbookAccess, ReadCashbook } from '../../cashbook/application/index.js';
+import {
+  AddMovement,
+  CashbookAccess,
+  ImportMovements,
+  ReadCashbook,
+} from '../../cashbook/application/index.js';
 import { InMemoryCashMovementRepository } from '../../cashbook/application/testing.js';
-import { initialRates } from '../../settings/application/testing.js';
+import { GetRates, RecordEarlierRates } from '../../settings/application/index.js';
+import { initialRateSettings } from '../../settings/application/testing.js';
 import { LoadShiftCalendar } from '../../shifts/application/index.js';
 import { InMemoryShiftDelegationRepository } from '../../shifts/application/testing.js';
 import { ListUnits } from '../../units/application/index.js';
@@ -40,7 +46,7 @@ import {
   type ReportRenderer,
 } from './report-document.js';
 import { ReportMonthLedger } from './report-month-ledger.js';
-import { GetReportingStart, SetReportingStart } from './reporting-start.js';
+import { GetReportingStart, SetReportingStart, StartBooksWithHistory } from './reporting-start.js';
 
 export class InMemoryReportRepository implements ReportRepository {
   private start: ReportingStart | null = null;
@@ -76,9 +82,9 @@ export class InMemoryReportRepository implements ReportRepository {
 export class RecordingReportRenderer implements ReportRenderer {
   readonly documents: ReportDocument[] = [];
 
-  render(document: ReportDocument): Promise<Uint8Array> {
-    this.documents.push(document);
-    return Promise.resolve(new TextEncoder().encode(String(document.month)));
+  render(documents: readonly ReportDocument[]): Promise<Uint8Array> {
+    this.documents.push(...documents);
+    return Promise.resolve(new TextEncoder().encode(String(documents[0]?.month)));
   }
 }
 
@@ -96,11 +102,13 @@ export function booksFixture(
   const movements = new InMemoryCashMovementRepository();
   const charges = new InMemoryChargeRepository();
   const credits = new InMemoryOpeningCreditRepository();
-  const units = new ListUnits(buildingWith(inactive, owners));
-  const rates = initialRates();
+  const unitRepository = buildingWith(inactive, owners);
+  const units = new ListUnits(unitRepository);
+  const rateSettings = initialRateSettings();
+  const rates = new GetRates(rateSettings);
   const calendars = new LoadShiftCalendar(new InMemoryShiftDelegationRepository(), units);
   const cashbook = new ReadCashbook(movements, ledger);
-  const accounts = new GetAccounts(new GetAccountStatements(charges, credits), cashbook);
+  const accounts = new GetAccounts(new GetAccountStatements(charges, credits), cashbook, reports);
   const openingBalances = new ListOpeningBalances(charges, credits);
   const opening = new MonthOpening(
     reports,
@@ -109,15 +117,26 @@ export function booksFixture(
     new ChargeMaintenanceFees(charges, unitOfWork, audit, rates, units),
   );
   const renderer = new RecordingReportRenderer();
-  const pastHistory = new FakeHistoryBoundary();
+  const paper = new FakePaperRecord();
+  const access = new CashbookAccess(movements, ledger, clock, calendars);
   return {
     clock,
+    unitOfWork,
     audit,
+    reports,
+    ledger,
+    unitRepository,
+    rateSettings,
+    access,
     renderer,
     charges,
     accounts,
-    pastHistory,
-    setStart: new SetReportingStart(reports, unitOfWork, audit, openingBalances, pastHistory),
+    paper,
+    movements,
+    setStart: new SetReportingStart(reports, unitOfWork, audit, openingBalances),
+    startWithHistory: new StartBooksWithHistory(reports, unitOfWork, clock),
+    earlierRates: new RecordEarlierRates(rateSettings, unitOfWork),
+    importRows: new ImportMovements(movements, unitOfWork, access),
     getOpening: new GetOpeningBalances(reports, openingBalances),
     setOpening: new SetOpeningBalance(
       reports,
@@ -129,13 +148,17 @@ export function booksFixture(
     close: new CloseMonth(reports, unitOfWork, audit, clock, calendars, cashbook),
     reopen: new ReopenMonth(reports, unitOfWork, audit),
     history: new GetMonthHistory(reports, clock, cashbook, calendars),
-    pdf: new RenderMonthlyReport(reports, renderer, clock, cashbook, accounts, calendars, rates),
-    add: new AddMovement(
-      movements,
-      unitOfWork,
-      audit,
-      new CashbookAccess(movements, ledger, clock, calendars),
+    pdf: new RenderMonthlyReport(
+      reports,
+      renderer,
+      clock,
+      cashbook,
+      accounts,
+      calendars,
+      rates,
+      paper,
     ),
+    add: new AddMovement(movements, unitOfWork, audit, access),
     view: new GetMonthlyReport(reports, clock, cashbook, accounts, calendars, rates),
   };
 }

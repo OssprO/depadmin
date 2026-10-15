@@ -23,7 +23,7 @@ function liveBook(initial: Record<string, MonthTotals>): {
   };
 }
 
-const start = { month: m('2026-08'), openingBalance: pesos(10_000) };
+const start = { month: m('2026-08'), openingBalance: pesos(10_000), cutover: m('2026-08') };
 /** A day after every month these specs close. */
 const later = LocalDate.parse('2026-11-01');
 const balances = (ledger: ReportLedger, month: string, live: LiveTotals) => {

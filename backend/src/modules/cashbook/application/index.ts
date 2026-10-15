@@ -10,4 +10,4 @@ export type {
   WeeklyCleaningPayout,
 } from '../domain/index.js';
 // Pure helpers other modules apply to the rows they read.
-export { weeklyCleaningPayouts, weeksWithinBooks } from '../domain/index.js';
+export { totalsOf, weeklyCleaningPayouts, weeksWithinBooks } from '../domain/index.js';

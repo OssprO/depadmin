@@ -63,7 +63,7 @@ export class GetShiftCalendar {
    * that follows theirs while they can still act on it.
    */
   private canDelegate(actor: Actor, assignment: ShiftAssignment, calendar: ShiftCalendar): boolean {
-    if (assignment.delegation) return false;
+    if (assignment.delegation || assignment.beforeRotation) return false;
     if (actor.role === 'SUPERADMIN') return true;
     const { month, period, scheduledUnitActive } = assignment;
     if (!month.equals(period.start) || !scheduledUnitActive) return false;

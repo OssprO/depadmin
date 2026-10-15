@@ -1,20 +1,25 @@
 import {
   auditLogPageSchema,
   type HistoryFile,
-  historicalMonthSchema,
   historyPreviewSchema,
   historyStateSchema,
+  monthlyReportSchema,
+  paperMonthSchema,
   problemDetailsSchema,
+  reportingStartResponseSchema,
   unitSchema,
 } from '@depadmin/shared';
 import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { LocalDate } from '../src/shared-kernel/index.js';
+import { RateSettings } from '../src/modules/settings/domain/index.js';
+import { PrismaRateSettingsRepository } from '../src/modules/settings/infrastructure/prisma-rate-settings.repository.js';
 import { givenAccounts, tokenFor } from './support/accounts.js';
 import { useTestApp } from './support/app.js';
 import { FixedClock } from './support/clock.js';
 import { useTestDatabase } from './support/database.js';
 
-useTestDatabase();
+const ctx = useTestDatabase();
 const api = useTestApp({ clock: FixedClock.on('2026-10-02') });
 const http = () => request(api.app.getHttpServer());
 
@@ -22,6 +27,10 @@ let admin: string;
 let owner501: string;
 
 beforeEach(async () => {
+  // As the seed leaves them: the import adds the history's rates before these.
+  await new PrismaRateSettingsRepository(ctx.database).save(
+    RateSettings.startingOn(LocalDate.of(2026, 8, 1)),
+  );
   await givenAccounts(api.database, [501]);
   [admin, owner501] = await Promise.all([tokenFor(api.app, 'admin'), tokenFor(api.app, '501')]);
 });
@@ -64,7 +73,9 @@ function file(): HistoryFile {
       expense: 15000,
       closing: 116225,
       alerts: ['Cuota de $600 más $100 de administración'],
-      notes: [{ unit: 301, text: 'PAGÓ EN JULIO 2022' }],
+      lines: [
+        { unit: 301, ownerName: null, current: null, other: null, text: 'PAGÓ EN JULIO 2022' },
+      ],
     },
   ];
   months[0]!.movements = [
@@ -86,10 +97,13 @@ function file(): HistoryFile {
     },
   ];
   return {
-    version: 1,
+    version: 2,
     openingBalance: 71225,
     months,
     owners: [{ unit: 101, name: 'NOMBRE DE PRUEBA' }],
+    rates: (
+      ['maintenanceFee', 'cleaningPerVisit', 'garbageWeekly', 'shiftSkipPenalty'] as const
+    ).map((rate) => ({ rate, effectiveFrom: '2022-05-01', amount: 20000 })),
   };
 }
 
@@ -98,10 +112,15 @@ const state = async () =>
     (await http().get('/api/history').auth(admin, { type: 'bearer' }).expect(200)).body,
   ).history;
 
-const month = async (value: string) =>
-  historicalMonthSchema.parse(
-    (await http().get(`/api/history/months/${value}`).auth(admin, { type: 'bearer' }).expect(200))
+const paperMonth = async (value: string, token = admin) =>
+  paperMonthSchema.parse(
+    (await http().get(`/api/history/months/${value}`).auth(token, { type: 'bearer' }).expect(200))
       .body,
+  );
+
+const book = async (value: string) =>
+  monthlyReportSchema.parse(
+    (await http().get(`/api/months/${value}`).auth(admin, { type: 'bearer' }).expect(200)).body,
   );
 
 /** The audit log is never truncated, so a spec reads only what it wrote after `newestId`. */
@@ -118,8 +137,22 @@ const newestAuditId = async () =>
     (await http().get('/api/audit-log?limit=1').auth(admin, { type: 'bearer' }).expect(200)).body,
   ).entries[0]?.id ?? null;
 
+const imported = () =>
+  http().post('/api/history').auth(admin, { type: 'bearer' }).send(file()).expect(204);
+
+const sheetBody = {
+  fromDay: 1,
+  source: 'foto nueva',
+  opening: null,
+  income: null,
+  expense: null,
+  closing: null,
+  alerts: [],
+  lines: [],
+};
+
 describe('history API', () => {
-  it('previews and imports a file larger than the default body limit, outside the audit log', async () => {
+  it('starts the books with a file larger than the default body limit, outside the audit log', async () => {
     const body = file();
     expect(JSON.stringify(body).length).toBeGreaterThan(100_000);
 
@@ -135,7 +168,8 @@ describe('history API', () => {
     expect(preview).toMatchObject({
       firstMonth: '2022-05',
       lastMonth: '2025-04',
-      status: 'IN_REVIEW',
+      cutover: '2025-05',
+      movements: 36 * 28 + 2 - 28,
     });
     expect(preview.months[0]).toMatchObject({ closing: 116225, ownGap: 0, carriedGap: 0 });
     expect(await state()).toBeNull();
@@ -143,17 +177,19 @@ describe('history API', () => {
     const before = await newestAuditId();
     await http().post('/api/history').auth(admin, { type: 'bearer' }).send(body).expect(204);
     expect((await state())!.months).toHaveLength(36);
+    expect(
+      reportingStartResponseSchema.parse(
+        (await http().get('/api/reporting-start').auth(admin, { type: 'bearer' }).expect(200)).body,
+      ).start,
+    ).toEqual({ month: '2022-05', openingBalance: 71225, cutover: '2025-05' });
 
-    const may = await month('2022-05');
-    expect(may).toMatchObject({
-      canEdit: true,
-      previous: null,
-      next: '2022-06',
-      paperIncome: 60000,
-      paperExpense: 15000,
-    });
-    expect(may.sheets[0]!.notes).toEqual([{ unit: 301, text: 'PAGÓ EN JULIO 2022' }]);
+    const may = await book('2022-05');
+    expect(may).toMatchObject({ status: 'OPEN', historical: true, canWrite: true });
     expect(may.movements.map((row) => row.category)).toEqual(['UNIT_PAYMENT', 'GARBAGE']);
+    expect(may.suggestions?.cleaningPerVisit).toBe(20000);
+    const paper = await paperMonth('2022-05', owner501);
+    expect(paper).toMatchObject({ canEdit: false, paperIncome: 60000, paperExpense: 15000 });
+    expect(paper.sheets[0]!.lines[0]).toMatchObject({ unit: 301, text: 'PAGÓ EN JULIO 2022' });
 
     const units = unitSchema
       .array()
@@ -166,11 +202,11 @@ describe('history API', () => {
     expectProblem(
       await http().post('/api/history').auth(admin, { type: 'bearer' }).send(body),
       409,
-      'HISTORY_ALREADY_IMPORTED',
+      'BOOKS_ALREADY_STARTED',
     );
   });
 
-  it('is for the superadmin only', async () => {
+  it('is imported and reviewed by the superadmin only', async () => {
     expectProblem(
       await http().get('/api/history').auth(owner501, { type: 'bearer' }),
       403,
@@ -187,15 +223,16 @@ describe('history API', () => {
     const response = await http()
       .post('/api/history/preview')
       .auth(admin, { type: 'bearer' })
-      .send({ ...file(), version: 2 });
+      .send({ ...file(), version: 1 });
     expectProblem(response, 400, 'VALIDATION_FAILED');
   });
 
-  it('corrects rows and sheets while in review, and discards it to import again', async () => {
-    await http().post('/api/history').auth(admin, { type: 'bearer' }).send(file()).expect(204);
+  it('corrects its rows through the cashbook and its sheets, all outside the audit log', async () => {
+    await imported();
+    const before = await newestAuditId();
 
     const added = await http()
-      .post('/api/history/movements')
+      .post('/api/movements')
       .auth(admin, { type: 'bearer' })
       .send({
         date: '2022-06-30',
@@ -207,24 +244,11 @@ describe('history API', () => {
       })
       .expect(201);
     const id = (added.body as { id: string }).id;
-    await http()
-      .put(`/api/history/movements/${id}`)
-      .auth(admin, { type: 'bearer' })
-      .send({
-        date: '2022-06-13',
-        category: 'OTHER_EXPENSE',
-        amount: 51100,
-        unit: null,
-        description: 'PAGO DE LUZ',
-        week: null,
-      })
-      .expect(204);
-    expect((await month('2022-06')).movements.find((row) => row.id === id)).toMatchObject({
-      date: '2022-06-13',
-      description: 'PAGO DE LUZ',
+    expect((await book('2022-06')).movements.find((row) => row.id === id)).toMatchObject({
+      description: 'LUZ',
     });
     expectProblem(
-      await http().post('/api/history/movements').auth(admin, { type: 'bearer' }).send({
+      await http().post('/api/movements').auth(admin, { type: 'bearer' }).send({
         date: '2022-05-13',
         category: 'GARBAGE',
         amount: 15000,
@@ -235,71 +259,72 @@ describe('history API', () => {
       409,
       'GARBAGE_WEEK_PAID',
     );
-    await http().delete(`/api/history/movements/${id}`).auth(admin, { type: 'bearer' }).expect(204);
+    await http().delete(`/api/movements/${id}`).auth(admin, { type: 'bearer' }).expect(204);
 
     const sheet = await http()
       .post('/api/history/sheets')
       .auth(admin, { type: 'bearer' })
-      .send({
-        month: '2022-10',
-        fromDay: 1,
-        source: 'foto nueva',
-        opening: null,
-        income: null,
-        expense: null,
-        closing: null,
-        alerts: [],
-        notes: [],
-      })
+      .send({ ...sheetBody, month: '2022-10' })
       .expect(201);
     const sheetId = (sheet.body as { id: string }).id;
     await http()
       .put(`/api/history/sheets/${sheetId}`)
       .auth(admin, { type: 'bearer' })
       .send({
-        fromDay: 1,
-        source: 'foto nueva',
+        ...sheetBody,
         opening: 403885,
-        income: null,
-        expense: null,
         closing: 709285,
-        alerts: [],
-        notes: [],
+        lines: [{ unit: 202, ownerName: 'NOMBRE', current: 70000, other: null, text: '' }],
       })
       .expect(204);
-    expect((await month('2022-10')).sheets[0]).toMatchObject({ opening: 403885, closing: 709285 });
+    expect((await paperMonth('2022-10')).sheets[0]).toMatchObject({
+      opening: 403885,
+      closing: 709285,
+      lines: [{ unit: 202, ownerName: 'NOMBRE', current: 70000, other: null, text: '' }],
+    });
+    expectProblem(
+      await http()
+        .post('/api/history/sheets')
+        .auth(owner501, { type: 'bearer' })
+        .send({ ...sheetBody, month: '2022-10', fromDay: 11 }),
+      403,
+      'SUPERADMIN_ONLY',
+    );
     await http()
       .delete(`/api/history/sheets/${sheetId}`)
       .auth(admin, { type: 'bearer' })
       .expect(204);
 
-    await http().delete('/api/history').auth(admin, { type: 'bearer' }).expect(204);
-    expect(await state()).toBeNull();
-    await http().post('/api/history').auth(admin, { type: 'bearer' }).send(file()).expect(204);
+    expect(await auditActionsSince(before)).toEqual([]);
   });
 
-  it('keeps the live books after the history, and shows how the two meet', async () => {
-    await http().post('/api/history').auth(admin, { type: 'bearer' }).send(file()).expect(204);
+  it('prints a month of the history, and is checked by closing its months, in order', async () => {
+    await imported();
+    const pdf = await http()
+      .get('/api/months/2022-05/report.pdf')
+      .auth(owner501, { type: 'bearer' })
+      .expect(200);
+    expect(pdf.headers['content-type']).toContain('application/pdf');
 
+    const before = await newestAuditId();
+    await http().post('/api/months/2022-05/close').auth(admin, { type: 'bearer' }).expect(204);
+    expect(await auditActionsSince(before)).toEqual(['MONTH_CLOSED']);
     expectProblem(
       await http()
-        .put('/api/reporting-start')
+        .post('/api/history/sheets')
         .auth(admin, { type: 'bearer' })
-        .send({ month: '2025-04', openingBalance: 0 }),
+        .send({ ...sheetBody, month: '2022-05', fromDay: 11 }),
       409,
-      'HISTORY_OVERLAPS_BOOKS',
+      'MONTH_CLOSED',
     );
-    await http()
-      .put('/api/reporting-start')
-      .auth(admin, { type: 'bearer' })
-      .send({ month: '2025-05', openingBalance: 100000 })
-      .expect(204);
 
-    const history = (await state())!;
-    expect(history.cutover).toEqual({
-      month: '2025-05',
-      openingBalance: 100000,
-      difference: 100000 - history.closing,
-    });
+    // The cut-over opens with what the history closes with, and charges its fees.
+    await http().post('/api/months/2025-05/open').auth(admin, { type: 'bearer' }).expect(200);
+    expect((await book('2025-05')).balances?.opening).toBe((await state())!.closing);
+    expectProblem(
+      await http().post('/api/months/2025-05/close').auth(admin, { type: 'bearer' }),
+      409,
+      'PREVIOUS_MONTH_OPEN',
+    );
   });
 });

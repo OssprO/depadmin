@@ -41,7 +41,7 @@ export const money = (amount: Money): string => currency.format(amount.centavos 
 /** As the observations write amounts: "2,100", "600.50". */
 export const amount = (value: Money): string => plain.format(value.centavos / 100);
 
-const monthName = (month: YearMonth) => MONTHS[month.month - 1] ?? '';
+export const monthName = (month: YearMonth): string => MONTHS[month.month - 1] ?? '';
 
 /** "ABRIL 2026". */
 export const monthTitle = (month: YearMonth): string => `${monthName(month)} ${month.year}`;

@@ -1,9 +1,15 @@
 import { z } from 'zod';
-import { centavosSchema, movementRequestSchema, movementSchema } from './books.js';
-import { OWNER_NAME_MAX_LENGTH, unitNumberSchema, yearMonthSchema } from './units.js';
+import { centavosSchema, monthStatusSchema, movementRequestSchema } from './books.js';
+import {
+  localDateSchema,
+  OWNER_NAME_MAX_LENGTH,
+  unitNumberSchema,
+  yearMonthSchema,
+} from './units.js';
 
-// The building's history: the months before the platform, transcribed from the paper
-// sheets (ADR-0022). Only the superadmin sees and edits it while it is in review.
+// The building's history (ADR-0023): the months from the start of the books to the cut-over,
+// transcribed from the paper sheets. They are ordinary months of the books; what is kept
+// apart is each sheet, to check the month against it and to print its report like it.
 
 export const SHEET_SOURCE_MAX_LENGTH = 200;
 export const SHEET_TEXT_MAX_LENGTH = 500;
@@ -11,6 +17,22 @@ export const SHEET_TEXT_MAX_LENGTH = 500;
 const sheetText = z
   .string()
   .max(SHEET_TEXT_MAX_LENGTH, `Usa como máximo ${SHEET_TEXT_MAX_LENGTH} caracteres`);
+
+const paidAmount = centavosSchema.nonnegative('No puede ser negativo').nullable();
+
+/**
+ * A depto's line on the sheet, as written: the owner it names, what it paid towards the
+ * month (MES EN CURSO) and towards debts or ahead (ADEUDOS/ADELANTOS), and its OBSERVACIONES.
+ * Null where the paper leaves it blank or does not split it.
+ */
+export const paperLineSchema = z.object({
+  unit: unitNumberSchema,
+  ownerName: z.string().trim().max(OWNER_NAME_MAX_LENGTH).nullable(),
+  current: paidAmount,
+  other: paidAmount,
+  text: sheetText,
+});
+export type PaperLine = z.infer<typeof paperLineSchema>;
 
 /** A paper sheet as it is sent: what the paper says. Null where it is missing or unreadable. */
 export const sheetRequestSchema = z.object({
@@ -28,13 +50,13 @@ export const sheetRequestSchema = z.object({
   closing: centavosSchema.nullable(),
   /** Transcription remarks. */
   alerts: z.array(sheetText).max(50),
-  /** The OBSERVACIONES column: at most one per depto. */
-  notes: z
-    .array(z.object({ unit: unitNumberSchema, text: sheetText }))
+  /** One line per depto at most. */
+  lines: z
+    .array(paperLineSchema)
     .max(10)
     .refine(
-      (notes) => new Set(notes.map((note) => note.unit)).size === notes.length,
-      'Una observación por depto',
+      (lines) => new Set(lines.map((line) => line.unit)).size === lines.length,
+      'Un renglón por depto',
     ),
 });
 export type SheetRequest = z.infer<typeof sheetRequestSchema>;
@@ -43,11 +65,20 @@ export type SheetRequest = z.infer<typeof sheetRequestSchema>;
 export const addSheetRequestSchema = sheetRequestSchema.extend({ month: yearMonthSchema });
 export type AddSheetRequest = z.infer<typeof addSheetRequestSchema>;
 
-export const HISTORY_FILE_VERSION = 1;
+export const rateNameSchema = z.enum([
+  'maintenanceFee',
+  'cleaningPerVisit',
+  'garbageWeekly',
+  'shiftSkipPenalty',
+]);
+export type RateNameValue = z.infer<typeof rateNameSchema>;
+
+export const HISTORY_FILE_VERSION = 2;
 
 /**
  * The import file (`historial.json`), produced by the transcription script. `POST
- * /api/history/preview` checks it and adds it up; `POST /api/history` brings it in.
+ * /api/history/preview` checks it and adds it up; `POST /api/history` starts the books with
+ * it. A month without paper may be left out: it comes in empty.
  */
 export const historyFileSchema = z.object({
   version: z.literal(HISTORY_FILE_VERSION, { error: 'Versión de archivo desconocida' }),
@@ -72,11 +103,18 @@ export const historyFileSchema = z.object({
       }),
     )
     .max(10),
+  /** The rates in force in the history, to prefill its forms (it charges no fees). */
+  rates: z
+    .array(
+      z.object({
+        rate: rateNameSchema,
+        effectiveFrom: localDateSchema,
+        amount: centavosSchema.positive(),
+      }),
+    )
+    .max(40),
 });
 export type HistoryFile = z.infer<typeof historyFileSchema>;
-
-export const historyStatusSchema = z.enum(['IN_REVIEW', 'VERIFIED']);
-export type HistoryStatus = z.infer<typeof historyStatusSchema>;
 
 /** A month's figures: its rows added up, and how they compare with its paper. */
 const monthFiguresSchema = z.object({
@@ -99,54 +137,45 @@ const monthFiguresSchema = z.object({
 });
 
 export const historyMonthSummarySchema = monthFiguresSchema.extend({
+  /** Closing a month of the history is checking it against its paper. */
+  status: monthStatusSchema.exclude(['NOT_OPENED']),
   sheets: z.number().int(),
-  movements: z.number().int(),
   alerts: z.number().int(),
 });
 export type HistoryMonthSummary = z.infer<typeof historyMonthSummarySchema>;
 
 export const historySummarySchema = z.object({
-  status: historyStatusSchema,
   firstMonth: yearMonthSchema,
   lastMonth: yearMonthSchema,
+  /** The first month kept live: it opens with what the history closes with. */
+  cutover: yearMonthSchema,
   openingBalance: centavosSchema,
   /** What the last month closes with. */
   closing: centavosSchema,
   months: z.array(historyMonthSummarySchema),
-  /** Where the live books take over; null until they have a start. */
-  cutover: z
-    .object({
-      month: yearMonthSchema,
-      openingBalance: centavosSchema,
-      /** The captured cash minus the history's closing; null when months lie between. */
-      difference: centavosSchema.nullable(),
-    })
-    .nullable(),
 });
 export type HistorySummary = z.infer<typeof historySummarySchema>;
 
-/** `GET /api/history`: null until a history is imported. */
+/** `GET /api/history`: null while the books do not start with a history. */
 export const historyStateSchema = z.object({ history: historySummarySchema.nullable() });
 
 /** `POST /api/history/preview`: what the file would bring in. */
 export const historyPreviewSchema = historySummarySchema.extend({
   owners: z.array(z.object({ unit: unitNumberSchema, name: z.string() })),
+  movements: z.number().int(),
 });
 export type HistoryPreview = z.infer<typeof historyPreviewSchema>;
 
-export const historicalSheetSchema = sheetRequestSchema.extend({
+export const paperSheetSchema = sheetRequestSchema.extend({
   id: z.uuid(),
   month: yearMonthSchema,
 });
-export type HistoricalSheet = z.infer<typeof historicalSheetSchema>;
+export type PaperSheet = z.infer<typeof paperSheetSchema>;
 
-/** `GET /api/history/months/:month`. Its rows have no coverage (no accounts in the history). */
-export const historicalMonthSchema = monthFiguresSchema.extend({
-  /** In review: rows and sheets can be corrected. */
+/** `GET /api/history/months/:month`: the month next to its paper, with its sheets. */
+export const paperMonthSchema = monthFiguresSchema.extend({
+  /** The month is open and the caller is the superadmin: its sheets can be corrected. */
   canEdit: z.boolean(),
-  previous: yearMonthSchema.nullable(),
-  next: yearMonthSchema.nullable(),
-  sheets: z.array(historicalSheetSchema),
-  movements: z.array(movementSchema),
+  sheets: z.array(paperSheetSchema),
 });
-export type HistoricalMonth = z.infer<typeof historicalMonthSchema>;
+export type PaperMonth = z.infer<typeof paperMonthSchema>;

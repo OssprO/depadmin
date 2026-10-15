@@ -13,7 +13,11 @@ export interface ShiftAnchor {
   readonly unit: UnitNumber;
 }
 
-/** August and September 2026 belong to depto 501 (spec 4.5). */
+/**
+ * August and September 2026 belong to depto 501 (spec 4.5). The rotation begins there: the
+ * administration roster before it was another, and the paper does not say who held each
+ * month, so the months before have no shift (ADR-0023).
+ */
 export const DEFAULT_ANCHOR: ShiftAnchor = {
   month: YearMonth.of(2026, 8),
   unit: UnitNumber.of(501),
@@ -52,6 +56,11 @@ export class ShiftRotation {
         `Anchor depto ${anchor.unit} is not in the rotation`,
       );
     }
+  }
+
+  /** The first month of the rotation; earlier months belong to nobody. */
+  get firstMonth(): YearMonth {
+    return this.anchor.month;
   }
 
   periodFor(month: YearMonth): ShiftPeriod {

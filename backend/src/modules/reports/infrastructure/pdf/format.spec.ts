@@ -68,6 +68,7 @@ function line(month: string, overrides: Partial<UnitReportLine> = {}): UnitRepor
     owed: [],
     outstanding: Money.ZERO,
     credit: Money.ZERO,
+    paper: null,
     ...overrides,
   };
 }

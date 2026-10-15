@@ -3,34 +3,37 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   type Actor,
   ConflictError,
-  type Money,
+  Money,
   type MovementDetails,
+  signedAmountOf,
   UNIT_OF_WORK,
   type UnitNumber,
   type UnitOfWork,
+  validateMovement,
   ValidationError,
   WriteAccessPolicy,
   type YearMonth,
 } from '../../../shared-kernel/index.js';
-import { GetReportingStart } from '../../reports/application/index.js';
+import { ImportMovements } from '../../cashbook/application/index.js';
+import { GetReportingStart, StartBooksWithHistory } from '../../reports/application/index.js';
+import { type EarlierRate, RecordEarlierRates } from '../../settings/application/index.js';
 import { RenameUnitOwner } from '../../units/application/index.js';
 import {
   assertNewSheetDay,
-  assertWeekUnpaid,
-  HistoricalBooks,
-  HistoricalMovement,
-  HISTORY_REPOSITORY,
-  type HistoryRepository,
+  chainMonths,
+  PAPER_SHEET_REPOSITORY,
   PaperSheet,
+  type PaperSheetRepository,
+  reviewMonth,
   type SheetDetails,
 } from '../domain/index.js';
-import { HistoryAccess } from './history-access.js';
-import { type HistoryReview, reviewOf } from './review-history.js';
+import type { HistoryReview } from './review-history.js';
 
 /** The import file (`historial.json`), once its JSON has been checked and parsed. */
 export interface HistoryFile {
   /** Cash on hand when the first month began. */
   readonly openingBalance: Money;
+  /** The months with paper; one missing between two comes in empty. */
   readonly months: readonly {
     readonly month: YearMonth;
     readonly sheets: readonly Omit<SheetDetails, 'month'>[];
@@ -38,62 +41,112 @@ export interface HistoryFile {
   }[];
   /** Owners' names as the current administration roster lists them. */
   readonly owners: readonly { readonly unit: UnitNumber; readonly name: string }[];
+  /** The rates in force in the history. */
+  readonly rates: readonly EarlierRate[];
 }
 
 export interface ImportPreview extends HistoryReview {
   readonly owners: HistoryFile['owners'];
+  readonly movements: number;
 }
 
 interface History {
-  readonly books: HistoricalBooks;
-  readonly sheets: PaperSheet[];
-  readonly movements: HistoricalMovement[];
+  readonly months: readonly YearMonth[];
+  readonly cutover: YearMonth;
+  readonly sheets: readonly PaperSheet[];
+  readonly rows: readonly MovementDetails[];
 }
 
 /**
- * Turns the file into the history's objects, checking it as a whole: its months, every
- * sheet and row (same rules as the live books), rows dated in their month, one sheet per
- * starting day and each week's garbage paid once.
+ * Reads the file as a whole: its months, every sheet and row (the same rules as the books),
+ * rows dated in their month, one sheet per starting day and each week's garbage paid once.
+ * The history spans from its first month to its last, and the books go live after it.
  */
-function historyFrom(file: HistoryFile): History {
-  const months = [...file.months].sort((a, b) => a.month.compareTo(b.month));
-  if (months.length === 0) {
-    throw new ValidationError('HISTORY_FILE_INVALID', 'The file has no months');
-  }
-  months.forEach((entry, i) => {
-    if (i > 0 && entry.month.equals(months[i - 1]!.month)) {
+function historyOf(file: HistoryFile): History {
+  const entries = [...file.months].sort((a, b) => a.month.compareTo(b.month));
+  const first = entries[0];
+  const last = entries.at(-1);
+  if (!first || !last) throw new ValidationError('HISTORY_FILE_INVALID', 'The file has no months');
+  entries.forEach((entry, i) => {
+    if (i > 0 && entry.month.equals(entries[i - 1]!.month)) {
       throw new ValidationError('HISTORY_FILE_INVALID', `${entry.month} appears twice`);
     }
   });
-  const books = HistoricalBooks.start(months[0]!.month, months.at(-1)!.month, file.openingBalance);
   const sheets: PaperSheet[] = [];
-  const movements: HistoricalMovement[] = [];
-  const garbage: HistoricalMovement[] = [];
-  for (const { month, sheets: monthSheets, movements: rows } of months) {
+  const rows: MovementDetails[] = [];
+  const weeks = new Set<string>();
+  for (const { month, sheets: monthSheets, movements } of entries) {
     for (const details of monthSheets) {
       const sheet = PaperSheet.create(randomUUID(), { ...details, month });
       assertNewSheetDay(sheet, sheets);
       sheets.push(sheet);
     }
-    for (const details of rows) {
+    for (const details of movements) {
       if (!details.date.yearMonth.equals(month)) {
         throw new ValidationError(
           'HISTORY_FILE_INVALID',
           `A row dated ${details.date} is listed under ${month}`,
         );
       }
-      const movement = HistoricalMovement.record(randomUUID(), details);
-      assertWeekUnpaid(movement, garbage);
-      if (details.week) garbage.push(movement);
-      movements.push(movement);
+      const row = validateMovement(details);
+      if (row.week) {
+        if (weeks.has(String(row.week))) {
+          throw new ConflictError('GARBAGE_WEEK_PAID', `The week of ${row.week} is paid twice`);
+        }
+        weeks.add(String(row.week));
+      }
+      rows.push(row);
     }
   }
-  return { books, sheets, movements };
+  return {
+    months: first.month.through(last.month),
+    cutover: last.month.next(),
+    sheets,
+    rows,
+  };
+}
+
+/** The file added up the way the books will, month by month next to its paper. */
+function reviewOf(file: HistoryFile, history: History): HistoryReview {
+  const totals = new Map<string, { income: Money; expense: Money }>();
+  for (const month of history.months) {
+    const signed = history.rows
+      .filter((row) => row.date.yearMonth.equals(month))
+      .map(signedAmountOf);
+    totals.set(String(month), {
+      income: Money.sum(signed.filter((amount) => amount.isPositive())),
+      expense: Money.sum(signed.filter((amount) => amount.isNegative())).negate(),
+    });
+  }
+  const chained = chainMonths(history.months, file.openingBalance, (month) =>
+    totals.get(String(month))!,
+  );
+  return {
+    firstMonth: history.months[0]!,
+    lastMonth: history.months.at(-1)!,
+    cutover: history.cutover,
+    openingBalance: file.openingBalance,
+    closing: chained.at(-1)!.closing,
+    months: chained.map((figures) => ({
+      review: reviewMonth(figures, history.sheets),
+      status: 'OPEN',
+    })),
+  };
+}
+
+/** The books start with the history only while they have not started. */
+async function assertBooksNotStarted(start: GetReportingStart): Promise<void> {
+  if (await start.execute()) {
+    throw new ConflictError(
+      'BOOKS_ALREADY_STARTED',
+      'The books have already started; the history comes in only before them',
+    );
+  }
 }
 
 /**
  * Checks an import file and adds it up without saving anything, so the superadmin sees what
- * would come in (months, balances against the paper, the cut-over) before confirming.
+ * would come in (months, balances against the paper) before confirming.
  */
 @Injectable()
 export class PreviewHistoryImport {
@@ -103,65 +156,49 @@ export class PreviewHistoryImport {
 
   async execute(actor: Actor, file: HistoryFile): Promise<ImportPreview> {
     this.policy.assertCanAdminister(actor);
-    const { books, sheets, movements } = historyFrom(file);
-    const start = await this.start.execute();
-    if (start) books.assertEndsBefore(start.month);
-    return { ...reviewOf(books, sheets, movements, start), owners: file.owners };
+    const history = historyOf(file);
+    await assertBooksNotStarted(this.start);
+    return { ...reviewOf(file, history), owners: file.owners, movements: history.rows.length };
   }
 }
 
 /**
- * Brings the history in, all or nothing, under the superadmin. The months stay in review
- * and outside the audit log (ADR-0022). The owners' names are not history but the current
- * roster, so they are set through the units module, audited as any other change.
+ * Starts the books with the building's history, all or nothing (ADR-0023): from its first
+ * month and opening cash, every month of it open, its rows in the cashbook and its sheets
+ * beside them. None of it goes to the audit log, which starts at the cut-over. The owners'
+ * names are not history but the current roster, so they are set through the units module,
+ * audited as any other change.
  */
 @Injectable()
 export class ImportHistory {
   private readonly policy = new WriteAccessPolicy();
 
   constructor(
-    @Inject(HISTORY_REPOSITORY) private readonly history: HistoryRepository,
+    @Inject(PAPER_SHEET_REPOSITORY) private readonly sheets: PaperSheetRepository,
     @Inject(UNIT_OF_WORK) private readonly unitOfWork: UnitOfWork,
     private readonly start: GetReportingStart,
+    private readonly startBooks: StartBooksWithHistory,
+    private readonly earlierRates: RecordEarlierRates,
+    private readonly movements: ImportMovements,
     private readonly renameOwner: RenameUnitOwner,
   ) {}
 
-  async execute(actor: Actor, file: HistoryFile): Promise<HistoricalBooks> {
+  async execute(actor: Actor, file: HistoryFile): Promise<void> {
     this.policy.assertCanAdminister(actor);
-    const { books, sheets, movements } = historyFrom(file);
-    return this.unitOfWork.run(async () => {
-      if (await this.history.loadBooks()) {
-        throw new ConflictError(
-          'HISTORY_ALREADY_IMPORTED',
-          'A history is already in place; discard it before importing again',
-        );
-      }
-      const start = await this.start.execute();
-      if (start) books.assertEndsBefore(start.month);
-      await this.history.saveBooks(books);
-      await this.history.saveSheets(sheets);
-      await this.history.saveMovements(movements);
+    const history = historyOf(file);
+    await this.unitOfWork.run(async () => {
+      await assertBooksNotStarted(this.start);
+      await this.startBooks.execute(actor, {
+        month: history.months[0]!,
+        openingBalance: file.openingBalance,
+        cutover: history.cutover,
+      });
+      if (file.rates.length > 0) await this.earlierRates.execute(actor, file.rates);
+      await this.movements.execute(actor, history.rows);
+      await this.sheets.saveSheets(history.sheets);
       for (const { unit, name } of file.owners) {
         await this.renameOwner.execute(actor, unit, name);
       }
-      return books;
-    });
-  }
-}
-
-/** Deletes the whole history while it is in review, to import a corrected file. */
-@Injectable()
-export class DiscardHistory {
-  constructor(
-    @Inject(HISTORY_REPOSITORY) private readonly history: HistoryRepository,
-    @Inject(UNIT_OF_WORK) private readonly unitOfWork: UnitOfWork,
-    private readonly access: HistoryAccess,
-  ) {}
-
-  execute(actor: Actor): Promise<void> {
-    return this.unitOfWork.run(async () => {
-      await this.access.forWriting(actor);
-      await this.history.discard();
     });
   }
 }

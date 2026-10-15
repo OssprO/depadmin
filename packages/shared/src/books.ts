@@ -163,6 +163,11 @@ export const monthlyReportSchema = z.object({
   status: monthStatusSchema,
   /** False until the superadmin sets where the books start. */
   reportingStarted: z.boolean(),
+  /**
+   * A month of the building's history, before the cut-over: transcribed from its paper, with
+   * no fees, accounts or shift on the platform. Only the superadmin writes it.
+   */
+  historical: z.boolean(),
   /** Null until the month is opened. */
   balances: z.object({ opening: centavosSchema, closing: centavosSchema }).nullable(),
   totals: z.object({
@@ -205,6 +210,8 @@ export const monthHistoryEntrySchema = z.object({
   expense: centavosSchema,
   /** Frozen once closed; live while open. The newest month's is the cash on hand. */
   closingBalance: centavosSchema,
+  /** Of the building's history, before the cut-over. */
+  historical: z.boolean(),
   canClose: z.boolean(),
   canReopen: z.boolean(),
 });
@@ -224,7 +231,18 @@ export const reportingStartSchema = z.object({
 });
 export type ReportingStart = z.infer<typeof reportingStartSchema>;
 
-export const reportingStartResponseSchema = z.object({ start: reportingStartSchema.nullable() });
+export const reportingStartResponseSchema = z.object({
+  start: reportingStartSchema
+    .extend({
+      /**
+       * The first month kept live (fees, accounts, shifts, audit). Later than `month` when
+       * the books start with the building's history, whose months come before it.
+       */
+      cutover: yearMonthSchema,
+    })
+    .nullable(),
+});
+export type ReportingStartResponse = z.infer<typeof reportingStartResponseSchema>;
 
 export const chargeStatusSchema = z.enum(['PAID', 'PARTIAL', 'UNPAID']);
 

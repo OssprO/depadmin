@@ -58,4 +58,19 @@ export class RateTimeline {
     }
     return RateTimeline.of([...this.changes, change]);
   }
+
+  /**
+   * Adds a value from before the first one, for months that had no rate in force yet (the
+   * building's history). It changes nothing a month already used.
+   */
+  withEarlier(change: RateChange): RateTimeline {
+    const first = this.changes[0];
+    if (first && !change.effectiveFrom.isBefore(first.effectiveFrom)) {
+      throw new ConflictError(
+        'RATE_CHANGE_NOT_EARLIER',
+        `A value from ${change.effectiveFrom} must come before ${first.effectiveFrom}`,
+      );
+    }
+    return RateTimeline.of([change, ...this.changes]);
+  }
 }

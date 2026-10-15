@@ -1,13 +1,14 @@
 import {
   ConflictError,
   type Money,
-  type UnitNumber,
+  type PaperLine,
   ValidationError,
   type YearMonth,
 } from '../../../shared-kernel/index.js';
 
 export const SHEET_SOURCE_MAX_LENGTH = 200;
 export const SHEET_TEXT_MAX_LENGTH = 500;
+export const OWNER_NAME_MAX_LENGTH = 120;
 
 /** What the paper says. Null where the sheet is missing or the figure cannot be read. */
 export interface PaperFigures {
@@ -15,12 +16,6 @@ export interface PaperFigures {
   readonly income: Money | null;
   readonly expense: Money | null;
   readonly closing: Money | null;
-}
-
-/** A depto's line in the OBSERVACIONES column («ADEUDA JULIO», «PAGÓ EN JUNIO»…). */
-export interface UnitNote {
-  readonly unit: UnitNumber;
-  readonly text: string;
 }
 
 export interface SheetDetails {
@@ -32,13 +27,15 @@ export interface SheetDetails {
   readonly figures: PaperFigures;
   /** Transcription remarks: what does not add up, what is missing. */
   readonly alerts: readonly string[];
-  readonly notes: readonly UnitNote[];
+  /** A line per depto at most, as written (`PaperLine` in the shared kernel). */
+  readonly lines: readonly PaperLine[];
 }
 
 /**
  * One paper sheet of the history: a month, or the part of one that an administrator handed
- * over mid-month. The rows are not part of it (they belong to the month); it keeps what is
- * needed to check them: the paper's own figures, its remarks and its observations per depto.
+ * over mid-month. The rows are not part of it (they belong to the month's books); it keeps
+ * what is needed to check them and to print the month as it circulated: the paper's own
+ * figures, its remarks and its line per depto.
  */
 export class PaperSheet {
   private constructor(
@@ -95,19 +92,36 @@ function validate(details: SheetDetails): SheetDetails {
     }
   }
   const alerts = details.alerts.map((alert) => text(alert)).filter((alert) => alert !== '');
-  const notes = details.notes
-    .map((note) => ({ unit: note.unit, text: text(note.text) }))
-    .filter((note) => note.text !== '')
+  const lines = details.lines
+    .map(lineOf)
+    .filter((line) => line.ownerName || line.current || line.other || line.text)
     .sort((a, b) => a.unit.value - b.unit.value);
-  notes.forEach((note, i) => {
-    if (i > 0 && notes[i - 1]!.unit === note.unit) {
+  lines.forEach((line, i) => {
+    if (i > 0 && lines[i - 1]!.unit === line.unit) {
       throw new ValidationError(
-        'SHEET_NOTES_DUPLICATED',
-        `Depto ${note.unit} has two observations on one sheet`,
+        'SHEET_LINES_DUPLICATED',
+        `Depto ${line.unit} has two lines on one sheet`,
       );
     }
   });
-  return { month, fromDay, source, figures, alerts, notes };
+  return { month, fromDay, source, figures, alerts, lines };
+}
+
+/** A line with its text trimmed; a blank owner is none, and amounts are not negative. */
+function lineOf(line: PaperLine): PaperLine {
+  for (const amount of [line.current, line.other]) {
+    if (amount?.isNegative()) {
+      throw new ValidationError('SHEET_FIGURES_INVALID', `A payment cannot be negative: ${amount}`);
+    }
+  }
+  const ownerName = line.ownerName?.trim() || null;
+  if (ownerName && ownerName.length > OWNER_NAME_MAX_LENGTH) {
+    throw new ValidationError(
+      'SHEET_TEXT_TOO_LONG',
+      `Use at most ${OWNER_NAME_MAX_LENGTH} characters for a name`,
+    );
+  }
+  return { ...line, ownerName, text: text(line.text) };
 }
 
 function text(value: string): string {

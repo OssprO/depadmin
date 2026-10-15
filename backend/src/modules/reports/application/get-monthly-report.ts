@@ -39,6 +39,11 @@ export interface MonthlyReportView {
   readonly status: MonthStatus;
   /** False until the superadmin sets where the books start. */
   readonly reportingStarted: boolean;
+  /**
+   * A month of the building's history, before the cut-over: transcribed from its paper, with
+   * no fees, accounts or shift on the platform, and only the superadmin writes it.
+   */
+  readonly historical: boolean;
   /** Null until the month is opened. */
   readonly balances: { readonly opening: Money; readonly closing: Money } | null;
   readonly totals: CashbookTotals;
@@ -114,6 +119,7 @@ export class GetMonthlyReport {
       month,
       status,
       reportingStarted: ledger !== null,
+      historical: ledger?.isHistory(month) ?? false,
       balances,
       totals: cashbook.totals(),
       rows: cashbook.movements.map((movement) => ({ movement, coverage: coverage(movement) })),

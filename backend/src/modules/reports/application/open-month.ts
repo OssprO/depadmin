@@ -74,12 +74,14 @@ export class MonthOpening {
       while (!ledger.nextMonth.isAfter(month)) {
         const report = ledger.openMonth(ledger.nextMonth);
         await this.reports.save([report]);
+        opened.push(report);
+        // A month of the history has no fees, and stays out of the log (ADR-0023).
+        if (ledger.isHistory(report.month)) continue;
         await this.audit.record(
           author,
           creationOf(MONTH_AUDIT, ReportAuditAction.MONTH_OPENED, report),
         );
         await this.fees.execute(author, report.month);
-        opened.push(report);
       }
       return opened;
     });

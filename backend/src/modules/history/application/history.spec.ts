@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { withCode } from '../../../../test/support/domain-error.js';
-import { Instant, UnitNumber } from '../../../shared-kernel/index.js';
+import { LocalDate, UnitNumber } from '../../../shared-kernel/index.js';
+import { expense, garbage, payment } from '../../cashbook/domain/testing.js';
 import { admin, owner } from '../../shifts/application/testing.js';
-import { HistoricalBooks } from '../domain/index.js';
-import { d, garbage, m, paid, pesos, sheetDetails, spent } from '../domain/testing.js';
+import { m, note, pesos, sheetDetails } from '../domain/testing.js';
 import { historyFile, historyFixture } from './testing.js';
+
+const d = (text: string) => LocalDate.parse(text);
 
 /** May 2022 as its paper says, a June with only rows, and a July with no paper at all. */
 const file = () =>
@@ -20,21 +22,26 @@ const file = () =>
               expense: pesos(150),
               closing: pesos(1762.25),
             },
-            notes: [{ unit: UnitNumber.of(301), text: 'PAGÓ EN JULIO 2022' }],
+            lines: [note(301, 'PAGÓ EN JULIO 2022')],
             alerts: ['Cuota de $600 más $100 de administración fuera de la caja'],
           },
         ],
         movements: [
-          paid('2022-05-01', 101, 600),
-          paid('2022-05-01', 102, 600),
-          garbage('2022-05-14'),
+          payment('2022-05-01', 101, 600),
+          payment('2022-05-01', 102, 600),
+          garbage('2022-05-14', '2022-05-09'),
         ],
       },
-      '2022-06': { movements: [spent('2022-06-13', 511)] },
+      '2022-06': { movements: [expense('2022-06-13', 'OTHER_EXPENSE', 511, 'LUZ')] },
       '2022-07': {},
     },
     pesos(712.25),
-    { 101: 'EMMANUEL NAREDO FERNANDEZ' },
+    {
+      owners: { 101: 'NOMBRE DE PRUEBA' },
+      rates: (
+        ['maintenanceFee', 'cleaningPerVisit', 'garbageWeekly', 'shiftSkipPenalty'] as const
+      ).map((rate) => ({ rate, effectiveFrom: d('2022-05-01'), amount: pesos(600) })),
+    },
   );
 
 async function imported() {
@@ -59,67 +66,69 @@ describe('importing the history', () => {
     const fx = historyFixture();
     const preview = await fx.preview.execute(admin, file());
 
-    expect(preview.months.map((month) => [String(month.month), month.closing])).toEqual([
-      ['2022-05', pesos(1762.25)],
-      ['2022-06', pesos(1251.25)],
-      ['2022-07', pesos(1251.25)],
+    expect(
+      preview.months.map(({ review }) => [String(review.month), review.closing.toString()]),
+    ).toEqual([
+      ['2022-05', '1762.25'],
+      ['2022-06', '1251.25'],
+      ['2022-07', '1251.25'],
     ]);
-    expect(preview.closing).toEqual(pesos(1251.25));
+    expect(String(preview.cutover)).toBe('2022-08');
+    expect(preview).toMatchObject({ closing: pesos(1251.25), movements: 4 });
     expect(preview.owners).toHaveLength(1);
-    expect(await fx.get.execute(admin)).toBeNull();
+    expect(await fx.getStart.execute()).toBeNull();
   });
 
-  it('brings the months in, all at once and outside the audit log', async () => {
+  it('starts the books with it: every month open, its rows in the cashbook, nothing audited', async () => {
     const fx = await imported();
 
-    const history = (await fx.get.execute(admin))!;
-    expect(history.books.status).toBe('IN_REVIEW');
-    expect(String(history.books.firstMonth)).toBe('2022-05');
-    expect(String(history.books.lastMonth)).toBe('2022-07');
-    expect(history.months[0]!.movements).toHaveLength(3);
-    expect(history.months[0]!.sheets[0]!.details.notes[0]!.text).toBe('PAGÓ EN JULIO 2022');
-    expect(await fx.boundary.lastMonth()).toEqual(m('2022-07'));
+    expect(await fx.getStart.execute()).toEqual({
+      month: m('2022-05'),
+      openingBalance: pesos(712.25),
+      cutover: m('2022-08'),
+    });
+    const may = await fx.view.execute(admin, m('2022-05'));
+    expect(may).toMatchObject({ status: 'OPEN', historical: true });
+    expect(may.rows.map((row) => row.movement.category)).toEqual([
+      'UNIT_PAYMENT',
+      'UNIT_PAYMENT',
+      'GARBAGE',
+    ]);
+    // Its rates prefill the forms of its months.
+    expect(may.suggestions?.maintenanceFee).toEqual(pesos(600));
+    expect(fx.charges.summary()).toEqual([]);
     // The owners' names are the current roster, not history: those are audited.
     expect(fx.audit.entries.map((entry) => entry.change.action)).toEqual(['UNIT_OWNER_RENAMED']);
-    expect((await fx.units.findByNumber(UnitNumber.of(101)))!.ownerName).toBe(
-      'EMMANUEL NAREDO FERNANDEZ',
+    expect((await fx.unitRepository.findByNumber(UnitNumber.of(101)))!.ownerName).toBe(
+      'NOMBRE DE PRUEBA',
     );
   });
 
-  it('happens once; a corrected file replaces it after discarding the first', async () => {
+  it('comes in only before the books start', async () => {
     const fx = await imported();
-    await expect(fx.import.execute(admin, file())).rejects.toThrow(
-      withCode('HISTORY_ALREADY_IMPORTED'),
-    );
-
-    await fx.discard.execute(admin);
-    expect(await fx.get.execute(admin)).toBeNull();
-    expect(await fx.repository.findMovements()).toEqual([]);
-    await fx.import.execute(admin, file());
-  });
-
-  it('ends before the live books start', async () => {
-    const fx = historyFixture();
-    await fx.setStart('2022-07', pesos(0));
     await expect(fx.preview.execute(admin, file())).rejects.toThrow(
-      withCode('HISTORY_OVERLAPS_BOOKS'),
+      withCode('BOOKS_ALREADY_STARTED'),
     );
     await expect(fx.import.execute(admin, file())).rejects.toThrow(
-      withCode('HISTORY_OVERLAPS_BOOKS'),
+      withCode('BOOKS_ALREADY_STARTED'),
     );
   });
 
   it('refuses a file that does not hold together, saving nothing', async () => {
     const fx = historyFixture();
     const misplaced = historyFile(
-      { '2022-05': { movements: [spent('2022-06-01', 10)] } },
+      { '2022-05': { movements: [expense('2022-06-01', 'OTHER_EXPENSE', 10, 'X')] } },
       pesos(0),
     );
     await expect(fx.import.execute(admin, misplaced)).rejects.toThrow(
       withCode('HISTORY_FILE_INVALID'),
     );
     const twice = historyFile(
-      { '2022-05': { movements: [garbage('2022-05-13'), garbage('2022-05-14')] } },
+      {
+        '2022-05': {
+          movements: [garbage('2022-05-13', '2022-05-09'), garbage('2022-05-14', '2022-05-09')],
+        },
+      },
       pesos(0),
     );
     await expect(fx.import.execute(admin, twice)).rejects.toThrow(withCode('GARBAGE_WEEK_PAID'));
@@ -128,125 +137,117 @@ describe('importing the history', () => {
       pesos(0),
     );
     await expect(fx.import.execute(admin, sameDay)).rejects.toThrow(withCode('SHEET_DUPLICATED'));
+    const repeated = historyFile({ '2022-05': {} }, pesos(0));
+    await expect(
+      fx.import.execute(admin, { ...repeated, months: [...repeated.months, ...repeated.months] }),
+    ).rejects.toThrow(withCode('HISTORY_FILE_INVALID'));
     await expect(fx.import.execute(admin, historyFile({}, pesos(0)))).rejects.toThrow(
       withCode('HISTORY_FILE_INVALID'),
     );
-    expect(await fx.get.execute(admin)).toBeNull();
+    expect(await fx.getStart.execute()).toBeNull();
   });
 });
 
 describe('reviewing the history', () => {
-  it('shows a month with its paper, its rows and the balance carried into it', async () => {
+  it('puts every month next to its paper, with the balance carried into it', async () => {
     const fx = await imported();
-    const { month } = await fx.month.execute(admin, m('2022-06'));
+    const history = (await fx.get.execute(admin))!;
 
-    expect(month.opening).toEqual(pesos(1762.25));
-    expect(month.movements.map((row) => row.details.description)).toEqual(['LUZ']);
-    expect(month.sheets).toEqual([]);
-    await expect(fx.month.execute(admin, m('2022-08'))).rejects.toThrow(
-      withCode('HISTORY_MONTH_OUTSIDE'),
-    );
-  });
-
-  it('compares its last month with the cash the live books start with', async () => {
-    const fx = await imported();
-    expect((await fx.get.execute(admin))!.cutover).toBeNull();
-
-    await fx.setStart('2022-08', pesos(1300));
-    expect((await fx.get.execute(admin))!.cutover).toEqual({
-      month: m('2022-08'),
-      openingBalance: pesos(1300),
-      difference: pesos(48.75),
+    expect([history.firstMonth, history.lastMonth, history.cutover].map(String)).toEqual([
+      '2022-05',
+      '2022-07',
+      '2022-08',
+    ]);
+    const [may, june, july] = history.months;
+    expect(may).toMatchObject({ status: 'OPEN' });
+    expect(may!.review).toMatchObject({
+      income: pesos(1200),
+      paperClosing: pesos(1762.25),
+      paperIncome: pesos(1200),
     });
-
-    // With months in between there is nothing to compare.
-    await fx.setStart('2022-10', pesos(1300));
-    expect((await fx.get.execute(admin))!.cutover?.difference).toBeNull();
+    expect(june!.review).toMatchObject({ opening: pesos(1762.25), sheets: [] });
+    expect(july!.review.closing).toEqual(pesos(1251.25));
+    expect(history.closing).toEqual(pesos(1251.25));
   });
 
-  it('needs a history to look at', async () => {
-    const fx = historyFixture();
-    await expect(fx.month.execute(admin, m('2022-05'))).rejects.toThrow(
-      withCode('HISTORY_NOT_IMPORTED'),
+  it('shows one month to everyone, editable by the superadmin while it is open', async () => {
+    const fx = await imported();
+    const may = await fx.month.execute(owner(501), m('2022-05'));
+    expect(may.canEdit).toBe(false);
+    expect(may.review.sheets[0]!.details.lines[0]!.text).toBe('PAGÓ EN JULIO 2022');
+    expect((await fx.month.execute(admin, m('2022-05'))).canEdit).toBe(true);
+
+    await fx.close.execute(admin, m('2022-05'));
+    expect((await fx.month.execute(admin, m('2022-05'))).canEdit).toBe(false);
+    await expect(fx.month.execute(admin, m('2022-08'))).rejects.toThrow(
+      withCode('MONTH_NOT_HISTORY'),
     );
+  });
+
+  it('is nothing until the books start with a history', async () => {
+    const fx = historyFixture();
+    expect(await fx.get.execute(admin)).toBeNull();
+    await fx.setStart.execute(admin, { month: m('2026-08'), openingBalance: pesos(0) });
+    await fx.open.execute(admin, m('2026-08'));
+    expect(await fx.get.execute(admin)).toBeNull();
+  });
+
+  it('gives the report the sheets of a month', async () => {
+    const fx = await imported();
+    const [page] = await fx.paperRecord.pagesOf(m('2022-05'));
+    expect(page).toMatchObject({ fromDay: 1, lines: [note(301, 'PAGÓ EN JULIO 2022')] });
+    expect(await fx.paperRecord.pagesOf(m('2022-06'))).toEqual([]);
   });
 });
 
-describe('correcting the history', () => {
-  it('adds, fixes and removes rows within its months', async () => {
-    const fx = await imported();
-    const light = await fx.addMovement.execute(admin, spent('2022-07-20', 450));
-    await fx.reviseMovement.execute(admin, light.id, spent('2022-07-21', 455, 'LUZ JULIO'));
-    expect((await fx.repository.findMovement(light.id))!.details).toMatchObject({
-      date: d('2022-07-21'),
-      amount: pesos(455),
-    });
-
-    await fx.removeMovement.execute(admin, light.id);
-    expect(await fx.repository.findMovement(light.id)).toBeNull();
-    await expect(fx.removeMovement.execute(admin, light.id)).rejects.toThrow(
-      withCode('MOVEMENT_NOT_FOUND'),
-    );
-    await expect(fx.addMovement.execute(admin, spent('2022-08-01', 10))).rejects.toThrow(
-      withCode('HISTORY_MONTH_OUTSIDE'),
-    );
-    expect(fx.audit.entries.map((entry) => entry.change.action)).toEqual(['UNIT_OWNER_RENAMED']);
-  });
-
-  it('pays each week of garbage once', async () => {
-    const fx = await imported();
-    await expect(fx.addMovement.execute(admin, garbage('2022-05-13'))).rejects.toThrow(
-      withCode('GARBAGE_WEEK_PAID'),
-    );
-    const [paidWeek] = (await fx.repository.findMovements(m('2022-05'))).filter(
-      (row) => row.details.week,
-    );
-    // The row that paid it can still be corrected.
-    await fx.reviseMovement.execute(admin, paidWeek!.id, garbage('2022-05-15'));
-  });
-
+describe('correcting the paper sheets', () => {
   it('adds a sheet found later, corrects it and removes it', async () => {
     const fx = await imported();
-    const found = await fx.addSheet.execute(admin, {
-      ...sheetDetails('2022-07'),
-      source: 'foto 53',
-      notes: [{ unit: UnitNumber.of(401), text: 'PAGÓ EN AGOSTO 2022' }],
+    const october = sheetDetails('2022-07', {
+      figures: { opening: pesos(1251.25), income: pesos(3054), expense: null, closing: null },
     });
-    await expect(fx.addSheet.execute(admin, sheetDetails('2022-07'))).rejects.toThrow(
-      withCode('SHEET_DUPLICATED'),
-    );
-    await expect(fx.addSheet.execute(admin, sheetDetails('2022-09'))).rejects.toThrow(
-      withCode('HISTORY_MONTH_OUTSIDE'),
-    );
+    const sheet = await fx.addSheet.execute(admin, october);
+    expect((await fx.month.execute(admin, m('2022-07'))).review.paperIncome).toEqual(pesos(3054));
 
-    await fx.reviseSheet.execute(admin, found.id, { ...found.details, fromDay: 10, notes: [] });
-    expect((await fx.repository.findSheet(found.id))!.details).toMatchObject({
-      fromDay: 10,
-      notes: [],
+    await expect(fx.addSheet.execute(admin, october)).rejects.toThrow(withCode('SHEET_DUPLICATED'));
+    await fx.reviseSheet.execute(admin, sheet.id, {
+      ...october,
+      lines: [{ ...note(202, 'ADEUDA JULIO'), ownerName: 'NOMBRE' }],
     });
-    await fx.removeSheet.execute(admin, found.id);
-    await expect(fx.reviseSheet.execute(admin, found.id, found.details)).rejects.toThrow(
+    const [revised] = (await fx.month.execute(admin, m('2022-07'))).review.sheets;
+    expect(revised!.details.lines[0]).toMatchObject({ ownerName: 'NOMBRE', text: 'ADEUDA JULIO' });
+
+    await fx.removeSheet.execute(admin, sheet.id);
+    expect((await fx.month.execute(admin, m('2022-07'))).review.sheets).toEqual([]);
+    await expect(fx.removeSheet.execute(admin, sheet.id)).rejects.toThrow(
       withCode('SHEET_NOT_FOUND'),
+    );
+    // Like the rows of the history, outside the audit log.
+    expect(fx.audit.actions).toEqual(['UNIT_OWNER_RENAMED']);
+  });
+
+  it('is for the superadmin, in an open month of the history', async () => {
+    const fx = await imported();
+    await expect(fx.addSheet.execute(owner(501), sheetDetails('2022-07'))).rejects.toThrow(
+      withCode('SUPERADMIN_ONLY'),
+    );
+    await fx.close.execute(admin, m('2022-05'));
+    await expect(
+      fx.addSheet.execute(admin, sheetDetails('2022-05', { fromDay: 11 })),
+    ).rejects.toThrow(withCode('MONTH_CLOSED'));
+    await expect(fx.addSheet.execute(admin, sheetDetails('2022-08'))).rejects.toThrow(
+      withCode('MONTH_NOT_HISTORY'),
+    );
+    await expect(historyFixture().addSheet.execute(admin, sheetDetails('2022-05'))).rejects.toThrow(
+      withCode('MONTH_NOT_HISTORY'),
     );
   });
 
-  it('is for the superadmin only, and only while in review', async () => {
+  it('records the rows of the history in the cashbook, outside the audit log', async () => {
     const fx = await imported();
-    await expect(fx.addMovement.execute(owner(501), spent('2022-07-20', 1))).rejects.toThrow(
-      withCode('SUPERADMIN_ONLY'),
-    );
-    const books = (await fx.repository.loadBooks())!;
-    await fx.repository.saveBooks(
-      HistoricalBooks.restore(
-        books.firstMonth,
-        books.lastMonth,
-        books.openingBalance,
-        Instant.ofEpochMillis(0),
-      ),
-    );
-    await expect(fx.addMovement.execute(admin, spent('2022-07-20', 1))).rejects.toThrow(
-      withCode('HISTORY_VERIFIED'),
-    );
-    await expect(fx.discard.execute(admin)).rejects.toThrow(withCode('HISTORY_VERIFIED'));
+    await fx.add.execute(admin, expense('2022-07-20', 'OTHER_EXPENSE', 26, 'FABULOSO 1LT'));
+    expect(fx.audit.actions).toEqual(['UNIT_OWNER_RENAMED']);
+    const july = (await fx.get.execute(admin))!.months[2]!;
+    expect(july.review.expense).toEqual(pesos(26));
   });
 });

@@ -26,14 +26,14 @@ describe('ReactPdfReportRenderer', () => {
   const renderer = new ReactPdfReportRenderer();
 
   it('renders the month as a one-page PDF', async () => {
-    const pdf = await renderer.render(await september(1));
+    const pdf = await renderer.render([await september(1)]);
 
     expect(new TextDecoder().decode(pdf.slice(0, 5))).toBe('%PDF-');
     expect(pages(pdf)).toBe(1);
   }, 20_000);
 
   it('continues on more pages when the month has many rows', async () => {
-    const pdf = await renderer.render(await september(60));
+    const pdf = await renderer.render([await september(60)]);
 
     expect(pages(pdf)).toBeGreaterThan(1);
   }, 20_000);

@@ -87,17 +87,7 @@ export class MonthlyCashbook {
   }
 
   totals(): CashbookTotals {
-    const byCategory = Object.fromEntries(
-      MOVEMENT_CATEGORIES.map((category) => [category, Money.ZERO]),
-    ) as Record<MovementCategory, Money>;
-    let income = Money.ZERO;
-    let expense = Money.ZERO;
-    for (const row of this.movements) {
-      byCategory[row.category] = byCategory[row.category].plus(row.amount);
-      if (row.direction === 'IN') income = income.plus(row.amount);
-      else expense = expense.plus(row.amount);
-    }
-    return { income, expense, net: income.minus(expense), byCategory };
+    return totalsOf(this.movements);
   }
 
   private find(id: string): CashMovement {
@@ -124,4 +114,20 @@ export class MonthlyCashbook {
       );
     }
   }
+}
+
+/** Live rows added up: income, expense and each category. */
+export function totalsOf(rows: readonly CashMovement[]): CashbookTotals {
+  const byCategory = Object.fromEntries(
+    MOVEMENT_CATEGORIES.map((category) => [category, Money.ZERO]),
+  ) as Record<MovementCategory, Money>;
+  let income = Money.ZERO;
+  let expense = Money.ZERO;
+  for (const row of rows) {
+    if (row.isRemoved) continue;
+    byCategory[row.category] = byCategory[row.category].plus(row.amount);
+    if (row.direction === 'IN') income = income.plus(row.amount);
+    else expense = expense.plus(row.amount);
+  }
+  return { income, expense, net: income.minus(expense), byCategory };
 }
