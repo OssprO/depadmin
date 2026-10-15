@@ -176,6 +176,24 @@ describe('reviewHistory', () => {
     expect(carriedGap(juneReview!)).toEqual(pesos(0));
   });
 
+  it('adds up what the sheets of a month take in and pay out', () => {
+    const figures = (income: number | null, expense: number) => ({
+      opening: null,
+      income: income === null ? null : pesos(income),
+      expense: pesos(expense),
+      closing: null,
+    });
+    const first = sheet('2022-05', null, null, { figures: figures(600, 150) });
+    const second = sheet('2022-05', null, null, { fromDay: 11, figures: figures(700, 0) });
+    const [may, june] = reviewHistory(books(), [first, second], rows);
+    expect(may).toMatchObject({ paperIncome: pesos(1300), paperExpense: pesos(150) });
+    // Unknown without paper, or when a sheet does not say.
+    expect(june).toMatchObject({ paperIncome: null, paperExpense: null });
+    const unread = sheet('2022-05', null, null, { fromDay: 11, figures: figures(null, 0) });
+    const [partial] = reviewHistory(books(), [first, unread], rows);
+    expect(partial).toMatchObject({ paperIncome: null, paperExpense: pesos(150) });
+  });
+
   it('tells what a month inherits apart from its own difference', () => {
     // The paper of June opens $100 above what May's rows leave: a row of May is missing.
     const [, june] = reviewHistory(books(), [sheet('2022-06', 1262.25, 1351.25)], rows);

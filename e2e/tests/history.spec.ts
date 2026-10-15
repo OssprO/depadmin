@@ -81,6 +81,15 @@ test('the superadmin imports the history and checks a month against its paper', 
   await page.getByRole('link', { name: /^mayo/i }).click();
   await expect(page.getByText('PAGÓ EN JULIO 2022')).toBeVisible();
   await expect(page.getByText('Cuadra')).toBeVisible();
+  // Income and expense side by side: the rows added up, then the paper.
+  await expect(page.getByRole('row', { name: /^Ingresos/ }).getByRole('cell')).toHaveText([
+    '+ $1,200.00',
+    '+ $1,200.00',
+  ]);
+  await expect(page.getByRole('row', { name: /^Egresos/ }).getByRole('cell')).toHaveText([
+    '− $150.00',
+    '− $150.00',
+  ]);
   await expectAccessible(page, 'mes del historial');
 
   // A row is missing on purpose: adding it makes the month disagree with its paper.

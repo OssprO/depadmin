@@ -145,7 +145,13 @@ describe('history API', () => {
     expect((await state())!.months).toHaveLength(36);
 
     const may = await month('2022-05');
-    expect(may).toMatchObject({ canEdit: true, previous: null, next: '2022-06' });
+    expect(may).toMatchObject({
+      canEdit: true,
+      previous: null,
+      next: '2022-06',
+      paperIncome: 60000,
+      paperExpense: 15000,
+    });
     expect(may.sheets[0]!.notes).toEqual([{ unit: 301, text: 'PAGÓ EN JULIO 2022' }]);
     expect(may.movements.map((row) => row.category)).toEqual(['UNIT_PAYMENT', 'GARBAGE']);
 

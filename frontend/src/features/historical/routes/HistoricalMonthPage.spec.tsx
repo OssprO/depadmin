@@ -1,5 +1,5 @@
 import type { HistoricalMonth } from '@depadmin/shared';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { connectSession } from '@/lib/http';
@@ -17,6 +17,8 @@ const april = (overrides: Partial<HistoricalMonth> = {}): HistoricalMonth => ({
   closing: -150681,
   paperOpening: 51450,
   paperClosing: -150681,
+  paperIncome: 490000,
+  paperExpense: 692131,
   ownGap: 0,
   carriedGap: 0,
   canEdit: true,
@@ -79,6 +81,10 @@ describe('HistoricalMonthPage', () => {
     expect(screen.getByText(/dan \$50\.00 menos de lo que movió la hoja/)).toBeInTheDocument();
     expect(screen.getByText(/Llega con \$178\.00 más/)).toBeInTheDocument();
     expect(screen.getAllByText('-$1,506.81').length).toBeGreaterThan(0);
+    const income = screen.getByRole('row', { name: /^Ingresos/ });
+    expect(within(income).getAllByText('+ $4,900.00')).toHaveLength(2);
+    const expense = screen.getByRole('row', { name: /^Egresos/ });
+    expect(within(expense).getAllByText('− $6,921.31')).toHaveLength(2);
     expect(screen.getByText('El mes cierra en negativo')).toBeInTheDocument();
     expect(screen.getByText('PENDIENTE ENERO Y ABRIL 2023')).toBeInTheDocument();
     expect(screen.getByText('PAGO LUZ CFE')).toBeInTheDocument();

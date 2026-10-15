@@ -32,6 +32,8 @@ type Editing =
   | { kind: 'sheet'; sheet: HistoricalSheet | null };
 
 const money = (centavos: number | null) => (centavos === null ? '—' : formatMoney(centavos));
+const signed = (sign: string, centavos: number | null) =>
+  centavos === null ? '—' : `${sign} ${formatMoney(centavos)}`;
 
 /** The month's rows added up, next to what its paper says. */
 function FiguresCard({ month }: { month: HistoricalMonth }) {
@@ -69,8 +71,8 @@ function FiguresCard({ month }: { month: HistoricalMonth }) {
           </thead>
           <tbody>
             {row('Saldo inicial', formatMoney(month.opening), money(month.paperOpening))}
-            {row('Ingresos', `+ ${formatMoney(month.income)}`, null)}
-            {row('Egresos', `− ${formatMoney(month.expense)}`, null)}
+            {row('Ingresos', `+ ${formatMoney(month.income)}`, signed('+', month.paperIncome))}
+            {row('Egresos', `− ${formatMoney(month.expense)}`, signed('−', month.paperExpense))}
             {row('Saldo final', formatMoney(month.closing), money(month.paperClosing), true)}
           </tbody>
         </table>

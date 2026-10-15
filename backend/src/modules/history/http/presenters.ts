@@ -31,6 +31,8 @@ function toFigures(review: MonthReview) {
     closing: centavos(review.closing),
     paperOpening: maybe(review.paperOpening),
     paperClosing: maybe(review.paperClosing),
+    paperIncome: maybe(review.paperIncome),
+    paperExpense: maybe(review.paperExpense),
     ownGap: maybe(ownGap(review)),
     carriedGap: maybe(carriedGap(review)),
   };

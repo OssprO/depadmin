@@ -17,6 +17,19 @@ export interface MonthReview {
   /** What the first sheet opens with and the last one closes with. */
   readonly paperOpening: Money | null;
   readonly paperClosing: Money | null;
+  /** What its sheets add up to; null without sheets or when one of them does not say. */
+  readonly paperIncome: Money | null;
+  readonly paperExpense: Money | null;
+}
+
+/** A figure added up over the month's sheets, unknown if any of them lacks it. */
+function sheetsTotal(
+  sheets: readonly PaperSheet[],
+  figure: (sheet: PaperSheet) => Money | null,
+): Money | null {
+  const figures = sheets.map(figure);
+  if (figures.length === 0 || figures.some((value) => value === null)) return null;
+  return Money.sum(figures as Money[]);
 }
 
 /**
@@ -73,6 +86,8 @@ export function reviewHistory(
       closing: opening.plus(income).minus(expense),
       paperOpening: monthSheets[0]?.details.figures.opening ?? null,
       paperClosing: monthSheets.at(-1)?.details.figures.closing ?? null,
+      paperIncome: sheetsTotal(monthSheets, (sheet) => sheet.details.figures.income),
+      paperExpense: sheetsTotal(monthSheets, (sheet) => sheet.details.figures.expense),
     };
     opening = review.closing;
     return review;

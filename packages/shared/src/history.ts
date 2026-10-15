@@ -89,6 +89,9 @@ const monthFiguresSchema = z.object({
   /** What its first sheet opens with and its last one closes with. */
   paperOpening: centavosSchema.nullable(),
   paperClosing: centavosSchema.nullable(),
+  /** What its sheets add up to; null without sheets or when one of them does not say. */
+  paperIncome: centavosSchema.nullable(),
+  paperExpense: centavosSchema.nullable(),
   /** Its rows' net minus what its paper moved; zero when they agree. */
   ownGap: centavosSchema.nullable(),
   /** The balance carried into it minus its paper's opening: what earlier months leave. */
