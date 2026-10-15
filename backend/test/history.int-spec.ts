@@ -104,6 +104,20 @@ const month = async (value: string) =>
       .body,
   );
 
+/** The audit log is never truncated, so a spec reads only what it wrote after `newestId`. */
+const auditActionsSince = async (newestId: string | null) => {
+  const log = auditLogPageSchema.parse(
+    (await http().get('/api/audit-log').auth(admin, { type: 'bearer' }).expect(200)).body,
+  );
+  const end = log.entries.findIndex((entry) => entry.id === newestId);
+  return log.entries.slice(0, end === -1 ? undefined : end).map((entry) => entry.action);
+};
+
+const newestAuditId = async () =>
+  auditLogPageSchema.parse(
+    (await http().get('/api/audit-log?limit=1').auth(admin, { type: 'bearer' }).expect(200)).body,
+  ).entries[0]?.id ?? null;
+
 describe('history API', () => {
   it('previews and imports a file larger than the default body limit, outside the audit log', async () => {
     const body = file();
@@ -126,6 +140,7 @@ describe('history API', () => {
     expect(preview.months[0]).toMatchObject({ closing: 116225, ownGap: 0, carriedGap: 0 });
     expect(await state()).toBeNull();
 
+    const before = await newestAuditId();
     await http().post('/api/history').auth(admin, { type: 'bearer' }).send(body).expect(204);
     expect((await state())!.months).toHaveLength(36);
 
@@ -140,10 +155,7 @@ describe('history API', () => {
     expect(units.find((unit) => unit.number === 101)!.ownerName).toBe('NOMBRE DE PRUEBA');
 
     // Only the owner's name, which is current data, went to the audit log.
-    const log = auditLogPageSchema.parse(
-      (await http().get('/api/audit-log').auth(admin, { type: 'bearer' }).expect(200)).body,
-    );
-    expect(log.entries.map((entry) => entry.action)).toEqual(['UNIT_OWNER_RENAMED']);
+    expect(await auditActionsSince(before)).toEqual(['UNIT_OWNER_RENAMED']);
 
     expectProblem(
       await http().post('/api/history').auth(admin, { type: 'bearer' }).send(body),
