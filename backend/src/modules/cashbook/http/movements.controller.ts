@@ -7,15 +7,15 @@ import {
 } from '@depadmin/shared';
 import { z } from 'zod';
 import { CurrentActor } from '../../../platform/http/auth.js';
+import { toMovementDetails } from '../../../platform/http/movement-request.js';
 import { ZodValidationPipe } from '../../../platform/http/zod-validation.pipe.js';
-import { type Actor, LocalDate, Money, UnitNumber } from '../../../shared-kernel/index.js';
+import { type Actor, LocalDate, Money } from '../../../shared-kernel/index.js';
 import {
   AddMovement,
   RecordCleaningVisits,
   RemoveMovement,
   ReviseMovement,
 } from '../application/index.js';
-import type { MovementDetails } from '../domain/index.js';
 
 /** Rows of the monthly cashbook. Reading them is the month's report (`GET /api/months/:month`). */
 @Controller('movements')
@@ -32,7 +32,7 @@ export class MovementsController {
     @CurrentActor() actor: Actor,
     @Body(new ZodValidationPipe(movementRequestSchema)) body: MovementRequest,
   ): Promise<{ id: string }> {
-    const movement = await this.addMovement.execute(actor, toDetails(body));
+    const movement = await this.addMovement.execute(actor, toMovementDetails(body));
     return { id: movement.id };
   }
 
@@ -57,7 +57,7 @@ export class MovementsController {
     @Param('id', new ZodValidationPipe(z.uuid())) id: string,
     @Body(new ZodValidationPipe(movementRequestSchema)) body: MovementRequest,
   ): Promise<void> {
-    await this.reviseMovement.execute(actor, id, toDetails(body));
+    await this.reviseMovement.execute(actor, id, toMovementDetails(body));
   }
 
   @Delete(':id')
@@ -68,15 +68,4 @@ export class MovementsController {
   ): Promise<void> {
     await this.removeMovement.execute(actor, id);
   }
-}
-
-function toDetails(body: MovementRequest): MovementDetails {
-  return {
-    date: LocalDate.parse(body.date),
-    category: body.category,
-    amount: Money.ofCentavos(body.amount),
-    unit: body.unit === null ? null : UnitNumber.of(body.unit),
-    description: body.description,
-    week: body.week === null ? null : LocalDate.parse(body.week),
-  };
 }

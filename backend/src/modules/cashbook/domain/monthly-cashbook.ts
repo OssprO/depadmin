@@ -1,12 +1,14 @@
 import {
   ConflictError,
   Money,
+  MOVEMENT_CATEGORIES,
+  type MovementCategory,
+  type MovementDetails,
   NotFoundError,
   ValidationError,
   type YearMonth,
 } from '../../../shared-kernel/index.js';
-import { CashMovement, type MovementDetails } from './cash-movement.js';
-import { MOVEMENT_CATEGORIES, type MovementCategory } from './movement-category.js';
+import { CashMovement } from './cash-movement.js';
 
 export interface CashbookTotals {
   readonly income: Money;

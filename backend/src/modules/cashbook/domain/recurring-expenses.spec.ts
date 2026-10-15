@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { withCode } from '../../../../test/support/domain-error.js';
-import { YearMonth } from '../../../shared-kernel/index.js';
+import { MOVEMENT_CATEGORIES, YearMonth } from '../../../shared-kernel/index.js';
 import { CashMovement } from './cash-movement.js';
-import { MOVEMENT_CATEGORIES } from './movement-category.js';
 import {
   assertNewVisits,
   assertWeekUnpaid,

@@ -1,6 +1,11 @@
-import { ConflictError, LocalDate, Money, type YearMonth } from '../../../shared-kernel/index.js';
+import {
+  ConflictError,
+  LocalDate,
+  Money,
+  type MovementCategory,
+  type YearMonth,
+} from '../../../shared-kernel/index.js';
 import type { CashMovement } from './cash-movement.js';
-import type { MovementCategory } from './movement-category.js';
 
 /** The rates the cashbook needs to prefill amounts (resolved for the row's date). */
 export interface SuggestionRates {
@@ -56,6 +61,19 @@ export function garbageWeeksOf(month: YearMonth): LocalDate[] {
   let payday = first.plusDays((GARBAGE_PAYDAY - first.dayOfWeek + 7) % 7);
   for (; !payday.isAfter(last); payday = payday.plusDays(7)) weeks.push(payday.startOfWeek());
   return weeks;
+}
+
+/**
+ * Drops the weeks that begin before the books do. The first month can list a week that
+ * started in the month before (August 2026 lists the week of 27 July, since its Saturday is
+ * 1 August); that week was paid, or not, on paper, so the books do not suggest it.
+ */
+export function weeksWithinBooks(
+  weeks: readonly GarbageWeek[],
+  booksStart: YearMonth,
+): GarbageWeek[] {
+  const firstDay = LocalDate.firstOf(booksStart);
+  return weeks.filter((week) => !week.week.isBefore(firstDay));
 }
 
 /**

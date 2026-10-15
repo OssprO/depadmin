@@ -1,26 +1,15 @@
 import {
+  CATEGORY_RULES,
   ConflictError,
+  type Direction,
   type LocalDate,
   type Money,
-  type UnitNumber,
-  ValidationError,
+  type MovementCategory,
+  type MovementDetails,
+  signedAmountOf,
+  validateMovement,
   type YearMonth,
 } from '../../../shared-kernel/index.js';
-import { CATEGORY_RULES, type Direction, type MovementCategory } from './movement-category.js';
-
-export interface MovementDetails {
-  readonly date: LocalDate;
-  readonly category: MovementCategory;
-  /** Always positive; the category gives the direction. */
-  readonly amount: Money;
-  readonly description: string | null;
-  readonly unit: UnitNumber | null;
-  /**
-   * For a garbage row, the Monday of the week it pays for. It is stored, not derived from
-   * the date, so a week paid late or early (even in another month) still counts as paid.
-   */
-  readonly week: LocalDate | null;
-}
 
 /**
  * One row of the cashbook: an income or an expense on a date (cash basis: the date decides
@@ -34,11 +23,11 @@ export class CashMovement {
   ) {}
 
   static record(id: string, details: MovementDetails): CashMovement {
-    return new CashMovement(id, validate(details), false);
+    return new CashMovement(id, validateMovement(details), false);
   }
 
   static restore(id: string, details: MovementDetails, removed: boolean): CashMovement {
-    return new CashMovement(id, validate(details), removed);
+    return new CashMovement(id, validateMovement(details), removed);
   }
 
   get details(): MovementDetails {
@@ -67,7 +56,7 @@ export class CashMovement {
 
   /** The amount with its sign for the balance: income adds, expenses subtract. */
   get signedAmount(): Money {
-    return this.direction === 'IN' ? this.current.amount : this.current.amount.negate();
+    return signedAmountOf(this.current);
   }
 
   get isRemoved(): boolean {
@@ -76,7 +65,7 @@ export class CashMovement {
 
   revise(changes: Partial<MovementDetails>): void {
     this.assertNotRemoved();
-    this.current = validate({ ...this.current, ...changes });
+    this.current = validateMovement({ ...this.current, ...changes });
   }
 
   remove(): void {
@@ -89,47 +78,4 @@ export class CashMovement {
       throw new ConflictError('MOVEMENT_REMOVED', `Movement ${this.id} was removed`);
     }
   }
-}
-
-function validate(details: MovementDetails): MovementDetails {
-  const rule = CATEGORY_RULES[details.category];
-  const description = details.description?.trim() || null;
-
-  if (!details.amount.isPositive()) {
-    throw new ValidationError(
-      'MOVEMENT_AMOUNT_INVALID',
-      `Amount must be positive, got ${details.amount}`,
-    );
-  }
-  if (rule.requiresUnit && !details.unit) {
-    throw new ValidationError('MOVEMENT_UNIT_REQUIRED', `${details.category} needs a depto`);
-  }
-  if (!rule.requiresUnit && details.unit) {
-    throw new ValidationError(
-      'MOVEMENT_UNIT_NOT_ALLOWED',
-      `${details.category} cannot name a depto`,
-    );
-  }
-  if (rule.requiresWeek && !details.week) {
-    throw new ValidationError('MOVEMENT_WEEK_REQUIRED', `${details.category} needs a week`);
-  }
-  if (!rule.requiresWeek && details.week) {
-    throw new ValidationError(
-      'MOVEMENT_WEEK_NOT_ALLOWED',
-      `${details.category} cannot name a week`,
-    );
-  }
-  if (details.week && details.week.dayOfWeek !== 1) {
-    throw new ValidationError(
-      'MOVEMENT_WEEK_INVALID',
-      `A week is named by its Monday, got ${details.week}`,
-    );
-  }
-  if (rule.requiresDescription && !description) {
-    throw new ValidationError(
-      'MOVEMENT_DESCRIPTION_REQUIRED',
-      `${details.category} needs a description`,
-    );
-  }
-  return { ...details, description };
 }

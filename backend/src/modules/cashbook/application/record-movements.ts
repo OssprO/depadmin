@@ -7,6 +7,7 @@ import {
   creationOf,
   type LocalDate,
   type Money,
+  type MovementDetails,
   NotFoundError,
   removalOf,
   trackChanges,
@@ -18,7 +19,6 @@ import {
   CASH_MOVEMENT_REPOSITORY,
   type CashMovement,
   type CashMovementRepository,
-  type MovementDetails,
 } from '../domain/index.js';
 import { CashbookAccess } from './cashbook-access.js';
 import { MOVEMENT_AUDIT, MovementAuditAction } from './movement-audit.js';
