@@ -32,6 +32,15 @@ describe('RateTimeline', () => {
     );
   });
 
+  it('takes values from before the first one, for months that had none in force yet', () => {
+    const earlier = fee.withEarlier({ effectiveFrom: d('2022-05-01'), amount: pesos(600) });
+    expect(earlier.amountOn(d('2023-06-01')).equals(pesos(600))).toBe(true);
+    expect(earlier.amountOn(d('2026-06-01')).equals(pesos(700))).toBe(true);
+    expect(() => fee.withEarlier({ effectiveFrom: d('2026-01-01'), amount: pesos(1) })).toThrow(
+      withCode('RATE_CHANGE_NOT_EARLIER'),
+    );
+  });
+
   it('rejects empty, duplicated or non-positive histories', () => {
     expect(() => RateTimeline.of([])).toThrow(withCode('RATE_INVALID'));
     expect(() =>

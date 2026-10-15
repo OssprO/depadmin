@@ -2,13 +2,11 @@ import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put } from '@nest
 import {
   type AddSheetRequest,
   addSheetRequestSchema,
-  type HistoricalMonth,
   type HistoryFile as HistoryFileRequest,
   historyFileSchema,
   type HistoryPreview,
   type HistorySummary,
-  type MovementRequest,
-  movementRequestSchema,
+  type PaperMonth,
   type SheetRequest,
   sheetRequestSchema,
   yearMonthSchema,
@@ -17,39 +15,40 @@ import { z } from 'zod';
 import { CurrentActor } from '../../../platform/http/auth.js';
 import { toMovementDetails } from '../../../platform/http/movement-request.js';
 import { ZodValidationPipe } from '../../../platform/http/zod-validation.pipe.js';
-import { type Actor, Money, UnitNumber, YearMonth } from '../../../shared-kernel/index.js';
 import {
-  AddHistoricalMovement,
+  type Actor,
+  LocalDate,
+  Money,
+  UnitNumber,
+  YearMonth,
+} from '../../../shared-kernel/index.js';
+import {
   AddPaperSheet,
-  DiscardHistory,
-  GetHistoricalMonth,
   GetHistory,
+  GetPaperMonth,
   type HistoryFile,
   ImportHistory,
   PreviewHistoryImport,
-  RemoveHistoricalMovement,
   RemovePaperSheet,
-  ReviseHistoricalMovement,
   RevisePaperSheet,
 } from '../application/index.js';
 import type { SheetDetails } from '../domain/index.js';
-import { toHistoricalMonth, toHistoryPreview, toHistorySummary } from './presenters.js';
+import { toHistoryPreview, toHistorySummary, toPaperMonth } from './presenters.js';
 
 const monthParam = new ZodValidationPipe(yearMonthSchema.transform((m) => YearMonth.parse(m)));
 const idParam = new ZodValidationPipe(z.uuid());
 
-/** The building's history (ADR-0022): superadmin only while it is in review. */
+/**
+ * The building's history (ADR-0023): starting the books with it, and its paper sheets. Its
+ * rows are written through the cashbook, like any month's.
+ */
 @Controller('history')
 export class HistoryController {
   constructor(
     private readonly getHistory: GetHistory,
-    private readonly getMonth: GetHistoricalMonth,
+    private readonly getMonth: GetPaperMonth,
     private readonly previewImport: PreviewHistoryImport,
     private readonly importHistory: ImportHistory,
-    private readonly discardHistory: DiscardHistory,
-    private readonly addMovement: AddHistoricalMovement,
-    private readonly reviseMovement: ReviseHistoricalMovement,
-    private readonly removeMovement: RemoveHistoricalMovement,
     private readonly addSheet: AddPaperSheet,
     private readonly reviseSheet: RevisePaperSheet,
     private readonly removeSheet: RemovePaperSheet,
@@ -80,45 +79,13 @@ export class HistoryController {
     await this.importHistory.execute(actor, toHistoryFile(body));
   }
 
-  /** Deletes the history while in review, to import a corrected file. */
-  @Delete()
-  @HttpCode(204)
-  async discard(@CurrentActor() actor: Actor): Promise<void> {
-    await this.discardHistory.execute(actor);
-  }
-
   @Get('months/:month')
   async month(
     @CurrentActor() actor: Actor,
     @Param('month', monthParam) month: YearMonth,
-  ): Promise<HistoricalMonth> {
-    const { books, month: review } = await this.getMonth.execute(actor, month);
-    return toHistoricalMonth(books, review);
-  }
-
-  @Post('movements')
-  async add(
-    @CurrentActor() actor: Actor,
-    @Body(new ZodValidationPipe(movementRequestSchema)) body: MovementRequest,
-  ): Promise<{ id: string }> {
-    const movement = await this.addMovement.execute(actor, toMovementDetails(body));
-    return { id: movement.id };
-  }
-
-  @Put('movements/:id')
-  @HttpCode(204)
-  async revise(
-    @CurrentActor() actor: Actor,
-    @Param('id', idParam) id: string,
-    @Body(new ZodValidationPipe(movementRequestSchema)) body: MovementRequest,
-  ): Promise<void> {
-    await this.reviseMovement.execute(actor, id, toMovementDetails(body));
-  }
-
-  @Delete('movements/:id')
-  @HttpCode(204)
-  async remove(@CurrentActor() actor: Actor, @Param('id', idParam) id: string): Promise<void> {
-    await this.removeMovement.execute(actor, id);
+  ): Promise<PaperMonth> {
+    const { review, canEdit } = await this.getMonth.execute(actor, month);
+    return toPaperMonth(review, canEdit);
   }
 
   @Post('sheets')
@@ -159,6 +126,7 @@ function toSheetDetails(body: SheetRequest): Omit<SheetDetails, 'month'> {
   return {
     fromDay: body.fromDay,
     source: body.source,
+    responsible: body.responsible,
     figures: {
       opening: money(body.opening),
       income: money(body.income),
@@ -166,7 +134,13 @@ function toSheetDetails(body: SheetRequest): Omit<SheetDetails, 'month'> {
       closing: money(body.closing),
     },
     alerts: body.alerts,
-    notes: body.notes.map((note) => ({ unit: UnitNumber.of(note.unit), text: note.text })),
+    lines: body.lines.map((line) => ({
+      unit: UnitNumber.of(line.unit),
+      ownerName: line.ownerName,
+      current: money(line.current),
+      other: money(line.other),
+      text: line.text,
+    })),
   };
 }
 
@@ -175,9 +149,17 @@ function toHistoryFile(body: HistoryFileRequest): HistoryFile {
     openingBalance: Money.ofCentavos(body.openingBalance),
     months: body.months.map((entry) => ({
       month: YearMonth.parse(entry.month),
-      sheets: entry.sheets.map(toSheetDetails),
+      sheets: entry.sheets.map((sheet) => ({
+        ...toSheetDetails(sheet),
+        movements: sheet.movements.map(toMovementDetails),
+      })),
       movements: entry.movements.map(toMovementDetails),
     })),
     owners: body.owners.map((owner) => ({ unit: UnitNumber.of(owner.unit), name: owner.name })),
+    rates: body.rates.map((rate) => ({
+      rate: rate.rate,
+      effectiveFrom: LocalDate.parse(rate.effectiveFrom),
+      amount: Money.ofCentavos(rate.amount),
+    })),
   };
 }

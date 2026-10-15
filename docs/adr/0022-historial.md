@@ -1,6 +1,6 @@
 # ADR-0022: El historial del edificio, aparte de los libros
 
-**Estado:** Aceptado · **Fecha:** 2026-10-14
+**Estado:** Reemplazado por el [ADR-0023](0023-historial-en-los-libros.md) · **Fecha:** 2026-10-14
 
 ## Contexto
 

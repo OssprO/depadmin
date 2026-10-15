@@ -25,9 +25,12 @@ export interface ShiftAssignment {
   readonly delegation: ShiftDelegation | null;
   /**
    * Deptos whose owners can write the month (the superadmin always can). Empty when the
-   * scheduled depto is inactive and nobody has been assigned to cover it yet.
+   * scheduled depto is inactive and nobody has been assigned to cover it yet, and before
+   * the rotation begins.
    */
   readonly responsibleUnits: readonly UnitNumber[];
+  /** A month before the rotation (the building's history): nobody holds it on the platform. */
+  readonly beforeRotation: boolean;
 }
 
 export class ShiftScheduler {
@@ -40,6 +43,7 @@ export class ShiftScheduler {
   ): ShiftAssignment {
     const period = this.rotation.periodFor(month);
     const scheduledUnitActive = availability.isActive(period.unit, month);
+    const beforeRotation = month.isBefore(this.rotation.firstMonth);
     const covering = delegations.filter((d) => d.covers(month));
     if (covering.length > 1) {
       throw new ConflictError('DELEGATIONS_OVERLAP', `More than one delegation covers ${month}`);
@@ -49,7 +53,9 @@ export class ShiftScheduler {
     // Both the original and the delegate can write a delegated month (spec 2), but only
     // while they are active.
     const candidates = delegation ? [period.unit, delegation.delegateUnit] : [period.unit];
-    const responsibleUnits = candidates.filter((unit) => availability.isActive(unit, month));
+    const responsibleUnits = beforeRotation
+      ? []
+      : candidates.filter((unit) => availability.isActive(unit, month));
 
     return {
       month,
@@ -58,6 +64,7 @@ export class ShiftScheduler {
       scheduledUnitActive,
       delegation,
       responsibleUnits,
+      beforeRotation,
     };
   }
 
@@ -103,6 +110,12 @@ export class ShiftScheduler {
     availability: UnitAvailability,
   ): void {
     const { months } = candidate;
+    if (months.from.isBefore(this.rotation.firstMonth)) {
+      throw new ValidationError(
+        'DELEGATION_INVALID',
+        `The rotation begins in ${this.rotation.firstMonth}; ${months.from} has no shift`,
+      );
+    }
     const period = this.rotation.periodFor(months.from);
     if (!YearMonthRange.between(period.start, period.end).encloses(months)) {
       throw new ValidationError(

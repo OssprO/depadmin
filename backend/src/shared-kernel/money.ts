@@ -37,6 +37,10 @@ export class Money {
     return a.centavos <= b.centavos ? a : b;
   }
 
+  static max(a: Money, b: Money): Money {
+    return a.centavos >= b.centavos ? a : b;
+  }
+
   plus(other: Money): Money {
     return Money.ofCentavos(this.centavos + other.centavos);
   }

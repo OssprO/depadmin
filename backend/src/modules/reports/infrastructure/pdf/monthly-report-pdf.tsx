@@ -6,6 +6,7 @@ import {
   currentFeeTone,
   dayMonth,
   money,
+  monthName,
   monthTitle,
   observations,
   timestamp,
@@ -153,8 +154,9 @@ function Total({
 
 function UnitRow({ line, report }: { line: UnitReportLine; report: ReportDocument }) {
   const tone = currentFeeTone(line);
-  const current = line.currentFee?.paidThisMonth;
-  const other = current ? line.paid.minus(current) : line.paid;
+  // A month of the history reads as its paper did; a live one, from the account.
+  const current = line.paper?.current ?? line.currentFee?.paidThisMonth;
+  const other = line.paper?.other ?? (current ? line.paid.minus(current) : line.paid);
   const fill: Style =
     tone === 'owed'
       ? { backgroundColor: OWED }
@@ -174,7 +176,7 @@ function UnitRow({ line, report }: { line: UnitReportLine; report: ReportDocumen
         {other.isPositive() ? money(other) : ''}
       </Cell>
       <Cell last style={{ ...styles.center, fontSize: 6.5 }}>
-        {observations(line, report.month, report.maintenanceFee)}
+        {line.paper?.text ?? observations(line, report.month, report.maintenanceFee)}
       </Cell>
     </View>
   );
@@ -337,7 +339,7 @@ function Expenses({ report }: { report: ReportDocument }) {
       />
       <View style={{ marginTop: 6 }} />
       <Total
-        label={report.status === 'CLOSED' ? 'SALDO AL FIN DE MES' : 'SALDO AL DÍA'}
+        label={closingLabel(report)}
         value={report.closingBalance}
         offset={offset}
         width={EXPENSE.amount}
@@ -348,7 +350,15 @@ function Expenses({ report }: { report: ReportDocument }) {
   );
 }
 
-function administeredBy({ scheduledUnit, responsibleUnits }: ReportDocument): string {
+function closingLabel({ status, days, month }: ReportDocument): string {
+  if (days && days.to < month.daysInMonth) return `SALDO AL ${days.to} DE ${monthName(month)}`;
+  return status === 'CLOSED' ? 'SALDO AL FIN DE MES' : 'SALDO AL DÍA';
+}
+
+/** Who administered the month, as far as the platform knows (not before the rotation). */
+function administeredBy({ administration, responsible }: ReportDocument): string | null {
+  if (!administration) return responsible;
+  const { scheduledUnit, responsibleUnits } = administration;
   if (responsibleUnits.length === 0)
     return `Turno de Depto ${scheduledUnit.value}, sin responsable`;
   const covering = responsibleUnits.filter((unit) => unit !== scheduledUnit);
@@ -356,8 +366,43 @@ function administeredBy({ scheduledUnit, responsibleUnits }: ReportDocument): st
   return `Turno de Depto ${scheduledUnit.value}, cubrió Depto ${covering.map((u) => u.value).join(' y ')}`;
 }
 
-export function MonthlyReportPdf({ report }: { report: ReportDocument }) {
-  const title = monthTitle(report.month);
+/** The month, and the days of its sheet when it had more than one ("FEBRERO 2023, DEL 11 AL 28"). */
+function pageTitle({ month, days }: ReportDocument): string {
+  const title = monthTitle(month);
+  return days ? `${title}, DEL ${days.from} AL ${days.to}` : title;
+}
+
+function ReportPage({ report }: { report: ReportDocument }) {
+  const footer = [
+    administeredBy(report),
+    `Generado el ${timestamp(report.generatedAt)} con DepAdmin`,
+  ].filter(Boolean);
+  return (
+    <Page size="LETTER" style={styles.page}>
+      <Text style={styles.building}>EDIFICIO CORRESPONDENCIA 63</Text>
+      <View style={styles.topLine}>
+        <Text>{pageTitle(report)}</Text>
+        <Text>SALDO A INICIO DE MES {money(report.openingBalance)}</Text>
+      </View>
+      {report.status === 'OPEN' && (
+        <Text style={styles.draft}>
+          BORRADOR: EL MES SIGUE ABIERTO Y ESTAS CIFRAS TODAVÍA PUEDEN CAMBIAR
+        </Text>
+      )}
+      <Income report={report} />
+      <Expenses report={report} />
+      <View style={styles.footer} fixed>
+        <Text>{footer.join(' · ')}</Text>
+        <Text render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`} />
+      </View>
+    </Page>
+  );
+}
+
+/** The month's report: one page set per document (two for a month of the history that changed hands). */
+export function MonthlyReportPdf({ reports }: { reports: readonly ReportDocument[] }) {
+  const first = reports[0];
+  const title = first ? monthTitle(first.month) : '';
   return (
     <Document
       title={`Edificio Correspondencia 63, ${title}`}
@@ -366,26 +411,9 @@ export function MonthlyReportPdf({ report }: { report: ReportDocument }) {
       producer="DepAdmin"
       language="es-MX"
     >
-      <Page size="LETTER" style={styles.page}>
-        <Text style={styles.building}>EDIFICIO CORRESPONDENCIA 63</Text>
-        <View style={styles.topLine}>
-          <Text>{title}</Text>
-          <Text>SALDO A INICIO DE MES {money(report.openingBalance)}</Text>
-        </View>
-        {report.status === 'OPEN' && (
-          <Text style={styles.draft}>
-            BORRADOR: EL MES SIGUE ABIERTO Y ESTAS CIFRAS TODAVÍA PUEDEN CAMBIAR
-          </Text>
-        )}
-        <Income report={report} />
-        <Expenses report={report} />
-        <View style={styles.footer} fixed>
-          <Text>
-            {administeredBy(report)} · Generado el {timestamp(report.generatedAt)} con DepAdmin
-          </Text>
-          <Text render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`} />
-        </View>
-      </Page>
+      {reports.map((report, index) => (
+        <ReportPage key={index} report={report} />
+      ))}
     </Document>
   );
 }

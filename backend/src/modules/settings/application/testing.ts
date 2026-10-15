@@ -16,9 +16,11 @@ export class InMemoryRateSettingsRepository implements RateSettingsRepository {
   }
 }
 
+/** The initial rates, in force since August 2026. */
+export const initialRateSettings = () =>
+  new InMemoryRateSettingsRepository(RateSettings.startingOn(LocalDate.of(2026, 8, 1)));
+
 /** The rates query over the initial rates, in force since August 2026. */
 export function initialRates(): GetRates {
-  return new GetRates(
-    new InMemoryRateSettingsRepository(RateSettings.startingOn(LocalDate.of(2026, 8, 1))),
-  );
+  return new GetRates(initialRateSettings());
 }

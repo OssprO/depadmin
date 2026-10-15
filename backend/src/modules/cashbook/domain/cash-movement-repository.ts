@@ -14,6 +14,8 @@ export interface CashMovementRepository {
   /** Live UNIT_PAYMENT rows of every depto, for the table of balances. */
   findAllPayments(): Promise<CashMovement[]>;
   save(movements: readonly CashMovement[]): Promise<void>;
+  /** New rows in bulk, in the order given (rows on the same date keep it). */
+  insert(movements: readonly CashMovement[]): Promise<void>;
 }
 
 export const CASH_MOVEMENT_REPOSITORY = Symbol('CashMovementRepository');

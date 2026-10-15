@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { withCode } from '../../../../test/support/domain-error.js';
-import { Money, UnitNumber, YearMonth } from '../../../shared-kernel/index.js';
-import { expense, garbage, otherIncome, payment, pesos } from '../../cashbook/domain/testing.js';
+import { Money, type PaperLine, UnitNumber, YearMonth } from '../../../shared-kernel/index.js';
+import { d, expense, garbage, otherIncome, payment, pesos } from '../../cashbook/domain/testing.js';
 import { admin, owner } from '../../shifts/application/testing.js';
+import type { ReportDocument } from './report-document.js';
 import { booksFixture } from './testing.js';
 
 const m = (text: string) => YearMonth.parse(text);
@@ -19,7 +20,7 @@ describe('reporting start', () => {
     );
     await fx.setStart.execute(admin, start);
 
-    expect(await fx.getStart.execute()).toEqual(start);
+    expect(await fx.getStart.execute()).toEqual({ ...start, cutover: start.month });
     expect(fx.audit.entries[0]?.change).toMatchObject({
       action: 'REPORTING_START_SET',
       changes: [
@@ -42,17 +43,221 @@ describe('reporting start', () => {
       { field: 'openingBalance', before: 500000, after: 520000 },
     ]);
   });
+});
 
-  it("comes after the building's history, never within it", async () => {
+describe("books that start with the building's history", () => {
+  // The history runs from May to July 2026; the platform is live from August.
+  const history = { month: m('2026-05'), openingBalance: pesos(712.25), cutover: m('2026-08') };
+
+  async function started() {
     const fx = booksFixture('2026-10-02');
-    fx.pastHistory.endsIn(m('2026-08'));
-    await expect(fx.setStart.execute(admin, start)).rejects.toThrow(
-      withCode('HISTORY_OVERLAPS_BOOKS'),
-    );
+    await fx.startWithHistory.execute(admin, history);
+    return fx;
+  }
 
-    fx.pastHistory.endsIn(m('2026-07'));
-    await fx.setStart.execute(admin, start);
-    expect(await fx.getStart.execute()).toEqual(start);
+  it('opens every month of the history, with no fees and nothing in the audit log', async () => {
+    const fx = booksFixture('2026-10-02');
+    await expect(fx.startWithHistory.execute(owner(501), history)).rejects.toThrow(
+      withCode('SUPERADMIN_ONLY'),
+    );
+    const opened = await fx.startWithHistory.execute(admin, history);
+
+    expect(opened.map((report) => String(report.month))).toEqual(['2026-05', '2026-06', '2026-07']);
+    expect(await fx.getStart.execute()).toEqual(history);
+    expect(fx.charges.summary()).toEqual([]);
+    expect(fx.audit.entries).toEqual([]);
+    const july = await fx.view.execute(admin, m('2026-07'));
+    expect(july).toMatchObject({ status: 'OPEN', historical: true, canWrite: true });
+    // Nobody holds a month before the rotation, so only the superadmin writes it.
+    expect((await fx.view.execute(owner(501), m('2026-07'))).canWrite).toBe(false);
+    expect((await fx.view.execute(admin, m('2026-08'))).historical).toBe(false);
+  });
+
+  it('needs books that have not started and a history that is over', async () => {
+    const fx = await started();
+    await expect(fx.startWithHistory.execute(admin, history)).rejects.toThrow(
+      withCode('BOOKS_ALREADY_STARTED'),
+    );
+    const empty = booksFixture('2026-10-02');
+    await expect(
+      empty.startWithHistory.execute(admin, { ...history, cutover: m('2026-05') }),
+    ).rejects.toThrow(withCode('HISTORY_FILE_INVALID'));
+    await expect(
+      empty.startWithHistory.execute(admin, { ...history, cutover: m('2026-11') }),
+    ).rejects.toThrow(withCode('MONTH_NOT_STARTED'));
+  });
+
+  it('keeps its first month, while the cash can be corrected', async () => {
+    const fx = await started();
+    await expect(
+      fx.setStart.execute(admin, { month: m('2026-08'), openingBalance: pesos(18_000) }),
+    ).rejects.toThrow(withCode('REPORTING_START_LOCKED'));
+    await fx.setStart.execute(admin, { month: m('2026-05'), openingBalance: pesos(700) });
+    expect(await fx.getStart.execute()).toEqual({ ...history, openingBalance: pesos(700) });
+  });
+
+  it('charges fees and audits from the cut-over on, which opens with what the history left', async () => {
+    const fx = await started();
+    await fx.add.execute(admin, payment('2026-07-01', 101, 700));
+    expect(fx.audit.entries).toEqual([]);
+
+    await fx.open.execute(admin, m('2026-08'));
+    expect(fx.charges.summary()).toHaveLength(10);
+    expect(fx.audit.actions.filter((a) => a === 'MONTH_OPENED')).toEqual(['MONTH_OPENED']);
+    const august = await fx.view.execute(admin, m('2026-08'));
+    expect(august.balances?.opening).toEqual(pesos(1412.25));
+    await fx.add.execute(admin, payment('2026-08-03', 102, 700));
+    expect(fx.audit.actions.at(-1)).toBe('CASH_MOVEMENT_ADDED');
+  });
+
+  it('starts the accounts at the cut-over: a payment of the history settled its paper', async () => {
+    const fx = await started();
+    await fx.add.execute(admin, payment('2026-07-01', 101, 2100));
+    await fx.open.execute(admin, m('2026-08'));
+
+    const [account] = (await fx.accounts.all()).filter((a) => a.unit.value === 101);
+    expect(account).toMatchObject({ outstandingBalance: pesos(700), creditBalance: Money.ZERO });
+    // What the deptos carried into their accounts is dated before the cut-over.
+    expect(String((await fx.getOpening.execute()).start)).toBe('2026-08');
+  });
+
+  it('is checked month by month: closing them is audited, and the cut-over waits for them', async () => {
+    const fx = await started();
+    await fx.open.execute(admin, m('2026-08'));
+    await fx.close.execute(admin, m('2026-05'));
+    expect(fx.audit.actions.at(-1)).toBe('MONTH_CLOSED');
+    await expect(fx.close.execute(admin, m('2026-08'))).rejects.toThrow(
+      withCode('PREVIOUS_MONTH_OPEN'),
+    );
+    await fx.close.execute(admin, m('2026-06'));
+    await fx.close.execute(admin, m('2026-07'));
+    await fx.close.execute(admin, m('2026-08'));
+    // Opening balances freeze with the cut-over month, not with the first one.
+    await expect(fx.setOpening.execute(admin, UnitNumber.of(101), [], pesos(0))).rejects.toThrow(
+      withCode('OPENING_BALANCE_LOCKED'),
+    );
+  });
+
+  it('lists the months of the history as such', async () => {
+    const fx = await started();
+    const { months } = await fx.history.execute(admin);
+    expect(months.map((entry) => [String(entry.month), entry.historical])).toEqual([
+      ['2026-07', true],
+      ['2026-06', true],
+      ['2026-05', true],
+    ]);
+  });
+});
+
+describe('the report of a month of the history', () => {
+  const history = { month: m('2026-06'), openingBalance: pesos(1000), cutover: m('2026-08') };
+  const line = (unit: number, text: string, split: Partial<PaperLine> = {}): PaperLine => ({
+    unit: UnitNumber.of(unit),
+    ownerName: null,
+    current: null,
+    other: null,
+    text,
+    ...split,
+  });
+
+  /** July 2026 changed hands on the 10th: two sheets, as on paper. */
+  async function july() {
+    const fx = booksFixture('2026-10-02', {}, { 101: 'DUEÑA DE HOY' });
+    await fx.startWithHistory.execute(admin, history);
+    // The history's rates, as the import brings them (every rate needs a value in force).
+    await fx.earlierRates.execute(
+      admin,
+      (['maintenanceFee', 'cleaningPerVisit', 'garbageWeekly', 'shiftSkipPenalty'] as const).map(
+        (rate) => ({ rate, effectiveFrom: d('2026-06-01'), amount: pesos(700) }),
+      ),
+    );
+    for (const row of [
+      payment('2026-07-01', 101, 1400),
+      payment('2026-07-01', 102, 1400),
+      garbage('2026-07-04', '2026-06-29'),
+      payment('2026-07-12', 201, 700),
+      expense('2026-07-20', 'OTHER_EXPENSE', 400, 'PAGO DE LUZ'),
+    ]) {
+      await fx.add.execute(admin, row);
+    }
+    // Paid on the day the administration changed hands, and listed on the first sheet.
+    const handover = await fx.add.execute(admin, garbage('2026-07-10', '2026-07-06'));
+    fx.paper.set('2026-07', [
+      {
+        fromDay: 10,
+        responsible: 'Responsable: depto 201',
+        movementIds: [],
+        lines: [line(201, 'LIQUIDA JUNIO', { current: Money.ZERO, other: pesos(700) })],
+      },
+      {
+        fromDay: 1,
+        responsible: null,
+        movementIds: [handover.id],
+        lines: [
+          line(101, 'ADELANTA AGOSTO', { ownerName: 'DUEÑA DE ENTONCES' }),
+          line(102, 'LIQUIDA JUNIO', { current: pesos(700), other: pesos(700) }),
+        ],
+      },
+    ]);
+    return fx;
+  }
+
+  it('reads like its paper: one document per sheet, chained, with its lines per depto', async () => {
+    const fx = await july();
+    const [first, second] = await fx.pdf.documents(m('2026-07'));
+
+    expect(first).toMatchObject({
+      days: { from: 1, to: 9 },
+      administration: null,
+      openingBalance: pesos(1000),
+      income: pesos(2800),
+      expense: pesos(300),
+      closingBalance: pesos(3500),
+    });
+    expect(second).toMatchObject({
+      days: { from: 10, to: 31 },
+      responsible: 'Responsable: depto 201',
+      openingBalance: pesos(3500),
+      income: pesos(700),
+      expense: pesos(400),
+      closingBalance: pesos(3800),
+    });
+    const unit = (doc: ReportDocument | undefined, n: number) =>
+      doc!.units.find((u) => u.unit.value === n)!;
+    // Where the paper does not split a payment, the month's fee goes to MES EN CURSO.
+    expect(unit(first, 101)).toMatchObject({
+      ownerName: 'DUEÑA DE ENTONCES',
+      paper: { current: pesos(700), other: pesos(700), text: 'ADELANTA AGOSTO' },
+    });
+    expect(unit(first, 102).paper).toEqual({
+      current: pesos(700),
+      other: pesos(700),
+      text: 'LIQUIDA JUNIO',
+    });
+    expect(unit(second, 201).paper).toEqual({
+      current: Money.ZERO,
+      other: pesos(700),
+      text: 'LIQUIDA JUNIO',
+    });
+    // No paper line: today's owner, nothing paid, nothing said.
+    expect(unit(second, 101)).toMatchObject({
+      ownerName: 'DUEÑA DE HOY',
+      paid: Money.ZERO,
+      paper: { current: Money.ZERO, other: Money.ZERO, text: '' },
+    });
+    // Only the weeks paid, as the paper listed them; no accounts before the cut-over.
+    expect(first!.garbage.map((g) => String(g.week))).toEqual(['2026-06-29', '2026-07-06']);
+    expect(second!.garbage).toEqual([]);
+    expect(unit(first, 101)).toMatchObject({ owed: [], currentFee: null });
+    await fx.pdf.execute(m('2026-07'));
+    expect(fx.renderer.documents).toHaveLength(2);
+  });
+
+  it('is one document from its rows when its paper is missing', async () => {
+    const fx = await july();
+    const documents = await fx.pdf.documents(m('2026-06'));
+    expect(documents).toHaveLength(1);
+    expect(documents[0]).toMatchObject({ days: null, administration: null, status: 'OPEN' });
   });
 });
 
@@ -437,8 +642,11 @@ describe('RenderMonthlyReport', () => {
     const [doc] = fx.renderer.documents;
     expect(doc).toMatchObject({
       status: 'CLOSED',
-      scheduledUnit: UnitNumber.of(501),
-      responsibleUnits: [UnitNumber.of(501)],
+      days: null,
+      administration: {
+        scheduledUnit: UnitNumber.of(501),
+        responsibleUnits: [UnitNumber.of(501)],
+      },
       openingBalance: pesos(5000),
       income: pesos(5700),
       expense: pesos(1080),

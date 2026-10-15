@@ -8,10 +8,16 @@ import {
 } from '../../../shared-kernel/index.js';
 import { closingBalanceOf, MonthlyReport, type MonthTotals } from './monthly-report.js';
 
-/** Where the books start: the cut-over month and the cash on hand at its beginning. */
+/**
+ * Where the books start: the first month and the cash on hand at its beginning, and the
+ * cut-over: the first month kept live on the platform. The months between them are the
+ * building's history, transcribed from its paper sheets (ADR-0023); without one, the books
+ * start at the cut-over.
+ */
 export interface ReportingStart {
   readonly month: YearMonth;
   readonly openingBalance: Money;
+  readonly cutover: YearMonth;
 }
 
 /** Live totals of a month's cashbook, supplied by the application layer. */
@@ -34,6 +40,12 @@ export class ReportLedger {
   ) {}
 
   static restore(start: ReportingStart, reports: readonly MonthlyReport[]): ReportLedger {
+    if (start.cutover.isBefore(start.month)) {
+      throw new ValidationError(
+        'REPORTING_START_INVALID',
+        `The cut-over ${start.cutover} comes before the start ${start.month}`,
+      );
+    }
     const chain = [...reports].sort((a, b) => a.month.compareTo(b.month));
     chain.forEach((report, i) => {
       if (!report.month.equals(start.month.plus(i))) {
@@ -48,6 +60,11 @@ export class ReportLedger {
 
   get reports(): readonly MonthlyReport[] {
     return this.chain;
+  }
+
+  /** Whether the month is of the history: from the start of the books, before the cut-over. */
+  isHistory(month: YearMonth): boolean {
+    return !month.isBefore(this.start.month) && month.isBefore(this.start.cutover);
   }
 
   /** The next month to open: the reporting start, or the month after the last report. */

@@ -67,6 +67,34 @@ export class PrismaCashMovementRepository implements CashMovementRepository {
     });
   }
 
+  insert(movements: readonly CashMovement[]): Promise<void> {
+    // One millisecond apart, so rows on the same date keep the order they came in.
+    const base = Date.now();
+    return translateViolations(
+      async () => {
+        await this.database.db.cashMovement.createMany({
+          data: movements.map((movement, index) => {
+            const { date, category, amount, description, unit, week } = movement.details;
+            return {
+              id: movement.id,
+              date: toDbDate(date),
+              category,
+              amount: amount.centavos,
+              description,
+              unitNumber: unit?.value ?? null,
+              coversWeek: week && toDbDate(week),
+              createdAt: new Date(base + index),
+            };
+          }),
+        });
+      },
+      {
+        cash_movement_one_garbage_per_week: () =>
+          new ConflictError('GARBAGE_WEEK_PAID', 'Another row paid that week at the same time'),
+      },
+    );
+  }
+
   private saveRows(movements: readonly CashMovement[]): Promise<void> {
     return this.database.run(async () => {
       const { db } = this.database;

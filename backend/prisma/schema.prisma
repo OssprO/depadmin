@@ -75,7 +75,6 @@ model Unit {
 
   inactivePeriods  UnitInactivePeriod[]
   movements        CashMovement[]
-  pastMovements    HistoricalMovement[]
   charges          Charge[]
   openingCredit    OpeningCredit?
   delegationsGiven ShiftDelegation[]    @relation("original")
@@ -165,6 +164,8 @@ model ReportingStart {
   id             Int      @id @default(1) @db.SmallInt
   month          DateTime @db.Date
   openingBalance Int      @map("opening_balance")
+  /// The first month kept live (fees, accounts, shifts, audit); earlier months are history.
+  cutover        DateTime @db.Date
 
   @@map("reporting_start")
 }
@@ -250,60 +251,34 @@ model AuditLog {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// The building's history: the months before the platform, transcribed from the paper
-// sheets (ADR-0022). Kept apart from the live books, which they never touch, and outside
-// the audit log while the superadmin reviews them.
+// The building's history (ADR-0023): the months from the start of the books to the
+// cut-over are ordinary months of the books, transcribed from the paper sheets. What the
+// rows cannot hold, each sheet's own figures and its line per depto, is kept here so the
+// month can be checked against its paper and its report reads like the sheet.
 // ─────────────────────────────────────────────────────────────────────────────
-
-/// Singleton row: which months the history spans and the cash on hand when it begins.
-model HistoricalBooks {
-  id             Int       @id @default(1) @db.SmallInt
-  firstMonth     DateTime  @map("first_month") @db.Date
-  lastMonth      DateTime  @map("last_month") @db.Date
-  openingBalance Int       @map("opening_balance")
-  importedAt     DateTime  @default(now()) @map("imported_at") @db.Timestamptz
-  /// Null while the superadmin reviews it.
-  verifiedAt     DateTime? @map("verified_at") @db.Timestamptz
-
-  @@map("historical_books")
-}
 
 /// One paper sheet: a month, or the part of one that an administrator handed over mid-month.
 /// Its figures are what the paper says (null where the paper is missing or unreadable).
-model HistoricalSheet {
+model PaperSheet {
   id           String   @id @db.Uuid
   month        DateTime @db.Date
   /// Day of the month the sheet starts on (1, or e.g. 10 for a mid-month handover).
   fromDay      Int      @map("from_day") @db.SmallInt
   /// Where it was transcribed from (a PDF page or a photo).
   source       String
+  /// Who the sheet says administered it («Responsable: …»), as written.
+  responsible  String?
   paperOpening Int?     @map("paper_opening")
   paperIncome  Int?     @map("paper_income")
   paperExpense Int?     @map("paper_expense")
   paperClosing Int?     @map("paper_closing")
   /// Transcription remarks: what does not add up, what is missing.
   alerts       String[]
-  /// [{ unit, text }]: the OBSERVACIONES column, one entry per depto at most.
-  notes        Json
+  /// [{ unit, ownerName, current, other, text }]: the sheet's line per depto, as written.
+  lines        Json
+  /// The rows the sheet lists (from the import); other rows of its month go by their date.
+  movementIds  String[] @map("movement_ids") @db.Uuid
 
   @@unique([month, fromDay])
-  @@map("historical_sheet")
-}
-
-/// A row of a past month. Same shape and rules as a live cash movement.
-model HistoricalMovement {
-  id          String           @id @db.Uuid
-  date        DateTime         @db.Date
-  category    MovementCategory
-  amount      Int
-  description String?
-  unitNumber  Int?             @map("unit_number")
-  /// Garbage rows only: the Monday of the week the row pays for.
-  coversWeek  DateTime?        @map("covers_week") @db.Date
-  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz
-
-  unit Unit? @relation(fields: [unitNumber], references: [number], onDelete: Restrict)
-
-  @@index([date])
-  @@map("historical_movement")
+  @@map("paper_sheet")
 }

@@ -14,6 +14,10 @@ export class ReportMonthLedger implements MonthLedger {
     return report.isOpen ? 'OPEN' : 'CLOSED';
   }
 
+  async cutover(): Promise<YearMonth | null> {
+    return (await this.reports.loadLedger())?.start.cutover ?? null;
+  }
+
   holdOpen(month: YearMonth): Promise<void> {
     return this.reports.lockMonth(month, 'shared');
   }

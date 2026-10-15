@@ -13,7 +13,10 @@ const frontend = `${root}frontend`;
  * seed, the compiled API, and the built SPA served by `vite preview` (which proxies /api,
  * as Caddy will). Returns a function that tears it all down.
  */
-export async function startStack(): Promise<() => Promise<void>> {
+export async function startStack({
+  apiPort = API_PORT,
+  webPort = WEB_PORT,
+}: { apiPort?: number; webPort?: number } = {}): Promise<() => Promise<void>> {
   for (const build of [`${backend}/dist/main.js`, `${frontend}/dist/index.html`]) {
     if (!existsSync(build)) throw new Error(`Missing ${build}: run "pnpm build" first.`);
   }
@@ -23,7 +26,7 @@ export async function startStack(): Promise<() => Promise<void>> {
     ...process.env,
     NODE_ENV: 'production',
     LOG_LEVEL: 'warn',
-    PORT: String(API_PORT),
+    PORT: String(apiPort),
     DATABASE_URL: database.getConnectionUri(),
     JWT_SECRET: 'browser-tests-secret-that-is-at-least-32-chars',
     JOBS_ENABLED: 'false',
@@ -31,7 +34,7 @@ export async function startStack(): Promise<() => Promise<void>> {
     LOGIN_ATTEMPTS_PER_MINUTE: '100',
     SUPERADMIN_USERNAME: SUPERADMIN.username,
     SUPERADMIN_PASSWORD: SUPERADMIN.password,
-    API_URL: `http://localhost:${API_PORT}`,
+    API_URL: `http://localhost:${apiPort}`,
   };
   execFileSync('pnpm', ['exec', 'prisma', 'migrate', 'deploy'], {
     cwd: backend,
@@ -42,7 +45,7 @@ export async function startStack(): Promise<() => Promise<void>> {
 
   const processes = [
     spawn('node', ['dist/main.js'], { cwd: backend, env, stdio: 'inherit' }),
-    spawn('pnpm', ['exec', 'vite', 'preview', '--port', String(WEB_PORT), '--strictPort'], {
+    spawn('pnpm', ['exec', 'vite', 'preview', '--port', String(webPort), '--strictPort'], {
       cwd: frontend,
       env,
       stdio: 'ignore',
@@ -55,8 +58,8 @@ export async function startStack(): Promise<() => Promise<void>> {
     await database.stop();
   };
   try {
-    await waitFor(`http://localhost:${API_PORT}/api/health`);
-    await waitFor(`http://localhost:${WEB_PORT}/`);
+    await waitFor(`http://localhost:${apiPort}/api/health`);
+    await waitFor(`http://localhost:${webPort}/`);
   } catch (error) {
     await stop();
     throw error;

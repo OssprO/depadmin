@@ -10,7 +10,7 @@ import { MonthlyReportPdf } from './monthly-report-pdf.js';
  */
 @Injectable()
 export class ReactPdfReportRenderer implements ReportRenderer {
-  async render(document: ReportDocument): Promise<Uint8Array> {
-    return new Uint8Array(await renderToBuffer(<MonthlyReportPdf report={document} />));
+  async render(documents: readonly ReportDocument[]): Promise<Uint8Array> {
+    return new Uint8Array(await renderToBuffer(<MonthlyReportPdf reports={documents} />));
   }
 }

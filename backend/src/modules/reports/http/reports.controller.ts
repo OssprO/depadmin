@@ -19,6 +19,7 @@ import {
   openingBalanceRequestSchema,
   type OpeningBalances,
   type ReportingStart,
+  type ReportingStartResponse,
   reportingStartSchema,
   type UnitNumberValue,
   unitNumberSchema,
@@ -68,12 +69,13 @@ export class ReportsController {
   ) {}
 
   @Get('reporting-start')
-  async start(): Promise<{ start: ReportingStart | null }> {
+  async start(): Promise<ReportingStartResponse> {
     const start = await this.getStart.execute();
     return {
       start: start && {
         month: String(start.month),
         openingBalance: start.openingBalance.centavos,
+        cutover: String(start.cutover),
       },
     };
   }

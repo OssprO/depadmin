@@ -20,6 +20,7 @@ import {
   ReportMonthLedger,
   SetOpeningBalance,
   SetReportingStart,
+  StartBooksWithHistory,
 } from './application/index.js';
 import { REPORT_REPOSITORY } from './domain/index.js';
 import { ReportsController } from './http/reports.controller.js';
@@ -30,6 +31,7 @@ import { OpenCurrentMonthJob } from './jobs/open-current-month.job.js';
 /**
  * Global for one thing only: the `MONTH_LEDGER` port, which the cashbook and units modules
  * ask without importing this module (it reads them, so importing it back would be a cycle).
+ * It asks the `PAPER_RECORD` port the same way, which the history module provides.
  */
 @Global()
 @Module({
@@ -41,6 +43,7 @@ import { OpenCurrentMonthJob } from './jobs/open-current-month.job.js';
     ReportMonthLedger,
     { provide: MONTH_LEDGER, useExisting: ReportMonthLedger },
     SetReportingStart,
+    StartBooksWithHistory,
     GetReportingStart,
     MonthOpening,
     OpenMonth,
@@ -55,6 +58,6 @@ import { OpenCurrentMonthJob } from './jobs/open-current-month.job.js';
     SetOpeningBalance,
     OpenCurrentMonthJob,
   ],
-  exports: [MONTH_LEDGER, GetReportingStart],
+  exports: [MONTH_LEDGER, GetReportingStart, StartBooksWithHistory, GetMonthHistory],
 })
 export class ReportsModule {}

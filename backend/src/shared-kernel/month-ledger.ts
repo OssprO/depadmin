@@ -19,6 +19,12 @@ export interface MonthLedger {
    * checking that the month is open; a close already under way finishes first.
    */
   holdOpen(month: YearMonth): Promise<void>;
+  /**
+   * The first month the platform keeps live: from it on there are fees, accounts, shifts and
+   * audit. The months before it, back to the start of the books, are the building's history,
+   * transcribed from its paper sheets (ADR-0023). Null until the books start.
+   */
+  cutover(): Promise<YearMonth | null>;
 }
 
 export const MONTH_LEDGER = Symbol('MonthLedger');

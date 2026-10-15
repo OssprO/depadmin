@@ -53,6 +53,7 @@ export function octoberReport(overrides: Partial<MonthlyReport> = {}): MonthlyRe
     month: '2026-10',
     status: 'OPEN',
     reportingStarted: true,
+    historical: false,
     balances: { opening: 500000, closing: 613000 },
     totals: {
       income: 140000,
@@ -104,6 +105,7 @@ export function historyOf(overrides: Partial<MonthHistoryEntry>[] = []): MonthHi
     income: 140000,
     expense: Number(opening) + 140000 - Number(closing),
     closingBalance: Number(closing),
+    historical: false,
     canClose: false,
     canReopen: false,
   }));

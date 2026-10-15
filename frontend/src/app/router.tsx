@@ -54,10 +54,6 @@ const ChangePasswordPage = lazyRouteComponent(
   () => import('@/features/auth/routes/ChangePasswordPage'),
   'ChangePasswordPage',
 );
-const HistoricalMonthPage = lazyRouteComponent(
-  () => import('@/features/historical/routes/HistoricalMonthPage'),
-  'HistoricalMonthPage',
-);
 const HistoryReviewPage = lazyRouteComponent(
   () => import('@/features/historical/routes/HistoryReviewPage'),
   'HistoryReviewPage',
@@ -264,26 +260,19 @@ const openingBalancesRoute = createRoute({
   component: OpeningBalancesPage,
 });
 
-/** The building's history before the platform, in review (ADR-0022). */
+/** The building's history: the books start with it, and it is checked month by month (ADR-0023). */
 const historyReviewRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/history',
   component: HistoryReviewPage,
 });
 
+/** A month of the history is reviewed in the book, like any other (ADR-0023). */
 const historicalMonthRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/history/$month',
-  params: {
-    parse: ({ month }) => {
-      if (!yearMonthSchema.safeParse(month).success) throw notFound();
-      return { month };
-    },
-    stringify: ({ month }) => ({ month }),
-  },
-  component: function HistoricalMonthRoute() {
-    const { month } = historicalMonthRoute.useParams();
-    return <HistoricalMonthPage key={month} month={month} />;
+  beforeLoad: ({ params }) => {
+    throw redirect({ to: '/book/$month', params: { month: params.month } });
   },
 });
 

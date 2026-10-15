@@ -2,71 +2,21 @@ import type { HistorySummary } from '@depadmin/shared';
 import { CaretRightIcon } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { useState } from 'react';
-import { FormError } from '@/components/FormError';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { errorMessage } from '@/lib/error-messages';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { reportingStartQueryOptions } from '@/features/admin/api';
 import { formatMoney, formatMonth, formatMonthName } from '@/lib/format';
-import { historyStateQueryOptions, useDiscardHistory } from '../api';
+import { historyStateQueryOptions } from '../api';
 import { GapBadge } from '../components/GapBadge';
 import { ImportHistoryCard } from '../components/ImportHistoryCard';
-
-function Cutover({ history }: { history: HistorySummary }) {
-  const { cutover } = history;
-  if (!cutover) {
-    return (
-      <p className="text-muted-foreground">
-        Cuando captures el{' '}
-        <Link to="/admin/start" className="underline underline-offset-4">
-          inicio de la contabilidad
-        </Link>
-        , aquí se compara el efectivo de ese mes con el cierre del historial.
-      </p>
-    );
-  }
-  if (cutover.difference === null) {
-    return (
-      <p className="text-muted-foreground">
-        Los libros empiezan en {formatMonth(cutover.month)}: entre el historial y ellos hay meses
-        sin registrar.
-      </p>
-    );
-  }
-  return (
-    <p className={cutover.difference === 0 ? 'text-muted-foreground' : 'font-medium'}>
-      {formatMonth(cutover.month)} empieza con {formatMoney(cutover.openingBalance)} en caja
-      {cutover.difference === 0
-        ? ', igual que el cierre del historial.'
-        : `: ${formatMoney(Math.abs(cutover.difference))} ${cutover.difference > 0 ? 'más' : 'menos'} que el cierre del historial.`}
-    </p>
-  );
-}
 
 function SummaryCard({ history }: { history: HistorySummary }) {
   const months = history.months;
   const ok = months.filter((month) => month.sheets > 0 && month.ownGap === 0).length;
   const off = months.filter((month) => month.ownGap !== null && month.ownGap !== 0).length;
   const missing = months.filter((month) => month.sheets === 0).length;
+  const closed = months.filter((month) => month.status === 'CLOSED').length;
   const line = (label: string, value: string) => (
     <div className="flex justify-between gap-2">
       <dt className="text-muted-foreground">{label}</dt>
@@ -79,14 +29,9 @@ function SummaryCard({ history }: { history: HistorySummary }) {
         <CardTitle>
           {formatMonth(history.firstMonth)} a {formatMonth(history.lastMonth)}
         </CardTitle>
-        <CardAction>
-          <Badge variant={history.status === 'IN_REVIEW' ? 'default' : 'secondary'}>
-            {history.status === 'IN_REVIEW' ? 'En revisión' : 'Verificado'}
-          </Badge>
-        </CardAction>
         <CardDescription>
-          Compara cada mes con su hoja y corrígelo. Mientras esté en revisión solo tú lo ves, y nada
-          de esto va a la bitácora.
+          Abre cada mes en el Libro, compáralo con su hoja y corrígelo; al cerrarlo queda revisado.
+          Lo que captures en estos meses no va a la bitácora.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
@@ -96,11 +41,15 @@ function SummaryCard({ history }: { history: HistorySummary }) {
             formatMoney(history.openingBalance),
           )}
           {line(`Cierre de ${formatMonth(history.lastMonth)}`, formatMoney(history.closing))}
-          {line('Meses que cuadran con su hoja', `${ok} de ${months.length}`)}
+          {line('Meses revisados (cerrados)', `${closed} de ${months.length}`)}
+          {line('Meses que cuadran con su hoja', String(ok))}
           {line('Meses con diferencia', String(off))}
           {line('Meses sin hoja', String(missing))}
         </dl>
-        <Cutover history={history} />
+        <p className="text-muted-foreground">
+          {formatMonth(history.cutover)} abre con el cierre de {formatMonth(history.lastMonth)}, y
+          desde ahí siguen los libros en vivo.
+        </p>
       </CardContent>
     </Card>
   );
@@ -122,7 +71,7 @@ function MonthList({ history }: { history: HistorySummary }) {
             .map((month) => (
               <li key={month.month}>
                 <Link
-                  to="/admin/history/$month"
+                  to="/book/$month"
                   params={{ month: month.month }}
                   className="flex items-center gap-3 py-2.5"
                 >
@@ -132,6 +81,7 @@ function MonthList({ history }: { history: HistorySummary }) {
                         {formatMonthName(month.month)}
                       </span>
                       <GapBadge gap={month.ownGap} sheets={month.sheets} />
+                      {month.status === 'CLOSED' && <Badge variant="secondary">Cerrado</Badge>}
                       {month.alerts > 0 && (
                         <Badge variant="outline">
                           {month.alerts} {month.alerts === 1 ? 'alerta' : 'alertas'}
@@ -156,66 +106,43 @@ function MonthList({ history }: { history: HistorySummary }) {
   ));
 }
 
-function DiscardHistory() {
-  const discard = useDiscardHistory();
-  const [error, setError] = useState<string | null>(null);
-  return (
-    <AlertDialog onOpenChange={() => setError(null)}>
-      <AlertDialogTrigger render={<Button variant="ghost" size="sm" className="self-start" />}>
-        Descartar el historial
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>¿Descartar todo el historial?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Se borran todos sus meses, hojas y movimientos, también lo que hayas corregido, para
-            importar un archivo nuevo. No se puede deshacer.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <FormError message={error} />
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-          <AlertDialogAction
-            variant="destructive"
-            disabled={discard.isPending}
-            onClick={() =>
-              discard.mutate(undefined, { onError: (failure) => setError(errorMessage(failure)) })
-            }
-          >
-            Sí, descartarlo
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
-}
-
 /**
- * The building's history before the platform (ADR-0022): imported from the transcription of
- * the paper sheets and reviewed by the superadmin, month by month.
+ * The building's history (ADR-0023): the books start with it, imported from the
+ * transcription of the paper sheets, and the superadmin checks it month by month.
  */
 export function HistoryReviewPage() {
   const state = useQuery(historyStateQueryOptions);
+  const start = useQuery(reportingStartQueryOptions);
   const history = state.data?.history;
+  const loading = state.isPending || start.isPending;
 
   return (
     <div className="flex flex-col gap-4">
       <h1 className="font-heading text-lg font-bold">Historial</h1>
-      {state.isPending && <p className="text-xs/relaxed text-muted-foreground">Cargando…</p>}
-      {state.isError && (
+      {loading && <p className="text-xs/relaxed text-muted-foreground">Cargando…</p>}
+      {(state.isError || start.isError) && (
         <div className="flex items-center justify-between gap-4">
           <p className="text-xs/relaxed text-muted-foreground">No se pudo cargar el historial.</p>
-          <Button variant="outline" size="sm" onClick={() => void state.refetch()}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void Promise.all([state.refetch(), start.refetch()])}
+          >
             Reintentar
           </Button>
         </div>
       )}
-      {state.isSuccess && !history && <ImportHistoryCard />}
+      {state.isSuccess && start.isSuccess && !history && !start.data.start && <ImportHistoryCard />}
+      {state.isSuccess && start.isSuccess && !history && start.data.start && (
+        <p className="text-muted-foreground">
+          Los libros ya empezaron en {formatMonth(start.data.start.month)} sin historial. El
+          historial solo se importa antes de empezar los libros.
+        </p>
+      )}
       {history && (
         <>
           <SummaryCard history={history} />
           <MonthList history={history} />
-          {history.status === 'IN_REVIEW' && <DiscardHistory />}
         </>
       )}
     </div>

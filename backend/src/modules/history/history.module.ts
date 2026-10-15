@@ -1,51 +1,45 @@
 import { Global, Module } from '@nestjs/common';
-import { HISTORY_BOUNDARY } from '../../shared-kernel/index.js';
+import { PAPER_RECORD } from '../../shared-kernel/index.js';
+import { CashbookModule } from '../cashbook/cashbook.module.js';
 import { ReportsModule } from '../reports/reports.module.js';
+import { SettingsModule } from '../settings/settings.module.js';
 import { UnitsModule } from '../units/units.module.js';
 import {
-  AddHistoricalMovement,
   AddPaperSheet,
-  DiscardHistory,
-  GetHistoricalMonth,
   GetHistory,
-  HistoryAccess,
+  GetPaperMonth,
   ImportHistory,
-  PastHistoryBoundary,
+  PaperSheetAccess,
   PreviewHistoryImport,
-  RemoveHistoricalMovement,
   RemovePaperSheet,
-  ReviseHistoricalMovement,
   RevisePaperSheet,
+  SheetPaperRecord,
 } from './application/index.js';
-import { HISTORY_REPOSITORY } from './domain/index.js';
+import { PAPER_SHEET_REPOSITORY } from './domain/index.js';
 import { HistoryController } from './http/history.controller.js';
-import { PrismaHistoryRepository } from './infrastructure/prisma-history.repository.js';
+import { PrismaPaperSheetRepository } from './infrastructure/prisma-paper-sheet.repository.js';
 
 /**
- * Global for one thing only: the `HISTORY_BOUNDARY` port, which the reports module asks
+ * Global for one thing only: the `PAPER_RECORD` port, which the reports module asks
  * without importing this module (it reads the reports, so importing it back would be a cycle).
  */
 @Global()
 @Module({
-  imports: [ReportsModule, UnitsModule],
+  imports: [ReportsModule, CashbookModule, SettingsModule, UnitsModule],
   controllers: [HistoryController],
   providers: [
-    { provide: HISTORY_REPOSITORY, useClass: PrismaHistoryRepository },
-    PastHistoryBoundary,
-    { provide: HISTORY_BOUNDARY, useExisting: PastHistoryBoundary },
-    HistoryAccess,
+    { provide: PAPER_SHEET_REPOSITORY, useClass: PrismaPaperSheetRepository },
+    SheetPaperRecord,
+    { provide: PAPER_RECORD, useExisting: SheetPaperRecord },
+    PaperSheetAccess,
     GetHistory,
-    GetHistoricalMonth,
+    GetPaperMonth,
     PreviewHistoryImport,
     ImportHistory,
-    DiscardHistory,
-    AddHistoricalMovement,
-    ReviseHistoricalMovement,
-    RemoveHistoricalMovement,
     AddPaperSheet,
     RevisePaperSheet,
     RemovePaperSheet,
   ],
-  exports: [HISTORY_BOUNDARY],
+  exports: [PAPER_RECORD],
 })
 export class HistoryModule {}

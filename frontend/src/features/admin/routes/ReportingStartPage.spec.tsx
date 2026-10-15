@@ -34,7 +34,7 @@ describe('ReportingStartPage', () => {
     fakeApi({
       'POST /api/auth/refresh': sessionFor(superadmin),
       'GET /api/reporting-start': () =>
-        Response.json({ start: { month: '2026-08', openingBalance: 500000 } }),
+        Response.json({ start: { month: '2026-08', openingBalance: 500000, cutover: '2026-08' } }),
       'PUT /api/reporting-start': () => problem(409, 'REPORTING_START_LOCKED'),
     });
     renderApp('/admin/start');
@@ -43,5 +43,19 @@ describe('ReportingStartPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
 
     expect(await screen.findByText(/ya no se puede cambiar/)).toBeInTheDocument();
+  });
+
+  it('keeps the first month of books that start with the history', async () => {
+    fakeApi({
+      'POST /api/auth/refresh': sessionFor(superadmin),
+      'GET /api/reporting-start': () =>
+        Response.json({ start: { month: '2022-05', openingBalance: 71225, cutover: '2026-08' } }),
+    });
+    renderApp('/admin/start');
+
+    expect(await screen.findByLabelText('Primer mes')).toHaveAttribute('readonly');
+    expect(
+      screen.getByText(/empiezan con el historial, de mayo 2022 a julio 2026; desde agosto 2026/),
+    ).toBeInTheDocument();
   });
 });

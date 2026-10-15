@@ -1,37 +1,29 @@
 import {
   type AddSheetRequest,
-  historicalMonthSchema,
   type HistoryFile,
   historyPreviewSchema,
   historyStateSchema,
-  type MovementRequest,
+  paperMonthSchema,
   type SheetRequest,
 } from '@depadmin/shared';
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { apiFetch, getJson, sendJson } from '@/lib/http';
 
-// The building's history (ADR-0022): the months before the platform, in review by the
-// superadmin. Every change moves the balances of later months, so all of it is refreshed.
+// The building's history (ADR-0023): the months of the books transcribed from paper, and
+// their sheets. Its rows go through the book like any month's.
 
 export const historyStateQueryOptions = queryOptions({
   queryKey: ['history'],
   queryFn: () => getJson('/history', historyStateSchema),
 });
 
-export function historicalMonthQueryOptions(month: string) {
+/** A month of the history next to its sheets. */
+export function paperMonthQueryOptions(month: string) {
   return queryOptions({
     queryKey: ['history', month],
-    queryFn: () => getJson(`/history/months/${month}`, historicalMonthSchema),
+    queryFn: () => getJson(`/history/months/${month}`, paperMonthSchema),
   });
-}
-
-function useRefreshHistory(...also: string[][]) {
-  const queryClient = useQueryClient();
-  return () =>
-    Promise.all(
-      [['history'], ...also].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
-    );
 }
 
 /** Checks the file and adds it up; saves nothing. */
@@ -42,58 +34,27 @@ export function usePreviewHistory() {
   });
 }
 
-/** The import also sets the owners' names, which show in the deptos and the audit log. */
+/**
+ * The import starts the books and sets the owners' names, which show in the deptos and the
+ * audit log: everything is refreshed.
+ */
 export function useImportHistory() {
-  const refresh = useRefreshHistory(['units'], ['audit-log']);
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (file: HistoryFile) => {
       await apiFetch('/history', { method: 'POST', body: file });
     },
-    onSuccess: refresh,
+    onSuccess: () => queryClient.invalidateQueries(),
   });
 }
 
-export function useDiscardHistory() {
-  const refresh = useRefreshHistory();
-  return useMutation({
-    mutationFn: async () => {
-      await apiFetch('/history', { method: 'DELETE' });
-    },
-    onSuccess: refresh,
-  });
-}
-
-export function useAddHistoricalMovement() {
-  const refresh = useRefreshHistory();
-  return useMutation({
-    mutationFn: (body: MovementRequest) =>
-      sendJson('POST', '/history/movements', body, z.object({ id: z.uuid() })),
-    onSuccess: refresh,
-  });
-}
-
-export function useReviseHistoricalMovement() {
-  const refresh = useRefreshHistory();
-  return useMutation({
-    mutationFn: async ({ id, body }: { id: string; body: MovementRequest }) => {
-      await apiFetch(`/history/movements/${id}`, { method: 'PUT', body });
-    },
-    onSuccess: refresh,
-  });
-}
-
-export function useRemoveHistoricalMovement() {
-  const refresh = useRefreshHistory();
-  return useMutation({
-    mutationFn: async (id: string) => {
-      await apiFetch(`/history/movements/${id}`, { method: 'DELETE' });
-    },
-    onSuccess: refresh,
-  });
+function useRefreshSheets() {
+  const queryClient = useQueryClient();
+  return () => queryClient.invalidateQueries({ queryKey: ['history'] });
 }
 
 export function useAddSheet() {
-  const refresh = useRefreshHistory();
+  const refresh = useRefreshSheets();
   return useMutation({
     mutationFn: (body: AddSheetRequest) =>
       sendJson('POST', '/history/sheets', body, z.object({ id: z.uuid() })),
@@ -102,7 +63,7 @@ export function useAddSheet() {
 }
 
 export function useReviseSheet() {
-  const refresh = useRefreshHistory();
+  const refresh = useRefreshSheets();
   return useMutation({
     mutationFn: async ({ id, body }: { id: string; body: SheetRequest }) => {
       await apiFetch(`/history/sheets/${id}`, { method: 'PUT', body });
@@ -112,7 +73,7 @@ export function useReviseSheet() {
 }
 
 export function useRemoveSheet() {
-  const refresh = useRefreshHistory();
+  const refresh = useRefreshSheets();
   return useMutation({
     mutationFn: async (id: string) => {
       await apiFetch(`/history/sheets/${id}`, { method: 'DELETE' });

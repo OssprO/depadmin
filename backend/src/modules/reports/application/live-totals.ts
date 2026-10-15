@@ -15,10 +15,7 @@ export async function liveTotalsOf(
   const months = ledger.reports
     .filter((report) => report.isOpen && (!through || !report.month.isAfter(through)))
     .map((report) => report.month);
-  const books = await Promise.all(months.map((month) => cashbook.month(month)));
-  const totals = new Map<string, MonthTotals>(
-    books.map((book) => [String(book.month), book.totals()]),
-  );
+  const totals: Map<string, MonthTotals> = await cashbook.totalsOf(months);
   return (month) => {
     const found = totals.get(String(month));
     if (!found) throw new Error(`The live totals of ${month} were not loaded`);

@@ -24,6 +24,52 @@ const paidFirstWeek = (() => {
   };
 })();
 
+const SHEET_ID = '3f6c1f3e-1d1a-4b7e-9a51-0e8b3c1d2a10';
+
+/** May 2022, a month of the history, next to its paper. */
+const mayPaper = (canEdit = true) => ({
+  month: '2022-05',
+  opening: 71225,
+  income: 140000,
+  expense: 27000,
+  closing: 184225,
+  paperOpening: 71225,
+  paperClosing: 189225,
+  paperIncome: 145000,
+  paperExpense: 27000,
+  ownGap: -5000,
+  carriedGap: 0,
+  canEdit,
+  sheets: [
+    {
+      id: SHEET_ID,
+      month: '2022-05',
+      fromDay: 1,
+      source: 'PDF MAY-JUL 2022 p1',
+      responsible: 'Responsable: Emilia (202)',
+      opening: 71225,
+      income: 145000,
+      expense: 27000,
+      closing: 189225,
+      alerts: ['Cuota de $600 más $100 de administración'],
+      lines: [
+        { unit: 401, ownerName: 'NOMBRE', current: null, other: 70000, text: 'PAGÓ EN AGOSTO' },
+      ],
+    },
+  ],
+});
+
+const mayReport = (overrides = {}) =>
+  octoberReport({
+    month: '2022-05',
+    historical: true,
+    accounts: [],
+    garbageWeeks: [],
+    cleaningPayouts: [],
+    movements: [{ ...paymentRow, date: '2022-05-01', coverage: [] }],
+    ...overrides,
+  });
+
 describe('BookPage', () => {
   afterEach(() => {
     connectSession(null);
@@ -47,6 +93,61 @@ describe('BookPage', () => {
     expect(
       within(screen.getByText('Limpieza').closest('li')!).getByText('− $270.00'),
     ).toBeInTheDocument();
+  });
+
+  it('shows a month of the history next to its paper, and its sheet can be corrected', async () => {
+    const api = fakeApi({
+      'POST /api/auth/refresh': sessionFor(superadmin),
+      'GET /api/months/2022-05': () => Response.json(mayReport()),
+      'GET /api/history/months/2022-05': () => Response.json(mayPaper()),
+      [`PUT /api/history/sheets/${SHEET_ID}`]: () => new Response(null, { status: 204 }),
+    });
+    renderApp('/book/2022-05');
+
+    expect(await screen.findByRole('heading', { name: 'Hoja de papel' })).toBeInTheDocument();
+    expect(await screen.findByText('Faltan $50.00')).toBeInTheDocument();
+    const income = screen.getByRole('row', { name: /^Ingresos/ });
+    expect(within(income).getByText('+ $1,450.00')).toBeInTheDocument();
+    expect(screen.getByText('Cuota de $600 más $100 de administración')).toBeInTheDocument();
+    expect(screen.getByText('Responsable: Emilia (202)')).toBeInTheDocument();
+    expect(
+      screen.getByText('NOMBRE · adeudos/adelantos $700.00 · PAGÓ EN AGOSTO'),
+    ).toBeInTheDocument();
+    // The history keeps no accounts: a payment is not described as an adelanto.
+    expect(screen.getByText('Pago Depto 401')).toBeInTheDocument();
+    expect(screen.queryByText('adelanto')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Corregir' }));
+    const current = await screen.findByLabelText('Mes en curso ($)', {
+      selector: '#sheet-401-current',
+    });
+    await userEvent.type(current, '700');
+    await userEvent.clear(screen.getByLabelText('Observaciones', { selector: '#sheet-401-text' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await vi.waitFor(() =>
+      expect(api.callsTo(`PUT /api/history/sheets/${SHEET_ID}`)).toHaveLength(1),
+    );
+    expect(api.callsTo(`PUT /api/history/sheets/${SHEET_ID}`)[0]?.body).toMatchObject({
+      income: 145000,
+      responsible: 'Responsable: Emilia (202)',
+      lines: [{ unit: 401, ownerName: 'NOMBRE', current: 70000, other: 70000, text: '' }],
+    });
+  });
+
+  it('tells everyone else a month of the history is captured from its paper', async () => {
+    fakeApi({
+      'POST /api/auth/refresh': sessionFor(owner501),
+      'GET /api/months/2022-05': () => Response.json(mayReport({ canWrite: false })),
+      'GET /api/history/months/2022-05': () => Response.json(mayPaper(false)),
+    });
+    renderApp('/book/2022-05');
+
+    expect(
+      await screen.findByText('Solo lectura: el superadmin lo captura de su hoja de papel.'),
+    ).toBeInTheDocument();
+    expect(await screen.findByText('PDF MAY-JUL 2022 p1')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Corregir' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Agregar hoja' })).not.toBeInTheDocument();
   });
 
   it('is read-only for whoever cannot write the month', async () => {

@@ -46,9 +46,10 @@ function PreviewSummary({ preview }: { preview: HistoryPreview }) {
         `${formatMonth(preview.firstMonth)} a ${formatMonth(preview.lastMonth)} (${months.length})`,
       )}
       {line('Hojas', String(count((month) => month.sheets)))}
-      {line('Movimientos', String(count((month) => month.movements)))}
+      {line('Movimientos', String(preview.movements))}
       {line('Caja al empezar', formatMoney(preview.openingBalance))}
       {line(`Cierre de ${formatMonth(preview.lastMonth)}`, formatMoney(preview.closing))}
+      {line('Los libros siguen en vivo desde', formatMonth(preview.cutover))}
       {line(
         'Meses sin hoja',
         missing.length ? missing.map((month) => formatMonth(month.month)).join(', ') : 'ninguno',
@@ -61,8 +62,8 @@ function PreviewSummary({ preview }: { preview: HistoryPreview }) {
 }
 
 /**
- * Brings the transcribed history in: the file is checked and added up first, without saving
- * anything, and only goes in once the superadmin confirms the summary.
+ * Starts the books with the transcribed history: the file is checked and added up first,
+ * without saving anything, and only goes in once the superadmin confirms the summary.
  */
 export function ImportHistoryCard() {
   const [file, setFile] = useState<HistoryFile | null>(null);
@@ -103,7 +104,8 @@ export function ImportHistoryCard() {
         <CardTitle>Importar el historial</CardTitle>
         <CardDescription>
           Elige el archivo historial.json de la transcripción. Antes de guardar verás un resumen.
-          Los meses quedan en revisión: solo tú los ves y nada de esto va a la bitácora.
+          Los libros empiezan con su primer mes, y cada mes queda abierto para revisarlo contra su
+          hoja en el Libro. Lo que captures en esos meses no va a la bitácora.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">

@@ -21,6 +21,8 @@ export interface MonthHistoryEntry {
   readonly income: Money;
   readonly expense: Money;
   readonly closingBalance: Money;
+  /** Of the building's history, before the cut-over. */
+  readonly historical: boolean;
   readonly canClose: boolean;
   readonly canReopen: boolean;
 }
@@ -65,6 +67,7 @@ export class GetMonthHistory {
         income,
         expense,
         closingBalance,
+        historical: ledger.isHistory(month),
         canClose: mayClose(ledger, { actor, month, today, responsibility: calendar }),
         canReopen: mayReopen(actor, status),
       };

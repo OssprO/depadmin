@@ -3,6 +3,7 @@ import { ShiftsModule } from '../shifts/shifts.module.js';
 import {
   AddMovement,
   CashbookAccess,
+  ImportMovements,
   ReadCashbook,
   RecordCleaningVisits,
   RemoveMovement,
@@ -23,8 +24,9 @@ import { PrismaCashMovementRepository } from './infrastructure/prisma-cash-movem
     ReviseMovement,
     RemoveMovement,
     RecordCleaningVisits,
+    ImportMovements,
     ReadCashbook,
   ],
-  exports: [ReadCashbook],
+  exports: [ReadCashbook, ImportMovements],
 })
 export class CashbookModule {}

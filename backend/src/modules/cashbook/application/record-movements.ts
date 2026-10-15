@@ -4,6 +4,7 @@ import {
   type Actor,
   AUDIT_TRAIL,
   type AuditTrail,
+  ConflictError,
   creationOf,
   type LocalDate,
   type Money,
@@ -13,9 +14,11 @@ import {
   trackChanges,
   UNIT_OF_WORK,
   type UnitOfWork,
+  WriteAccessPolicy,
 } from '../../../shared-kernel/index.js';
 import {
   assertNewVisits,
+  assertWeekUnpaid,
   CASH_MOVEMENT_REPOSITORY,
   type CashMovement,
   type CashMovementRepository,
@@ -41,10 +44,12 @@ export class AddMovement {
       const movement = cashbook.add(randomUUID(), details);
       await this.access.assertConsistent(movement);
       await this.movements.save([movement]);
-      await this.audit.record(
-        actor,
-        creationOf(MOVEMENT_AUDIT, MovementAuditAction.ADDED, movement),
-      );
+      if (!(await this.access.isHistory(movement.month))) {
+        await this.audit.record(
+          actor,
+          creationOf(MOVEMENT_AUDIT, MovementAuditAction.ADDED, movement),
+        );
+      }
       return movement;
     });
   }
@@ -68,7 +73,9 @@ export class ReviseMovement {
       const movement = cashbook.revise(id, changes);
       await this.access.assertConsistent(movement);
       await this.movements.save([movement]);
-      await this.audit.record(actor, tracked.change(MovementAuditAction.REVISED, movement));
+      if (!(await this.access.isHistory(movement.month))) {
+        await this.audit.record(actor, tracked.change(MovementAuditAction.REVISED, movement));
+      }
       return movement;
     });
   }
@@ -93,10 +100,12 @@ export class RemoveMovement {
       const cashbook = await this.access.forWriting(actor, stored.month);
       const movement = cashbook.remove(id);
       await this.movements.save([movement]);
-      await this.audit.record(
-        actor,
-        removalOf(MOVEMENT_AUDIT, MovementAuditAction.REMOVED, stored),
-      );
+      if (!(await this.access.isHistory(stored.month))) {
+        await this.audit.record(
+          actor,
+          removalOf(MOVEMENT_AUDIT, MovementAuditAction.REMOVED, stored),
+        );
+      }
       return movement;
     });
   }
@@ -140,12 +149,66 @@ export class RecordCleaningVisits {
       }
       await this.movements.save(recorded);
       for (const movement of recorded) {
+        if (await this.access.isHistory(movement.month)) continue;
         await this.audit.record(
           actor,
           creationOf(MOVEMENT_AUDIT, MovementAuditAction.ADDED, movement),
         );
       }
       return recorded;
+    });
+  }
+}
+
+/**
+ * The history's rows in bulk, from the import (ADR-0023): every row in a month of the
+ * history that is open, all or none, checked by the same rules as one added by hand (each
+ * week's garbage paid once included), and outside the audit log like any row of the
+ * history. Same-day rows keep the order they come in, and the rows come back in it too.
+ */
+@Injectable()
+export class ImportMovements {
+  private readonly policy = new WriteAccessPolicy();
+
+  constructor(
+    @Inject(CASH_MOVEMENT_REPOSITORY) private readonly movements: CashMovementRepository,
+    @Inject(UNIT_OF_WORK) private readonly unitOfWork: UnitOfWork,
+    private readonly access: CashbookAccess,
+  ) {}
+
+  async execute(actor: Actor, rows: readonly MovementDetails[]): Promise<CashMovement[]> {
+    this.policy.assertCanAdminister(actor);
+    return this.unitOfWork.run(async () => {
+      const imported: CashMovement[] = [];
+      for (const dates of groupByMonth(rows.map((row) => row.date))) {
+        const month = dates[0]!.yearMonth;
+        if (!(await this.access.isHistory(month))) {
+          throw new ConflictError(
+            'MONTH_NOT_HISTORY',
+            `${month} is not a month of the history; record its rows one by one`,
+          );
+        }
+        const cashbook = await this.access.forWriting(actor, month);
+        rows.forEach((details, index) => {
+          if (details.date.yearMonth.equals(month)) {
+            imported[index] = cashbook.add(randomUUID(), details);
+          }
+        });
+      }
+      const garbage = imported.filter((movement) => movement.details.week);
+      const weeks = garbage
+        .map((movement) => movement.details.week!)
+        .sort((a, b) => a.compareTo(b));
+      if (weeks.length > 0) {
+        const stored = await this.movements.findGarbageForWeeks(weeks[0]!, weeks.at(-1)!);
+        const seen = [...stored];
+        for (const movement of garbage) {
+          assertWeekUnpaid(movement, seen);
+          seen.push(movement);
+        }
+      }
+      await this.movements.insert(imported);
+      return imported;
     });
   }
 }

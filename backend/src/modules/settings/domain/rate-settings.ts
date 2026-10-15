@@ -57,4 +57,12 @@ export class RateSettings {
   change(name: RateName, change: RateChange): RateSettings {
     return new RateSettings({ ...this.timelines, [name]: this.timelines[name].withChange(change) });
   }
+
+  /** A value from before every other of that rate (see `RateTimeline.withEarlier`). */
+  withEarlier(name: RateName, change: RateChange): RateSettings {
+    return new RateSettings({
+      ...this.timelines,
+      [name]: this.timelines[name].withEarlier(change),
+    });
+  }
 }

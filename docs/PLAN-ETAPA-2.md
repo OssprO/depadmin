@@ -29,48 +29,38 @@ Las fases 13, 14 y 15 no dependen entre sí y se pueden reordenar. La 17 depende
 
 ### Fase 12: Historial del edificio
 
-El detalle está en el ADR-0022. Se divide en dos PR: **12a** (importar y revisar) y **12b** (verificar y publicar).
+El detalle está en el ADR-0023, que reemplaza al ADR-0022. La fase 12a guardó el historial aparte; al probarla, el superadmin pidió que fuera parte de los mismos libros, y la 12b lo rehízo así.
 
 **Fuente.** Los 7 PDF «Balance Correspondencia 63» y las 55 fotos de `Documents/` se transcribieron en `Documents/importacion/`, fuera del repositorio porque traen nombres y pagos de los vecinos:
 
-- `transcripcion.txt`: cada hoja tal como está en el papel, mes por mes.
-- `generar.py`: produce `historial.json` (lo que se sube) y `movimientos.csv` (para revisar en una hoja de cálculo), y comprueba que cada hoja cuadre con sus propios totales.
+- `transcripcion.txt`: cada hoja tal como está en el papel, mes por mes: sus renglones, la línea de cada depto (propietario, reparto entre «mes en curso» y «adeudos/adelantos», observaciones) y el «Responsable» cuando la hoja lo dice.
+- `generar.py`: produce `historial.json` (formato 2, lo que se sube) y `movimientos.csv` (para revisar en una hoja de cálculo), y comprueba que cada hoja cuadre con sus propios totales.
 - `deptos.json`: propietarios según el rol 2026-2028.
 
 **Resultado de la transcripción:** 51 meses (mayo 2022 – julio 2026), 51 hojas y 1,186 movimientos: 315 pagos de deptos, 197 semanas de basura, 553 visitas de limpieza, 120 otros egresos y un ajuste de ingreso. Cada hoja cuadra al centavo con sus propios totales. Lo que el papel tiene mal entró como ajuste explicado (sección 4). Los meses sin papel quedan vacíos.
 
-**Decisiones (respuestas del 2026-10-14):**
+**Decisiones (respuestas del 2026-10-14 y del 2026-10-15):**
 
-1. **El historial va aparte de los libros, y el corte queda fijo.** Agosto 2026 abre con el efectivo que captura el superadmin, quien también captura toda la carga inicial. Corregir el historial no mueve los libros: la pantalla solo muestra cuánto difiere su cierre del efectivo de agosto.
-2. **Los meses pasados quedan abiertos para revisarlos a mano.** Mientras están en revisión nada va a la bitácora, que empieza con los libros en agosto 2026. Verificar el historial sí queda registrado y lo congela (12b).
-3. **Solo el superadmin ve y corrige el historial** mientras está en revisión.
-4. **Los meses sin hoja entran vacíos:** el papel existe y se captura cuando aparezca.
-5. **Las cuentas por depto no se reconstruyen.** Al calcularlas desde 2022 salen $23,900 arriba del papel, por los meses faltantes, la administración pagada fuera de la caja y el cambio de cuota a mitad de febrero 2023. Los meses pasados conservan las observaciones del papel por depto.
+1. **Un solo libro desde mayo 2022.** El historial son meses normales del Libro, con todos sus renglones, abiertos para revisarlos y capturar lo que falte. Agosto 2026 abre con el cierre de julio.
+2. **Antes del corte (agosto 2026) no hay cuotas, cuentas, turnos ni bitácora de renglones.** La bitácora registra cerrar y reabrir esos meses: cerrar un mes del historial es darlo por revisado, y reabrirlo para capturar una hoja que aparezca después queda registrado.
+3. **Las cuentas por depto empiezan en el corte.** Al calcularlas desde 2022 salen $23,900 arriba del papel (meses faltantes, administración pagada fuera de la caja, cambio de cuota a mitad de febrero 2023). Lo que cada depto debía en agosto 2026 es la carga inicial, que captura el superadmin.
+4. **El PDF de un mes del historial reproduce sus hojas:** una por hoja, con la línea de cada depto como la escribió el papel.
+5. **Los meses sin hoja entran vacíos:** el papel existe y se captura cuando aparezca.
 
-**Fase 12a (este PR):**
+**Fase 12a (PR #13, ya en `develop`):** importación con vista previa, revisión de cada mes contra su papel, ajuste de la semana de basura anterior a los libros y respuesta 413 a un cuerpo demasiado grande.
 
-- Módulo `history` con tablas propias: el periodo, las hojas (cifras del papel, alertas y observaciones por depto) y los renglones, con las mismas reglas que los del libro.
-- _Administración → Historial_:
-  - Importar con vista previa: meses, hojas, movimientos, meses sin hoja, meses que no cuadran y nombres.
-  - Lista de meses con su estado frente al papel («Cuadra», «Faltan $x», «Sin hoja»).
-  - Cómo se une con agosto 2026.
-  - Descartar para importar de nuevo.
-- Detalle de cada mes:
-  - Sus cifras contra el papel, con dos diferencias: la propia del mes y la que arrastra de meses anteriores.
-  - Sus hojas, con alertas y observaciones.
-  - Sus movimientos.
-  - Agregar, corregir y borrar renglones y hojas.
-- Los libros empiezan después del historial (puerto `HISTORY_BOUNDARY`).
-- La semana de basura que empezó antes de los libros (la del 27 de julio, en agosto 2026) ya no se sugiere como pendiente.
-- La importación aplica los nombres del rol 2026-2028, con registro en la bitácora porque son datos vigentes.
+**Fase 12b (este PR):**
 
-**Fase 12b:**
+- El inicio de los libros guarda su mes de corte. La importación arranca los libros con el historial, sus tarifas y sus renglones, y deja abiertos todos sus meses.
+- Las hojas de papel guardan su línea por depto, su «Responsable» y los renglones que listan.
+- Cada mes del historial se revisa en el Libro, con la tarjeta «Hoja de papel» (cifras contra el papel, alertas, línea por depto, corregir y agregar hojas).
+- _Administración → Historial_ importa el archivo y lista los meses contra su papel, con enlace al Libro de cada uno.
+- PDF de los meses del historial como su papel.
+- El Histórico marca los meses del historial.
 
-- «Verificar el historial»: queda en la bitácora y congela los meses.
-- Una vez verificado, todos ven los meses pasados en el _Histórico_, con su libro de solo lectura.
-- El PDF de un mes pasado, con las observaciones del papel en lugar del estado de cuenta.
+**Lo que sigue en esta fase, a mano:** revisar y cerrar los meses del historial hasta julio 2026 antes de cerrar agosto, y capturar las hojas que falten (sección 4).
 
-**Conceptos:** migración de datos con vista previa, modelos separados para la misma idea (historia frente a libros), reconciliación contra una fuente externa.
+**Conceptos:** migración de datos con vista previa, un modelo con dos regímenes (historia y libros en vivo) separados por una fecha de corte, reconciliación contra una fuente externa.
 
 ### Fase 13: Usuarios de solo lectura, inquilinos y temporales
 
@@ -176,7 +166,7 @@ Fuentes: [precios de la plataforma de WhatsApp Business (Meta)](https://develope
 
 ## 4. Lo que falta o no cuadra en el historial
 
-**Hojas que faltan.** El papel existe y el superadmin lo captura en la revisión. Mientras tanto esos meses (o sus egresos) quedan vacíos, y la diferencia se ve en la revisión:
+**Hojas que faltan.** El papel existe y el superadmin lo captura en la revisión. Mientras tanto esos meses (o sus egresos) quedan vacíos, la diferencia se ve en la revisión y se arrastra a los meses siguientes, hasta la caja con que abre agosto 2026:
 
 | Mes                | Qué falta                                             | Diferencia con el papel      |
 | ------------------ | ----------------------------------------------------- | ---------------------------- |
@@ -200,7 +190,7 @@ Fuentes: [precios de la plataforma de WhatsApp Business (Meta)](https://develope
 **Para revisar:**
 
 - Enero 2025: el PDF y la hoja impresa difieren en $270 de limpieza; se usó la impresa porque es la que coincide con febrero.
-- Julio 2023: la limpieza del día 10 aparece en las dos hojas del mes.
+- Julio 2023: la limpieza del día 10 aparece en las dos hojas del mes (cada hoja conserva la suya, como en el papel).
 - Diciembre 2025: la segunda hoja dice que 202 debe diciembre, y la primera registra que lo pagó.
 - Abril y junio 2026: dos renglones ($74 y $359) dicen «Nuevo UPS para las cámaras», que parece copiado de julio.
 - Penalización de 302 en 2023: el papel registra $1,000 «por no llevar la administración», pero no dice de qué meses.
@@ -212,12 +202,12 @@ Fuentes: [precios de la plataforma de WhatsApp Business (Meta)](https://develope
 
 Cada una tiene un valor por defecto para no bloquear el avance.
 
-| #   | Pregunta                                                                   | Valor por defecto                                                                                    | Fase |
-| --- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ---- |
-| 11  | ¿Cómo entra el historial?                                                  | **Respondida:** aparte de los libros, en revisión y sin bitácora; el corte de agosto 2026 queda fijo | 12   |
-| 12  | ¿Aparecen las hojas que faltan (sección 4)?                                | **Respondida:** existen y el superadmin las captura; esos meses entran vacíos                        | 12   |
-| 13  | ¿La carga inicial de agosto 2026 sale del balance de julio 2026?           | **Respondida:** el superadmin la captura toda                                                        | 12   |
-| 14  | ¿Un usuario de solo lectura ve todo, como un dueño, o solo lo de su depto? | Ve todo (transparencia total, como los dueños)                                                       | 13   |
-| 15  | ¿El contador de efectivo incluye monedas de 20¢ y 10¢?                     | **Respondida:** no; llega hasta 50¢                                                                  | 15   |
-| 16  | ¿Los vecinos tienen correo, o WhatsApp es el único canal realista?         | WhatsApp como canal principal; el superadmin como respaldo                                           | 17   |
-| 17  | ¿Quién pone el número de WhatsApp Business y la cuenta de Meta?            | El superadmin, con un chip dedicado                                                                  | 17   |
+| #   | Pregunta                                                                   | Valor por defecto                                                                                                        | Fase |
+| --- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ---- |
+| 11  | ¿Cómo entra el historial?                                                  | **Respondida:** dentro de los libros, desde mayo 2022; antes de agosto 2026 sin cuotas, cuentas ni bitácora de renglones | 12   |
+| 12  | ¿Aparecen las hojas que faltan (sección 4)?                                | **Respondida:** existen y el superadmin las captura; esos meses entran vacíos                                            | 12   |
+| 13  | ¿La carga inicial de agosto 2026 sale del balance de julio 2026?           | **Respondida:** el superadmin captura los adeudos y adelantos; la caja sale del cierre de julio                          | 12   |
+| 14  | ¿Un usuario de solo lectura ve todo, como un dueño, o solo lo de su depto? | Ve todo (transparencia total, como los dueños)                                                                           | 13   |
+| 15  | ¿El contador de efectivo incluye monedas de 20¢ y 10¢?                     | **Respondida:** no; llega hasta 50¢                                                                                      | 15   |
+| 16  | ¿Los vecinos tienen correo, o WhatsApp es el único canal realista?         | WhatsApp como canal principal; el superadmin como respaldo                                                               | 17   |
+| 17  | ¿Quién pone el número de WhatsApp Business y la cuenta de Meta?            | El superadmin, con un chip dedicado                                                                                      | 17   |

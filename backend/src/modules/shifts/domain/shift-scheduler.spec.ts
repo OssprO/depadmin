@@ -24,6 +24,12 @@ describe('ShiftScheduler', () => {
       expect(responsible('2026-10')).toEqual([502]);
     });
 
+    it("has nobody responsible before the rotation begins (the building's history)", () => {
+      const july = scheduler.assignmentFor(m('2026-07'), [], availability());
+      expect(july).toMatchObject({ beforeRotation: true, responsibleUnits: [] });
+      expect(scheduler.assignmentFor(m('2026-08'), [], availability()).beforeRotation).toBe(false);
+    });
+
     it('builds a calendar for a range of months', () => {
       const calendar = scheduler.calendar(m('2026-08'), m('2026-12'), [], availability());
       expect(calendar.map((a) => [String(a.month), a.scheduledUnit.value])).toEqual([
@@ -106,6 +112,12 @@ describe('ShiftScheduler', () => {
       expect(check(delegation('2026-10..2026-11', 502, 501))).not.toThrow();
       // 302 holds 2027-06..2027-07 and is inactive then.
       expect(check(delegation('2027-06..2027-07', 302, 301, 'INACTIVE_UNIT'))).not.toThrow();
+    });
+
+    it('has nothing to delegate before the rotation begins', () => {
+      expect(check(delegation('2026-06..2026-07', 301, 501))).toThrow(
+        withCode('DELEGATION_INVALID'),
+      );
     });
 
     it('requires staying inside one scheduled period', () => {

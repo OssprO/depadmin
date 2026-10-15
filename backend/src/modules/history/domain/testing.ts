@@ -1,53 +1,25 @@
-import {
-  LocalDate,
-  Money,
-  type MovementDetails,
-  UnitNumber,
-  YearMonth,
-} from '../../../shared-kernel/index.js';
-import { HistoricalMovement } from './historical-movement.js';
+import { Money, type PaperLine, UnitNumber, YearMonth } from '../../../shared-kernel/index.js';
+import { type MonthFigures } from './history-review.js';
 import { type PaperFigures, PaperSheet, type SheetDetails } from './paper-sheet.js';
 
 // Test builders shared by the history specs.
 
 export const m = (text: string) => YearMonth.parse(text);
-export const d = (text: string) => LocalDate.parse(text);
 export const pesos = (amount: number) => Money.ofPesos(amount);
 
 let next = 0;
 const id = () => `00000000-0000-4000-8000-${String(++next).padStart(12, '0')}`;
 
-export const paid = (date: string, unit: number, amount = 700): MovementDetails => ({
-  date: d(date),
-  category: 'UNIT_PAYMENT',
-  amount: pesos(amount),
-  description: null,
-  unit: UnitNumber.of(unit),
-  week: null,
-});
-
-export const spent = (date: string, amount: number, description = 'LUZ'): MovementDetails => ({
-  date: d(date),
-  category: 'OTHER_EXPENSE',
-  amount: pesos(amount),
-  description,
-  unit: null,
-  week: null,
-});
-
-/** Garbage paid on `date` for the week of that date. */
-export const garbage = (date: string, amount = 150): MovementDetails => ({
-  date: d(date),
-  category: 'GARBAGE',
-  amount: pesos(amount),
-  description: null,
-  unit: null,
-  week: d(date).startOfWeek(),
-});
-
-export const row = (details: MovementDetails) => HistoricalMovement.record(id(), details);
-
 const noFigures: PaperFigures = { opening: null, income: null, expense: null, closing: null };
+
+/** A depto's line with only its OBSERVACIONES. */
+export const note = (unit: number, text: string): PaperLine => ({
+  unit: UnitNumber.of(unit),
+  ownerName: null,
+  current: null,
+  other: null,
+  text,
+});
 
 export const sheetDetails = (
   month: string,
@@ -56,9 +28,10 @@ export const sheetDetails = (
   month: m(month),
   fromDay: 1,
   source: 'PDF p1',
+  responsible: null,
   figures: noFigures,
   alerts: [],
-  notes: [],
+  lines: [],
   ...overrides,
 });
 
@@ -81,3 +54,17 @@ export const sheet = (
       ...overrides,
     }),
   );
+
+/** A month as the books add it up, in pesos. */
+export const figures = (
+  month: string,
+  opening: number,
+  income: number,
+  expense: number,
+): MonthFigures => ({
+  month: m(month),
+  opening: pesos(opening),
+  income: pesos(income),
+  expense: pesos(expense),
+  closing: pesos(opening + income - expense),
+});

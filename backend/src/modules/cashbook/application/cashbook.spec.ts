@@ -3,7 +3,7 @@ import { FakeUnitOfWork, RecordingAuditTrail } from '../../../../test/support/au
 import { FixedClock } from '../../../../test/support/clock.js';
 import { withCode } from '../../../../test/support/domain-error.js';
 import { FakeMonthLedger } from '../../../../test/support/month-ledger.js';
-import { UnitNumber } from '../../../shared-kernel/index.js';
+import { UnitNumber, YearMonth } from '../../../shared-kernel/index.js';
 import { LoadShiftCalendar } from '../../shifts/application/index.js';
 import {
   admin,
@@ -17,6 +17,7 @@ import { CashbookAccess } from './cashbook-access.js';
 import { ReadCashbook } from './read-cashbook.js';
 import {
   AddMovement,
+  ImportMovements,
   RecordCleaningVisits,
   RemoveMovement,
   ReviseMovement,
@@ -31,6 +32,9 @@ function setup(today = '2026-10-03') {
     .set('2026-08', 'CLOSED')
     .set('2026-09', 'OPEN')
     .set('2026-10', 'OPEN');
+  // The building's history, from paper: June is open, May already checked and closed.
+  ledger.set('2026-05', 'CLOSED').set('2026-06', 'OPEN').set('2026-07', 'OPEN');
+  ledger.cutoverIn(YearMonth.parse('2026-08'));
   const unitOfWork = new FakeUnitOfWork();
   const audit = new RecordingAuditTrail(unitOfWork);
   const calendars = new LoadShiftCalendar(
@@ -46,6 +50,7 @@ function setup(today = '2026-10-03') {
     revise: new ReviseMovement(movements, unitOfWork, audit, access),
     remove: new RemoveMovement(movements, unitOfWork, audit, access),
     visits: new RecordCleaningVisits(movements, unitOfWork, audit, access),
+    import: new ImportMovements(movements, unitOfWork, access),
   };
 }
 
@@ -238,5 +243,53 @@ describe('cleaning visits', () => {
     ).rejects.toThrow(withCode('NOT_RESPONSIBLE'));
     expect(fx.movements.rows.size).toBe(1);
     expect(fx.audit.entries).toHaveLength(1);
+  });
+});
+
+describe('the rows of the history', () => {
+  it('are kept like any row, only by the superadmin, and outside the audit log', async () => {
+    const fx = setup();
+    await expect(fx.add.execute(owner(501), payment('2026-07-01', 101))).rejects.toThrow(
+      withCode('NOT_RESPONSIBLE'),
+    );
+    const row = await fx.add.execute(admin, payment('2026-07-01', 101));
+    await fx.revise.execute(admin, row.id, { amount: pesos(1400) });
+    await fx.remove.execute(admin, row.id);
+    await fx.visits.execute(admin, { dates: [d('2026-07-06')], amount: pesos(250) });
+    expect(fx.audit.entries).toEqual([]);
+    // From the cut-over on, the log starts.
+    await fx.add.execute(admin, payment('2026-09-01', 101));
+    expect(fx.audit.actions).toEqual(['CASH_MOVEMENT_ADDED']);
+  });
+
+  it('come in bulk from the import, in order, all or none', async () => {
+    const fx = setup();
+    const rows = await fx.import.execute(admin, [
+      payment('2026-06-01', 102, 600),
+      payment('2026-06-01', 101, 600),
+      garbage('2026-07-04', '2026-06-29'),
+    ]);
+    const june = await fx.read.month(YearMonth.parse('2026-06'));
+    expect(june.movements.map((movement) => movement.id)).toEqual([rows[0]!.id, rows[1]!.id]);
+    expect(fx.audit.entries).toEqual([]);
+
+    // Each week's garbage once, against what is stored too.
+    await expect(
+      fx.import.execute(admin, [payment('2026-07-01', 201), garbage('2026-07-03', '2026-06-29')]),
+    ).rejects.toThrow(withCode('GARBAGE_WEEK_PAID'));
+    expect((await fx.read.month(YearMonth.parse('2026-07'))).movements).toHaveLength(1);
+  });
+
+  it('come in only into open months of the history, from the superadmin', async () => {
+    const fx = setup();
+    await expect(fx.import.execute(owner(502), [payment('2026-06-01', 101)])).rejects.toThrow(
+      withCode('SUPERADMIN_ONLY'),
+    );
+    await expect(fx.import.execute(admin, [payment('2026-09-01', 101)])).rejects.toThrow(
+      withCode('MONTH_NOT_HISTORY'),
+    );
+    await expect(fx.import.execute(admin, [payment('2026-05-01', 101)])).rejects.toThrow(
+      withCode('MONTH_CLOSED'),
+    );
   });
 });

@@ -1,4 +1,8 @@
-import { type ReportingStart, reportingStartSchema } from '@depadmin/shared';
+import {
+  type ReportingStart,
+  type ReportingStartResponse,
+  reportingStartSchema,
+} from '@depadmin/shared';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -8,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { errorMessage } from '@/lib/error-messages';
-import { parsePesos, PESOS_PATTERN, pesosInput } from '@/lib/format';
+import { addMonths, formatMonth, parsePesos, PESOS_PATTERN, pesosInput } from '@/lib/format';
 import { useSetReportingStart } from '../api';
 
 interface FormValues {
@@ -27,7 +31,9 @@ const formSchema = z
   .transform((form) => ({ month: form.month, openingBalance: parsePesos(form.openingBalance) }))
   .pipe(reportingStartSchema);
 
-export function ReportingStartForm({ start }: { start: ReportingStart | null }) {
+export function ReportingStartForm({ start }: { start: ReportingStartResponse['start'] }) {
+  // The books may start with the building's history: then its first month comes from it.
+  const withHistory = start !== null && start.cutover !== start.month;
   const save = useSetReportingStart();
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -59,10 +65,15 @@ export function ReportingStartForm({ start }: { start: ReportingStart | null }) 
           <Input
             id="start-month"
             type="month"
+            readOnly={withHistory}
             aria-invalid={!!errors.month}
             {...form.register('month')}
           />
-          <FieldDescription>Ya no cambia una vez que se abre ese mes.</FieldDescription>
+          <FieldDescription>
+            {withHistory
+              ? `Los libros empiezan con el historial, de ${formatMonth(start.month)} a ${formatMonth(addMonths(start.cutover, -1))}; desde ${formatMonth(start.cutover)} siguen en vivo.`
+              : 'Ya no cambia una vez que se abre ese mes.'}
+          </FieldDescription>
           <FieldError errors={[errors.month]} />
         </Field>
         <Field data-invalid={!!errors.openingBalance}>

@@ -1,22 +1,50 @@
 import { Money, type YearMonth } from '../../../shared-kernel/index.js';
-import type { HistoricalBooks } from './historical-books.js';
-import type { HistoricalMovement } from './historical-movement.js';
 import type { PaperSheet } from './paper-sheet.js';
 
-/** A past month as its rows add up, next to what its paper sheets say. */
-export interface MonthReview {
+/** A month as the books add it up: carried in, taken in, paid out and carried on. */
+export interface MonthFigures {
   readonly month: YearMonth;
-  /** Its sheets in order; none when the paper is missing. */
-  readonly sheets: readonly PaperSheet[];
-  readonly movements: readonly HistoricalMovement[];
-  /** Carried from the month before (the history's opening cash for the first month). */
   readonly opening: Money;
   readonly income: Money;
   readonly expense: Money;
   readonly closing: Money;
+}
+
+/** A month of the history as its rows add up, next to what its paper sheets say. */
+export interface MonthReview extends MonthFigures {
+  /** Its sheets in order; none when the paper is missing. */
+  readonly sheets: readonly PaperSheet[];
   /** What the first sheet opens with and the last one closes with. */
   readonly paperOpening: Money | null;
   readonly paperClosing: Money | null;
+  /** What its sheets add up to; null without sheets or when one of them does not say. */
+  readonly paperIncome: Money | null;
+  readonly paperExpense: Money | null;
+}
+
+/** A figure added up over the month's sheets, unknown if any of them lacks it. */
+function sheetsTotal(
+  sheets: readonly PaperSheet[],
+  figure: (sheet: PaperSheet) => Money | null,
+): Money | null {
+  const figures = sheets.map(figure);
+  if (figures.length === 0 || figures.some((value) => value === null)) return null;
+  return Money.sum(figures as Money[]);
+}
+
+/** Puts a month next to its sheets (any order; those of other months are ignored). */
+export function reviewMonth(figures: MonthFigures, sheets: readonly PaperSheet[]): MonthReview {
+  const monthSheets = sheets
+    .filter((sheet) => sheet.month.equals(figures.month))
+    .sort((a, b) => a.details.fromDay - b.details.fromDay);
+  return {
+    ...figures,
+    sheets: monthSheets,
+    paperOpening: monthSheets[0]?.details.figures.opening ?? null,
+    paperClosing: monthSheets.at(-1)?.details.figures.closing ?? null,
+    paperIncome: sheetsTotal(monthSheets, (sheet) => sheet.details.figures.income),
+    paperExpense: sheetsTotal(monthSheets, (sheet) => sheet.details.figures.expense),
+  };
 }
 
 /**
@@ -40,41 +68,25 @@ export function carriedGap(review: MonthReview): Money | null {
 }
 
 /**
- * Adds up every month of the history from its opening cash, the way the live books chain
- * their months, and puts each month next to its paper. Where the two disagree there is a
- * row missing, mistyped, or an error in the paper itself.
+ * Chains months from an opening balance, each opening with what the one before closed, the
+ * way the books do: to add up an import file before it comes in.
  */
-export function reviewHistory(
-  books: HistoricalBooks,
-  sheets: readonly PaperSheet[],
-  movements: readonly HistoricalMovement[],
-): MonthReview[] {
-  let opening = books.openingBalance;
-  return books.months.map((month) => {
-    const ofMonth = movements
-      .filter((movement) => movement.month.equals(month))
-      .sort((a, b) => a.date.compareTo(b.date));
-    const monthSheets = sheets
-      .filter((sheet) => sheet.month.equals(month))
-      .sort((a, b) => a.details.fromDay - b.details.fromDay);
-    const income = Money.sum(
-      ofMonth.filter((m) => m.signedAmount.isPositive()).map((m) => m.signedAmount),
-    );
-    const expense = Money.sum(
-      ofMonth.filter((m) => m.signedAmount.isNegative()).map((m) => m.signedAmount.negate()),
-    );
-    const review: MonthReview = {
+export function chainMonths(
+  months: readonly YearMonth[],
+  openingBalance: Money,
+  totalsOf: (month: YearMonth) => { readonly income: Money; readonly expense: Money },
+): MonthFigures[] {
+  let opening = openingBalance;
+  return months.map((month) => {
+    const { income, expense } = totalsOf(month);
+    const figures = {
       month,
-      sheets: monthSheets,
-      movements: ofMonth,
       opening,
       income,
       expense,
       closing: opening.plus(income).minus(expense),
-      paperOpening: monthSheets[0]?.details.figures.opening ?? null,
-      paperClosing: monthSheets.at(-1)?.details.figures.closing ?? null,
     };
-    opening = review.closing;
-    return review;
+    opening = figures.closing;
+    return figures;
   });
 }
