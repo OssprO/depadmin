@@ -10,18 +10,18 @@ El modo de trabajo no cambia: una fase por PR, con el porqué de cada decisión,
 
 ## 1. Resumen y orden propuesto
 
-| Fase | Qué                                               | Por qué en este lugar                                                                                             |
-| ---- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| 12   | Historial del edificio (mayo 2022 – julio 2026)   | Los documentos ya están transcritos, y revisarlos contra el papel lleva tiempo                                    |
-| 13   | Usuarios de solo lectura, inquilinos y temporales | Cambia el modelo de usuarios y permisos; conviene hacerlo antes de rediseñar pantallas                            |
-| 14   | Diseño para tableta y escritorio                  | Toca todas las pantallas; se hace una vez que el contenido (historial, usuarios) ya está                          |
-| 15   | Herramientas: contador de efectivo                | Pequeña e independiente; estrena la sección _Herramientas_ ya con el diseño nuevo                                 |
-| 16   | Archivo de documentos                             | Guarda los PDF y fotos originales; necesita almacenamiento en disco y respaldos, igual que el despliegue          |
-| 5    | Despliegue (de la Etapa 1)                        | Requisito para WhatsApp y para que los dueños usen la app; necesita el dominio                                    |
-| 17   | WhatsApp: recuperación de contraseña y libros     | Necesita la app publicada en HTTPS y un número de WhatsApp Business                                               |
-| 18   | Guía de usuario para los dueños                   | Al final, cuando las pantallas ya no cambien; las capturas se generan con Playwright para que no se queden viejas |
+| Fase | Qué                                                      | Por qué en este lugar                                                                                             |
+| ---- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| 12   | Historial del edificio (mayo 2022 – julio 2026)          | Los documentos ya están transcritos, y revisarlos contra el papel lleva tiempo                                    |
+| 13   | Captura y diseño (13a celular, 13b tableta y escritorio) | Prioridad del administrador al probarla: capturar como en el papel y una app más fácil de usar                    |
+| 14   | Usuarios de solo lectura, inquilinos y temporales        | Cambia el modelo de usuarios y permisos; usa ya el diseño nuevo                                                   |
+| 15   | Herramientas: contador de efectivo                       | Pequeña e independiente; estrena la sección _Herramientas_ ya con el diseño nuevo                                 |
+| 16   | Archivo de documentos                                    | Guarda los PDF y fotos originales; necesita almacenamiento en disco y respaldos, igual que el despliegue          |
+| 5    | Despliegue (de la Etapa 1)                               | Requisito para WhatsApp y para que los dueños usen la app; necesita el dominio                                    |
+| 17   | WhatsApp: recuperación de contraseña y libros            | Necesita la app publicada en HTTPS y un número de WhatsApp Business                                               |
+| 18   | Guía de usuario para los dueños                          | Al final, cuando las pantallas ya no cambien; las capturas se generan con Playwright para que no se queden viejas |
 
-Las fases 13, 14 y 15 no dependen entre sí y se pueden reordenar. La 17 depende de la 5.
+Las fases 14 y 15 no dependen entre sí y se pueden reordenar. La 17 depende de la 5.
 
 ---
 
@@ -62,7 +62,31 @@ El detalle está en el ADR-0023, que reemplaza al ADR-0022. La fase 12a guardó 
 
 **Conceptos:** migración de datos con vista previa, un modelo con dos regímenes (historia y libros en vivo) separados por una fecha de corte, reconciliación contra una fuente externa.
 
-### Fase 13: Usuarios de solo lectura, inquilinos y temporales
+### Fase 13: Captura y diseño
+
+Lo pidió el administrador al probar la plataforma con el historial: capturar un mes debe sustituir por completo lo que hoy hace el administrador en turno (anotar y luego pasarlo a un documento), y la app debe ser más fácil de usar. Detalle en el ADR-0024.
+
+**13a: Captura y apariencia (este PR):**
+
+- **«Agregar movimiento»:** los tipos van en dos grupos, _Ingresos_ (pago de depto, otro ingreso) y _Egresos_ (basura, limpieza, otro egreso). Los ingresos llevan **Observaciones** y los egresos **Descripción**.
+- **Observaciones en el reporte:** las de los pagos de un depto salen en su columna OBSERVACIONES, unidas con « | » si pagó varias veces en el mes (sus importes ya salían sumados en un solo renglón). Sin observaciones escritas, el reporte pone las que sugiere la cuenta («ADEUDA OCTUBRE»…) o, en un mes del historial, las de su hoja (respuesta del 2026-10-15: opción b).
+- **Navegación:** botón «Atrás» en cada pantalla que no abre la barra inferior; regresa a la pantalla anterior de la app o, si se abrió directo, a la que la lista.
+- **Tema claro y oscuro según el sistema operativo** (`prefers-color-scheme` y `<meta name="color-scheme">`). Antes los colores oscuros existían pero nada los activaba; las pruebas de navegador ahora comprueban que el fondo cambia.
+- **Color:** un borde verde para los ingresos y rojo para los egresos (en la lista del libro, el resumen del mes y los tipos del formulario), sin cambiar el color del texto.
+- **Importación:** las hojas que faltaban (octubre y diciembre 2022, las segundas hojas de marzo a julio 2025 y febrero 2026) ya están transcritas: los 51 meses cierran como el papel. La observación de cada pago va también en el pago.
+
+**13b: Tableta y escritorio:**
+
+Hoy la app está pensada para el celular (barra inferior y hojas que suben desde abajo); el celular se queda como está.
+
+- **Tableta (≥ 768 px):** barra lateral compacta con íconos y nombres, contenido a dos columnas donde ayuda (libro y resumen del mes lado a lado), formularios en un panel lateral en lugar de la hoja inferior.
+- **Escritorio (≥ 1024 px):** barra lateral fija, tablas con más columnas (estados de cuenta, histórico, bitácora), el libro del mes con el resumen fijo a un lado, y atajos de teclado para capturar.
+- Un solo código: los mismos componentes con puntos de quiebre de Tailwind, sin una app aparte.
+- Las pruebas de navegador corren en tres tamaños (Pixel 7, iPad y escritorio), con axe en cada uno.
+
+**Conceptos:** captura que reemplaza al documento, temas del sistema, diseño adaptable, puntos de quiebre, navegación por tamaño de pantalla.
+
+### Fase 14: Usuarios de solo lectura, inquilinos y temporales
 
 Hoy hay un usuario por depto (su dueño) más el superadmin (pregunta 10 de la Etapa 1).
 
@@ -76,17 +100,6 @@ Hoy hay un usuario por depto (su dueño) más el superadmin (pregunta 10 de la E
 - La lista de usuarios (_Administración → Usuarios_) muestra el tipo, el depto y el vencimiento.
 
 **Conceptos:** roles frente a permisos derivados, expiración de credenciales.
-
-### Fase 14: Diseño para tableta y escritorio
-
-Hoy la app está pensada para el celular (barra inferior y hojas que suben desde abajo).
-
-- **Tableta (≥ 768 px):** barra lateral compacta con íconos y nombres, contenido a dos columnas donde ayuda (libro y resumen del mes lado a lado), formularios en un panel lateral en lugar de la hoja inferior.
-- **Escritorio (≥ 1024 px):** barra lateral fija, tablas con más columnas (estados de cuenta, histórico, bitácora), el libro del mes con el resumen fijo a un lado, y atajos de teclado para capturar.
-- Un solo código: los mismos componentes con puntos de quiebre de Tailwind, sin una app aparte.
-- Las pruebas de navegador corren en tres tamaños (Pixel 7, iPad y escritorio), con axe en cada uno.
-
-**Conceptos:** diseño adaptable, puntos de quiebre, navegación por tamaño de pantalla.
 
 ### Fase 15: Herramientas: contador de efectivo
 
@@ -166,26 +179,16 @@ Fuentes: [precios de la plataforma de WhatsApp Business (Meta)](https://develope
 
 ## 4. Lo que falta o no cuadra en el historial
 
-**Hojas que faltan.** El papel existe y el superadmin lo captura en la revisión. Mientras tanto esos meses (o sus egresos) quedan vacíos, la diferencia se ve en la revisión y se arrastra a los meses siguientes, hasta la caja con que abre agosto 2026:
-
-| Mes                | Qué falta                                             | Diferencia con el papel      |
-| ------------------ | ----------------------------------------------------- | ---------------------------- |
-| Octubre 2022       | La hoja completa                                      | +$3,054.00                   |
-| Diciembre 2022     | La hoja completa                                      | −$3,232.00                   |
-| Marzo 2025         | La segunda hoja (otros egresos y totales)             | −$42,520.17 en otros egresos |
-| Abril 2025         | La segunda hoja (egresos)                             | −$3,578.00                   |
-| Mayo 2025          | La segunda hoja (egresos)                             | −$3,953.00                   |
-| Junio 2025         | La segunda hoja (egresos)                             | −$3,889.00                   |
-| Julio 2025         | La segunda hoja (egresos)                             | −$6,851.50                   |
-| Febrero 2026       | La hoja completa                                      | +$6,509.00                   |
-| Antes de mayo 2022 | ¿Existen hojas anteriores? Mayo 2022 abre con $712.25 | —                            |
+**Hojas que faltaban.** Ya aparecieron todas (octubre y diciembre 2022, las segundas hojas de marzo a julio 2025 y febrero 2026) y están transcritas: los 51 meses cierran como el papel, y julio 2026 cierra en $18,247.02. Queda una duda: si existen hojas anteriores a mayo 2022, que abre con $712.25.
 
 **Errores del papel.** Se conservan los saldos del papel con un ajuste explicado, para que todos los meses siguientes coincidan con las hojas que ya circularon:
 
 - Febrero 2024: error de suma de $270 (los ingresos totales dicen $24,742.50 en vez de $24,472.50).
 - Julio 2023 (hoja al día 10): error de resta de $50.
 - Agosto 2023: los otros egresos suman $1 menos que su total.
-- Marzo 2023 y septiembre 2023: redondeos de $0.05 y $0.30.
+- Marzo 2023 y septiembre 2023: redondeos de $0.05 y $0.30; abril 2025 abre $0.17 abajo del cierre de marzo.
+- Marzo 2025: «Total limpieza» dice $2,940 (sus renglones suman $2,970) y «Total otros» $42,520 (suman $42,430); el saldo del papel descuenta esos $90 de más, que entran como ajuste.
+- Mayo 2025: «Total otros» dice $143.00 y sus renglones suman $143.50; el saldo arrastra los $0.50.
 
 **Para revisar:**
 
@@ -194,7 +197,7 @@ Fuentes: [precios de la plataforma de WhatsApp Business (Meta)](https://develope
 - Diciembre 2025: la segunda hoja dice que 202 debe diciembre, y la primera registra que lo pagó.
 - Abril y junio 2026: dos renglones ($74 y $359) dicen «Nuevo UPS para las cámaras», que parece copiado de julio.
 - Penalización de 302 en 2023: el papel registra $1,000 «por no llevar la administración», pero no dice de qué meses.
-- Semanas de basura que no aparecen pagadas: 20 de noviembre 2023, 28 de julio 2025 (pudo pagarse en la hoja de julio que falta) y 22 de junio 2026.
+- Semanas de basura que no aparecen pagadas: 20 de noviembre 2023 y 22 de junio 2026 (la del 28 de julio 2025 sí se pagó, el 1 de agosto).
 
 ---
 
@@ -202,12 +205,13 @@ Fuentes: [precios de la plataforma de WhatsApp Business (Meta)](https://develope
 
 Cada una tiene un valor por defecto para no bloquear el avance.
 
-| #   | Pregunta                                                                   | Valor por defecto                                                                                                        | Fase |
-| --- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ---- |
-| 11  | ¿Cómo entra el historial?                                                  | **Respondida:** dentro de los libros, desde mayo 2022; antes de agosto 2026 sin cuotas, cuentas ni bitácora de renglones | 12   |
-| 12  | ¿Aparecen las hojas que faltan (sección 4)?                                | **Respondida:** existen y el superadmin las captura; esos meses entran vacíos                                            | 12   |
-| 13  | ¿La carga inicial de agosto 2026 sale del balance de julio 2026?           | **Respondida:** el superadmin captura los adeudos y adelantos; la caja sale del cierre de julio                          | 12   |
-| 14  | ¿Un usuario de solo lectura ve todo, como un dueño, o solo lo de su depto? | Ve todo (transparencia total, como los dueños)                                                                           | 13   |
-| 15  | ¿El contador de efectivo incluye monedas de 20¢ y 10¢?                     | **Respondida:** no; llega hasta 50¢                                                                                      | 15   |
-| 16  | ¿Los vecinos tienen correo, o WhatsApp es el único canal realista?         | WhatsApp como canal principal; el superadmin como respaldo                                                               | 17   |
-| 17  | ¿Quién pone el número de WhatsApp Business y la cuenta de Meta?            | El superadmin, con un chip dedicado                                                                                      | 17   |
+| #   | Pregunta                                                                            | Valor por defecto                                                                                                        | Fase |
+| --- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ---- |
+| 11  | ¿Cómo entra el historial?                                                           | **Respondida:** dentro de los libros, desde mayo 2022; antes de agosto 2026 sin cuotas, cuentas ni bitácora de renglones | 12   |
+| 12  | ¿Aparecen las hojas que faltan (sección 4)?                                         | **Respondida:** aparecieron todas y ya están en el archivo de importación                                                | 12   |
+| 13  | ¿La carga inicial de agosto 2026 sale del balance de julio 2026?                    | **Respondida:** el superadmin captura los adeudos y adelantos; la caja sale del cierre de julio                          | 12   |
+| 14  | ¿Un usuario de solo lectura ve todo, como un dueño, o solo lo de su depto?          | Ve todo (transparencia total, como los dueños)                                                                           | 14   |
+| 15  | ¿El contador de efectivo incluye monedas de 20¢ y 10¢?                              | **Respondida:** no; llega hasta 50¢                                                                                      | 15   |
+| 16  | ¿Los vecinos tienen correo, o WhatsApp es el único canal realista?                  | WhatsApp como canal principal; el superadmin como respaldo                                                               | 17   |
+| 17  | ¿Quién pone el número de WhatsApp Business y la cuenta de Meta?                     | El superadmin, con un chip dedicado                                                                                      | 17   |
+| 18  | ¿Qué dicen las OBSERVACIONES del reporte cuando el administrador escribe las suyas? | **Respondida (opción b):** las del administrador; sin ellas, las que sugiere la cuenta o las de la hoja                  | 13   |
