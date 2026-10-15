@@ -5,6 +5,8 @@ import {
   type AuditTrail,
   ConflictError,
   creationOf,
+  HISTORY_BOUNDARY,
+  type HistoryBoundary,
   trackChanges,
   UNIT_OF_WORK,
   type UnitOfWork,
@@ -25,7 +27,7 @@ export class GetReportingStart {
 
 /**
  * The superadmin sets where the books start: the first month and the cash on hand at its
- * beginning. The month is fixed once a month has been opened, or once opening balances
+ * beginning, after the last month of the building's history if there is one. The month is fixed once a month has been opened, or once opening balances
  * (dated before it) have been recorded; the cash can be corrected until the first month is
  * closed, since nothing has been frozen from it yet.
  */
@@ -38,11 +40,19 @@ export class SetReportingStart {
     @Inject(UNIT_OF_WORK) private readonly unitOfWork: UnitOfWork,
     @Inject(AUDIT_TRAIL) private readonly audit: AuditTrail,
     private readonly openingBalances: ListOpeningBalances,
+    @Inject(HISTORY_BOUNDARY) private readonly history: HistoryBoundary,
   ) {}
 
   async execute(actor: Actor, start: ReportingStart): Promise<ReportingStart> {
     this.policy.assertCanAdminister(actor);
     return this.unitOfWork.run(async () => {
+      const lastPastMonth = await this.history.lastMonth();
+      if (lastPastMonth && !lastPastMonth.isBefore(start.month)) {
+        throw new ConflictError(
+          'HISTORY_OVERLAPS_BOOKS',
+          `The history ends in ${lastPastMonth}; the books must start after it`,
+        );
+      }
       const ledger = await this.reports.loadLedger();
       if (ledger) {
         const opened = ledger.reports.length > 0;

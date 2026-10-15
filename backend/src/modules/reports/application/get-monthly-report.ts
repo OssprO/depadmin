@@ -16,6 +16,7 @@ import {
   type GarbageWeek,
   ReadCashbook,
   type WeeklyCleaningPayout,
+  weeksWithinBooks,
 } from '../../cashbook/application/index.js';
 import { GetRates } from '../../settings/application/index.js';
 import { LoadShiftCalendar } from '../../shifts/application/index.js';
@@ -126,7 +127,7 @@ export class GetMonthlyReport {
       canReopen: mayReopen(actor, status),
       suggestions,
       accounts,
-      garbageWeeks,
+      garbageWeeks: ledger ? weeksWithinBooks(garbageWeeks, ledger.start.month) : garbageWeeks,
       cleaningPayouts,
     };
   }

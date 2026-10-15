@@ -42,6 +42,18 @@ describe('reporting start', () => {
       { field: 'openingBalance', before: 500000, after: 520000 },
     ]);
   });
+
+  it("comes after the building's history, never within it", async () => {
+    const fx = booksFixture('2026-10-02');
+    fx.pastHistory.endsIn(m('2026-08'));
+    await expect(fx.setStart.execute(admin, start)).rejects.toThrow(
+      withCode('HISTORY_OVERLAPS_BOOKS'),
+    );
+
+    fx.pastHistory.endsIn(m('2026-07'));
+    await fx.setStart.execute(admin, start);
+    expect(await fx.getStart.execute()).toEqual(start);
+  });
 });
 
 describe('OpenMonth', () => {
@@ -156,6 +168,21 @@ describe('GetMonthlyReport', () => {
     const after = await fx.view.execute(owner(502), m('2026-10'));
     expect(after.garbageWeeks[0]?.status).toBe('PAID');
     expect(after.totals.byCategory.GARBAGE).toEqual(pesos(150));
+  });
+
+  it('does not suggest the week that began before the books', async () => {
+    const fx = booksFixture('2026-08-10');
+    await fx.setStart.execute(admin, start);
+    await fx.open.execute(admin, m('2026-08'));
+
+    // 1 August 2026 is a Saturday: its week began on 27 July, on paper.
+    const august = await fx.view.execute(admin, m('2026-08'));
+    expect(august.garbageWeeks.map((w) => String(w.week))).toEqual([
+      '2026-08-03',
+      '2026-08-10',
+      '2026-08-17',
+      '2026-08-24',
+    ]);
   });
 
   it('works before any rate is in force', async () => {
