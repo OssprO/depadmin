@@ -23,14 +23,14 @@ export const historyQueryOptions = queryOptions({
 });
 
 /**
- * Any change to the books moves balances (in later months too), accounts and the audit log,
- * so all of them are refreshed.
+ * Any change to the books moves balances (in later months too), accounts, the audit log and
+ * how the months of the history compare with their paper, so all of them are refreshed.
  */
 function useRefreshBooks() {
   const queryClient = useQueryClient();
   return () =>
     Promise.all(
-      [['months'], ['accounts'], ['audit-log']].map((queryKey) =>
+      [['months'], ['accounts'], ['audit-log'], ['history']].map((queryKey) =>
         queryClient.invalidateQueries({ queryKey }),
       ),
     );

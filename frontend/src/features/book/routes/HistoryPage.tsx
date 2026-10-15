@@ -50,7 +50,7 @@ export function HistoryPage() {
                     className="flex items-center gap-3 py-2.5"
                   >
                     <span className="flex flex-1 flex-col gap-0.5">
-                      <span className="flex items-center gap-2">
+                      <span className="flex flex-wrap items-center gap-2">
                         <span className="font-medium first-letter:uppercase">
                           {formatMonth(entry.month)}
                         </span>
@@ -61,6 +61,8 @@ export function HistoryPage() {
                             {entry.status === 'OPEN' ? 'Abierto' : 'Cerrado'}
                           </Badge>
                         )}
+                        {/* Before the platform: captured from its paper sheet. */}
+                        {entry.historical && <Badge variant="outline">Del papel</Badge>}
                       </span>
                       <span className="text-muted-foreground tabular-nums">
                         + {formatMoney(entry.income)} · − {formatMoney(entry.expense)}

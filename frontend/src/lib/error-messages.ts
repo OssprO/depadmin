@@ -38,7 +38,8 @@ const MESSAGES: Record<string, string> = {
     'Ese mes ya se abrió y cobró sus cuotas; el cambio debe empezar el mes siguiente.',
   // Books
   REPORTING_NOT_STARTED: 'Falta capturar el inicio de la contabilidad.',
-  REPORTING_START_LOCKED: 'El inicio ya no se puede cambiar así: ya hay meses abiertos o cerrados.',
+  REPORTING_START_LOCKED:
+    'El mes de inicio ya no se puede cambiar: ya hay meses abiertos o cerrados, o los libros empiezan con el historial.',
   MONTH_BEFORE_START: 'Ese mes es anterior al inicio de la contabilidad.',
   MONTH_NOT_STARTED: 'Ese mes todavía no empieza.',
   MONTH_NOT_OPENED: 'Ese mes no se ha abierto.',
@@ -48,7 +49,8 @@ const MESSAGES: Record<string, string> = {
   OPENING_CHARGE_NOT_BEFORE_START: 'Los adeudos iniciales son de meses anteriores al inicio.',
   OPENING_CHARGE_DUPLICATED: 'Ese mes y concepto están repetidos.',
   OPENING_CREDIT_INVALID: 'El adelanto no puede ser negativo.',
-  OPENING_BALANCE_LOCKED: 'El primer mes ya se cerró; reábrelo para cambiar la carga inicial.',
+  OPENING_BALANCE_LOCKED:
+    'El primer mes en vivo ya se cerró; reábrelo para cambiar la carga inicial.',
   OPENING_BALANCES_SET:
     'Ya hay adeudos o adelantos iniciales: vacíalos antes de cambiar el primer mes.',
   MONTH_IN_PROGRESS: 'El mes todavía no termina; se cierra a partir del día 1 siguiente.',
@@ -73,19 +75,17 @@ const MESSAGES: Record<string, string> = {
   PAYLOAD_TOO_LARGE: 'El archivo es demasiado grande.',
   VALIDATION_FAILED: 'Hay datos que no son válidos. Revísalos e inténtalo de nuevo.',
   // The building's history
-  HISTORY_NOT_IMPORTED: 'Todavía no se importa el historial.',
-  HISTORY_ALREADY_IMPORTED: 'Ya hay un historial. Descártalo antes de importar otro.',
-  HISTORY_VERIFIED: 'El historial ya se verificó y quedó fijo.',
-  HISTORY_OVERLAPS_BOOKS:
-    'El historial y los libros no pueden compartir meses: los libros empiezan después del historial.',
-  HISTORY_MONTH_OUTSIDE: 'Ese mes no está dentro del historial.',
-  HISTORY_SPAN_INVALID: 'Los meses del historial no son válidos.',
+  BOOKS_ALREADY_STARTED:
+    'Los libros ya empezaron: el historial solo se importa antes de empezar los libros.',
+  MONTH_NOT_HISTORY: 'Ese mes no es del historial: sus renglones se capturan uno por uno.',
+  REPORTING_START_INVALID: 'El inicio de los libros no es válido.',
+  RATE_CHANGE_NOT_EARLIER: 'Las tarifas del historial deben ser anteriores a las vigentes.',
   HISTORY_FILE_INVALID:
     'El archivo tiene un error: revisa los meses y las fechas de sus renglones.',
   SHEET_DAY_INVALID: 'Ese día no existe en el mes.',
   SHEET_SOURCE_INVALID: 'Escribe de dónde sale la hoja.',
-  SHEET_FIGURES_INVALID: 'Los ingresos y egresos no pueden ser negativos.',
-  SHEET_NOTES_DUPLICATED: 'Cada depto lleva una sola observación por hoja.',
+  SHEET_FIGURES_INVALID: 'Los ingresos, egresos y pagos no pueden ser negativos.',
+  SHEET_LINES_DUPLICATED: 'Cada depto lleva un solo renglón por hoja.',
   SHEET_TEXT_TOO_LONG: 'Un texto es demasiado largo.',
   SHEET_DUPLICATED: 'Ese mes ya tiene una hoja que empieza ese día.',
   SHEET_NOT_FOUND: 'Esa hoja ya no existe.',

@@ -178,11 +178,14 @@ export function MovementSheet({
   const category = useWatch({ control: form.control, name: 'category' });
   const rule = CATEGORY_RULES[category];
 
-  // Those that owe go first, with what they owe, so the usual payment is one tap away.
+  // Those that owe go first, with what they owe, so the usual payment is one tap away. A
+  // month of the history has no accounts behind it, so it lists them in order.
   const units = [...UNIT_NUMBERS]
     .map((unit) => ({
       unit,
-      owes: report.accounts.find((account) => account.unit === unit)?.outstanding ?? 0,
+      owes: report.historical
+        ? 0
+        : (report.accounts.find((account) => account.unit === unit)?.outstanding ?? 0),
     }))
     .sort((a, b) => b.owes - a.owes || a.unit - b.unit);
 

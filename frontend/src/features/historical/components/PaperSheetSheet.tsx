@@ -1,5 +1,5 @@
 import {
-  type HistoricalSheet,
+  type PaperSheet,
   type SheetRequest,
   sheetRequestSchema,
   UNIT_NUMBERS,
@@ -49,11 +49,18 @@ const FIGURES = [
 
 type Figure = (typeof FIGURES)[number]['name'];
 
+interface LineValues {
+  ownerName: string;
+  current: string;
+  other: string;
+  text: string;
+}
+
 interface FormValues extends Record<Figure, string> {
   fromDay: string;
   source: string;
   alerts: string;
-  notes: Record<string, string>;
+  lines: Record<string, LineValues>;
 }
 
 /** An empty field means the paper does not say (or it cannot be read). */
@@ -69,6 +76,13 @@ const figure = (signed: boolean) =>
       return signed ? parseSignedPesos(text) : parsePesos(text);
     });
 
+const lineSchema = z.object({
+  ownerName: z.string().trim(),
+  current: figure(false),
+  other: figure(false),
+  text: z.string().trim(),
+});
+
 const formSchema = z
   .object({
     fromDay: z.string().regex(/^\d{1,2}$/, 'Escribe el día, por ejemplo 1 o 10'),
@@ -78,7 +92,7 @@ const formSchema = z
     expense: figure(false),
     closing: figure(true),
     alerts: z.string(),
-    notes: z.record(z.string(), z.string()),
+    lines: z.record(z.string(), lineSchema),
   })
   .transform((form): SheetRequest => ({
     fromDay: Number(form.fromDay),
@@ -91,13 +105,17 @@ const formSchema = z
       .split('\n')
       .map((alert) => alert.trim())
       .filter(Boolean),
-    notes: UNIT_NUMBERS.map((unit) => ({ unit, text: form.notes[unit]?.trim() ?? '' })).filter(
-      (note) => note.text !== '',
-    ),
+    lines: UNIT_NUMBERS.flatMap((unit) => {
+      const line = form.lines[unit];
+      if (!line) return [];
+      const { ownerName, current, other, text } = line;
+      if (!ownerName && current === null && other === null && !text) return [];
+      return [{ unit, ownerName: ownerName || null, current, other, text }];
+    }),
   }))
   .pipe(sheetRequestSchema);
 
-function valuesFor(sheet: HistoricalSheet | null): FormValues {
+function valuesFor(sheet: PaperSheet | null): FormValues {
   const amount = (value: number | null) => (value === null ? '' : pesosInput(value));
   return {
     fromDay: String(sheet?.fromDay ?? 1),
@@ -107,11 +125,19 @@ function valuesFor(sheet: HistoricalSheet | null): FormValues {
     expense: amount(sheet?.expense ?? null),
     closing: amount(sheet?.closing ?? null),
     alerts: sheet?.alerts.join('\n') ?? '',
-    notes: Object.fromEntries(
-      UNIT_NUMBERS.map((unit) => [
-        unit,
-        sheet?.notes.find((note) => note.unit === unit)?.text ?? '',
-      ]),
+    lines: Object.fromEntries(
+      UNIT_NUMBERS.map((unit) => {
+        const line = sheet?.lines.find((candidate) => candidate.unit === unit);
+        return [
+          unit,
+          {
+            ownerName: line?.ownerName ?? '',
+            current: amount(line?.current ?? null),
+            other: amount(line?.other ?? null),
+            text: line?.text ?? '',
+          },
+        ];
+      }),
     ),
   };
 }
@@ -119,11 +145,11 @@ function valuesFor(sheet: HistoricalSheet | null): FormValues {
 interface PaperSheetSheetProps {
   readonly month: string;
   /** The sheet to correct, or null to add one found later. */
-  readonly sheet: HistoricalSheet | null;
+  readonly sheet: PaperSheet | null;
   readonly onClose: () => void;
 }
 
-/** A paper sheet's figures, remarks and observations per depto, as the paper says them. */
+/** A paper sheet's figures, remarks and line per depto, as the paper says them. */
 export function PaperSheetSheet({ month, sheet, onClose }: PaperSheetSheetProps) {
   const [error, setError] = useState<string | null>(null);
   const [confirmingRemoval, setConfirmingRemoval] = useState(false);
@@ -220,22 +246,60 @@ export function PaperSheetSheet({ month, sheet, onClose }: PaperSheetSheetProps)
               <FieldDescription>Una por renglón: lo que no cuadra o falta.</FieldDescription>
               <FieldError errors={[errors.alerts]} />
             </Field>
-            <FieldSet>
-              <FieldLegend variant="label">Observaciones por depto</FieldLegend>
-              {UNIT_NUMBERS.map((unit) => (
-                <Field key={unit} orientation="horizontal">
-                  <FieldLabel htmlFor={`sheet-note-${unit}`} className="w-12 shrink-0">
-                    {unit}
-                  </FieldLabel>
-                  <Input
-                    id={`sheet-note-${unit}`}
-                    autoComplete="off"
-                    {...form.register(`notes.${unit}`)}
-                  />
-                </Field>
-              ))}
-              <FieldError errors={[errors.notes]} />
-            </FieldSet>
+            {UNIT_NUMBERS.map((unit) => {
+              const lineErrors = errors.lines?.[unit];
+              return (
+                <FieldSet key={unit}>
+                  <FieldLegend variant="label">Depto {unit}</FieldLegend>
+                  <Field>
+                    <FieldLabel htmlFor={`sheet-${unit}-owner`}>Propietario</FieldLabel>
+                    <Input
+                      id={`sheet-${unit}-owner`}
+                      autoComplete="off"
+                      placeholder="Como lo escribe la hoja"
+                      {...form.register(`lines.${unit}.ownerName`)}
+                    />
+                  </Field>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field data-invalid={!!lineErrors?.current}>
+                      <FieldLabel htmlFor={`sheet-${unit}-current`}>Mes en curso ($)</FieldLabel>
+                      <Input
+                        id={`sheet-${unit}-current`}
+                        inputMode="decimal"
+                        autoComplete="off"
+                        aria-invalid={!!lineErrors?.current}
+                        {...form.register(`lines.${unit}.current`)}
+                      />
+                      <FieldError errors={[lineErrors?.current]} />
+                    </Field>
+                    <Field data-invalid={!!lineErrors?.other}>
+                      <FieldLabel htmlFor={`sheet-${unit}-other`}>Adeudos/adelantos ($)</FieldLabel>
+                      <Input
+                        id={`sheet-${unit}-other`}
+                        inputMode="decimal"
+                        autoComplete="off"
+                        aria-invalid={!!lineErrors?.other}
+                        {...form.register(`lines.${unit}.other`)}
+                      />
+                      <FieldError errors={[lineErrors?.other]} />
+                    </Field>
+                  </div>
+                  <Field>
+                    <FieldLabel htmlFor={`sheet-${unit}-text`}>Observaciones</FieldLabel>
+                    <Input
+                      id={`sheet-${unit}-text`}
+                      autoComplete="off"
+                      {...form.register(`lines.${unit}.text`)}
+                    />
+                  </Field>
+                </FieldSet>
+              );
+            })}
+            <FieldDescription>
+              Si la hoja no separa el pago, deja vacíos los dos importes: el reporte pone la cuota
+              en «Mes en curso» y el resto en «Adeudos/adelantos».
+            </FieldDescription>
+            <FieldError errors={[errors.lines?.root]} />
             <FormError message={error} />
           </FieldGroup>
           <SheetFooter>

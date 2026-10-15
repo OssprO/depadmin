@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { PaperCard } from '@/features/historical/components/PaperCard';
 import { addMonths, buildingToday, formatMonth, formatMonthName } from '@/lib/format';
 import { monthQueryOptions } from '../api';
 import { MonthClosingCard } from '../components/MonthClosingCard';
@@ -24,7 +25,8 @@ type Editing =
 
 /**
  * The month's book: the summary on top and every row below. It is the turn admin's main
- * screen, and read-only for everyone else.
+ * screen, and read-only for everyone else. A month of the building's history shows its
+ * paper sheet too, to check one against the other.
  */
 export function BookPage({ month }: { month: string }) {
   const report = useQuery(monthQueryOptions(month));
@@ -73,6 +75,7 @@ export function BookPage({ month }: { month: string }) {
       {data && data.status !== 'NOT_OPENED' && (
         <>
           <MonthSummary report={data} />
+          {data.historical && <PaperCard month={month} />}
           <ReportPdfActions report={data} />
           <PendingGarbage
             report={data}
@@ -85,6 +88,8 @@ export function BookPage({ month }: { month: string }) {
           />
           <MovementList
             movements={data.movements}
+            // The history keeps no accounts: a payment is not described as an adelanto.
+            showCoverage={!data.historical}
             onSelect={
               data.canWrite ? (movement) => setEditing({ kind: 'movement', movement }) : undefined
             }
@@ -96,7 +101,9 @@ export function BookPage({ month }: { month: string }) {
           <MonthClosingCard report={data} />
           {!data.canWrite && data.status === 'OPEN' && (
             <p className="text-xs/relaxed text-muted-foreground">
-              Solo lectura: lo anota el depto en turno.
+              {data.historical
+                ? 'Solo lectura: el superadmin lo captura de su hoja de papel.'
+                : 'Solo lectura: lo anota el depto en turno.'}
             </p>
           )}
           {data.canWrite && month >= thisMonth && (
