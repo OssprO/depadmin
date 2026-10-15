@@ -14,6 +14,9 @@ export function configureApp(app: NestExpressApplication): NestExpressApplicatio
   app.disable('x-powered-by');
   app.use(helmet());
   app.use(cookieParser());
+  // The history import file (ADR-0022) is about 200 KB; everything else is far smaller.
+  // Registered here, Nest skips its default parser (100 KB).
+  app.useBodyParser('json', { limit: '1mb' });
   app.setGlobalPrefix('api');
   app.useGlobalFilters(new ProblemDetailsFilter());
   app.enableShutdownHooks();
