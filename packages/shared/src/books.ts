@@ -36,7 +36,8 @@ export function isoDayOfWeek(date: string): number {
   return new Date(`${date}T00:00:00Z`).getUTCDay() || 7;
 }
 
-export const DESCRIPTION_MAX_LENGTH = 200;
+/** Long enough for a payment's observations, which the report prints for its depto. */
+export const DESCRIPTION_MAX_LENGTH = 500;
 
 /** `POST /api/movements` and `PUT /api/movements/:id` (the whole row). */
 export const movementRequestSchema = z

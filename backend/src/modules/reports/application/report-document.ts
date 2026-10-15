@@ -92,6 +92,12 @@ export interface UnitReportLine {
   readonly credit: Money;
   /** A month of the history reads as its paper did; null for a live month. */
   readonly paper: PaperCells | null;
+  /**
+   * The observations written on the month's payments, in date order. When there are any they
+   * are the depto's OBSERVACIONES; otherwise the paper's (a month of the history) or the
+   * ones the account suggests (a live month).
+   */
+  readonly notes: readonly string[];
 }
 
 /** A garbage week in the report: paid by a row of the month, or still unpaid at its end. */
@@ -263,6 +269,7 @@ export class RenderMonthlyReport {
           outstanding: statement?.outstandingBalance ?? Money.ZERO,
           credit: statement?.creditBalance ?? Money.ZERO,
           paper: null,
+          notes: notesOf(payments),
         };
       }),
       otherIncome: entries('OTHER_INCOME'),
@@ -338,6 +345,10 @@ export class RenderMonthlyReport {
   }
 }
 
+/** What the payments say, in the order they were made. */
+const notesOf = (payments: readonly CashMovement[]): string[] =>
+  payments.flatMap((row) => (row.details.description ? [row.details.description] : []));
+
 const sortedPages = (pages: readonly PaperPage[]) =>
   [...pages].sort((a, b) => a.fromDay - b.fromDay);
 
@@ -386,6 +397,7 @@ function historyLine(
     outstanding: Money.ZERO,
     credit: Money.ZERO,
     paper: { ...splitOf(paid, line, fee), text: line?.text ?? '' },
+    notes: notesOf(payments),
   };
 }
 
