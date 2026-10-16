@@ -16,7 +16,7 @@ describe('sessions', () => {
 
   beforeEach(async () => {
     fx = identityFixture();
-    signIn = new SignIn(fx.users, fakeHasher, immediateUnitOfWork, fx.sessions);
+    signIn = new SignIn(fx.users, fakeHasher, immediateUnitOfWork, fx.clock, fx.sessions);
     refresh = new RefreshSession(
       fx.refreshTokens,
       fx.users,

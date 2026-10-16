@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { useTestDatabase } from '../../../../test/support/database.js';
-import { UnitNumber } from '../../../shared-kernel/index.js';
+import { withCode } from '../../../../test/support/domain-error.js';
+import { LocalDate, UnitNumber } from '../../../shared-kernel/index.js';
 import { User } from '../domain/index.js';
 import { PrismaUserRepository } from './prisma-user.repository.js';
 
@@ -53,9 +54,42 @@ describe('PrismaUserRepository', () => {
     ]);
   });
 
-  it('allows one owner per depto', async () => {
+  it('allows one owner per depto, and any number of read-only users', async () => {
     await repository().save(owner(501));
-    await expect(repository().save(owner(501))).rejects.toThrow();
+    // An owner is named after its depto, so a second one clashes on the name first...
+    await expect(repository().save(owner(501))).rejects.toThrow(withCode('USERNAME_TAKEN'));
+    // ...and on the depto even under another name.
+    await expect(
+      ctx.database.client.user.create({
+        data: { id: crypto.randomUUID(), username: 'otro', role: 'OWNER', unitNumber: 501 },
+      }),
+    ).rejects.toThrow(/app_user_one_owner_per_unit/);
+    const access = { unit: UnitNumber.of(501), expiresOn: LocalDate.parse('2026-12-31') };
+    const tenant = User.createReader(crypto.randomUUID(), 'inquilino', access, 'hash');
+    tenant.disable();
+    await repository().save(tenant);
+    await repository().save(User.createReader(crypto.randomUUID(), 'familia', access, 'hash'));
+    await repository().save(
+      User.createReader(crypto.randomUUID(), 'contador', { unit: null, expiresOn: null }, 'hash'),
+    );
+
+    expect(await repository().findById(tenant.id)).toMatchObject({
+      role: 'READER',
+      unit: UnitNumber.of(501),
+      expiresOn: LocalDate.parse('2026-12-31'),
+      disabled: true,
+      mustChangePassword: true,
+    });
+    // The owners by depto, then the readers by depto (those of none last) and name.
+    expect((await repository().findAll()).map((u) => u.username)).toEqual([
+      '501',
+      'familia',
+      'inquilino',
+      'contador',
+    ]);
+    await expect(
+      repository().save(User.createReader(crypto.randomUUID(), 'familia', access, 'hash')),
+    ).rejects.toThrow(withCode('USERNAME_TAKEN'));
   });
 
   it('enforces the user invariants in the database itself', async () => {
@@ -73,10 +107,10 @@ describe('PrismaUserRepository', () => {
       /app_user_username_valid/,
     );
     await expect(insert({ username: 'admin', role: 'SUPERADMIN', unit: 501 })).rejects.toThrow(
-      /app_user_unit_iff_owner/,
+      /app_user_superadmin_access_fixed/,
     );
     await expect(insert({ username: '501', role: 'OWNER' })).rejects.toThrow(
-      /app_user_unit_iff_owner/,
+      /app_user_owner_has_unit/,
     );
     await expect(
       ctx.database.client.user.create({

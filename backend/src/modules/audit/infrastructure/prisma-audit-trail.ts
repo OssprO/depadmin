@@ -30,7 +30,8 @@ export class PrismaAuditTrail implements AuditTrail {
         occurredAt: toDbInstant(this.clock.now()),
         actorId: actor.userId,
         actorRole: actor.role,
-        actorUnit: actor.role === 'OWNER' ? actor.unit.value : null,
+        actorUnit:
+          actor.role === 'OWNER' || actor.role === 'READER' ? (actor.unit?.value ?? null) : null,
         action: change.action,
         entity: change.entity,
         entityId: change.entityId,

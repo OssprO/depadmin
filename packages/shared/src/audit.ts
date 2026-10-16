@@ -42,13 +42,13 @@ export const fieldChangeSchema = z.union([
 export type FieldChange = z.infer<typeof fieldChangeSchema>;
 
 /** A user's role, or the app itself for what runs on a schedule. */
-export const auditActorRoleSchema = z.enum(['SUPERADMIN', 'OWNER', 'SYSTEM']);
+export const auditActorRoleSchema = z.enum(['SUPERADMIN', 'OWNER', 'READER', 'SYSTEM']);
 export type AuditActorRole = z.infer<typeof auditActorRoleSchema>;
 
 export const auditLogEntrySchema = z.object({
   id: z.string(),
   occurredAt: z.iso.datetime(),
-  /** Who acted, as it was then. `unit` is the owner's depto; null for anyone else. */
+  /** Who acted, as it was then. `unit` is an owner's or a reader's depto; null otherwise. */
   actor: z.object({ role: auditActorRoleSchema, unit: z.number().int().nullable() }),
   /** A stable code, e.g. `USER_PASSWORD_RESET`. */
   action: z.string(),

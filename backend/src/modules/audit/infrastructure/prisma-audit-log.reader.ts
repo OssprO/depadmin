@@ -48,11 +48,14 @@ function whereFilter({ entity, entityId, actor }: AuditLogFilter): Prisma.AuditL
 }
 
 function toEntry(row: AuditLogRow): AuditLogEntry {
-  // A CHECK guarantees that an owner, and only an owner, has a depto.
+  // CHECKs guarantee that an owner has a depto, and the superadmin and the app none.
+  const unit = row.actorUnit === null ? null : UnitNumber.of(row.actorUnit);
   const actor: AuditActor =
     row.actorRole === 'OWNER'
-      ? { role: 'OWNER', unit: UnitNumber.of(row.actorUnit ?? 0) }
-      : { role: row.actorRole };
+      ? { role: 'OWNER', unit: unit as UnitNumber }
+      : row.actorRole === 'READER'
+        ? { role: 'READER', unit }
+        : { role: row.actorRole };
   return {
     id: row.id.toString(),
     occurredAt: fromDbInstant(row.occurredAt),
