@@ -75,14 +75,12 @@ Lo pidió el administrador al probar la plataforma con el historial: capturar un
 - **Color:** un borde verde para los ingresos y rojo para los egresos (en la lista del libro, el resumen del mes y los tipos del formulario), sin cambiar el color del texto.
 - **Importación:** las hojas que faltaban (octubre y diciembre 2022, las segundas hojas de marzo a julio 2025 y febrero 2026) ya están transcritas: los 51 meses cierran como el papel. La observación de cada pago va también en el pago.
 
-**13b: Tableta y escritorio:**
+**13b: Tableta y escritorio (este PR):** el celular se queda como está.
 
-Hoy la app está pensada para el celular (barra inferior y hojas que suben desde abajo); el celular se queda como está.
-
-- **Tableta (≥ 768 px):** barra lateral compacta con íconos y nombres, contenido a dos columnas donde ayuda (libro y resumen del mes lado a lado), formularios en un panel lateral en lugar de la hoja inferior.
-- **Escritorio (≥ 1024 px):** barra lateral fija, tablas con más columnas (estados de cuenta, histórico, bitácora), el libro del mes con el resumen fijo a un lado, y atajos de teclado para capturar.
-- Un solo código: los mismos componentes con puntos de quiebre de Tailwind, sin una app aparte.
-- Las pruebas de navegador corren en tres tamaños (Pixel 7, iPad y escritorio), con axe en cada uno.
+- **Desde tableta (≥ 768 px):** un menú lateral fijo con todas las secciones (Inicio, Libro, Histórico, Turnos, Bitácora, Estados de cuenta, Administración, Mi cuenta) en lugar de la barra inferior; contenido más ancho; los formularios abren como panel a la derecha (`FormSheetContent`) en lugar de la hoja inferior, y «Agregar» encabeza los movimientos en lugar de flotar.
+- **Escritorio (≥ 1024 px):** el Libro a dos columnas (el mes a la izquierda, sus movimientos a la derecha), el inicio y el historial a dos columnas, y la tecla N para agregar un movimiento.
+- Un solo código: los mismos componentes con puntos de quiebre de Tailwind, y `useWideScreen` donde cambia qué se muestra (un solo menú a la vez).
+- Las pruebas de navegador corren en celular, tableta y escritorio: `layouts.spec` comprueba el menú, el libro y los formularios en cada tamaño, y axe revisa todas las pantallas en los tres, en tema claro y oscuro.
 
 **Conceptos:** captura que reemplaza al documento, temas del sistema, diseño adaptable, puntos de quiebre, navegación por tamaño de pantalla.
 
