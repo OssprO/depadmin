@@ -6,6 +6,7 @@ import {
 import { PlusIcon, XIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { FormError } from '@/components/FormError';
+import { FormSheetContent } from '@/components/FormSheetContent';
 import { Button } from '@/components/ui/button';
 import {
   Field,
@@ -19,7 +20,6 @@ import { Input } from '@/components/ui/input';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import {
   Sheet,
-  SheetContent,
   SheetDescription,
   SheetFooter,
   SheetHeader,
@@ -115,7 +115,7 @@ export function OpeningBalanceSheet({ balance, start, onClose }: OpeningBalanceS
         if (!next) onClose();
       }}
     >
-      <SheetContent side="bottom" className="mx-auto max-h-[90svh] max-w-md overflow-y-auto">
+      <FormSheetContent>
         <SheetHeader>
           <SheetTitle>Depto {balance.unit} al empezar</SheetTitle>
           <SheetDescription>
@@ -242,7 +242,7 @@ export function OpeningBalanceSheet({ balance, start, onClose }: OpeningBalanceS
             Guardar
           </Button>
         </SheetFooter>
-      </SheetContent>
+      </FormSheetContent>
     </Sheet>
   );
 }
