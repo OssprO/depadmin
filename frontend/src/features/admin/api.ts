@@ -1,4 +1,6 @@
 import {
+  type CreateReaderRequest,
+  createReaderResponseSchema,
   type OpeningBalanceRequest,
   openingBalanceSchema,
   openingBalancesSchema,
@@ -9,7 +11,9 @@ import {
   type SetUnitStatusRequest,
   unitListResponseSchema,
   unitSchema,
+  type UserAccessRequest,
   userListResponseSchema,
+  userSummarySchema,
 } from '@depadmin/shared';
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch, getJson, sendJson } from '@/lib/http';
@@ -25,6 +29,50 @@ export function useResetPassword() {
     mutationFn: (userId: string) =>
       sendJson('POST', `/users/${userId}/password-reset`, undefined, passwordResetResponseSchema),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: usersQueryOptions.queryKey }),
+  });
+}
+
+/** A user change shows in the list and in the audit log. */
+function useRefreshUsers() {
+  const queryClient = useQueryClient();
+  return () =>
+    Promise.all(
+      [usersQueryOptions.queryKey, ['audit-log']].map((queryKey) =>
+        queryClient.invalidateQueries({ queryKey }),
+      ),
+    );
+}
+
+export function useCreateReader() {
+  const refresh = useRefreshUsers();
+  return useMutation({
+    mutationFn: (body: CreateReaderRequest) =>
+      sendJson('POST', '/users', body, createReaderResponseSchema),
+    onSuccess: refresh,
+  });
+}
+
+export function useChangeAccess() {
+  const refresh = useRefreshUsers();
+  return useMutation({
+    mutationFn: ({ userId, body }: { userId: string; body: UserAccessRequest }) =>
+      sendJson('PUT', `/users/${userId}/access`, body, userSummarySchema),
+    onSuccess: refresh,
+  });
+}
+
+/** Switches a user off (`on: false`) or back on. */
+export function useSetUserEnabled() {
+  const refresh = useRefreshUsers();
+  return useMutation({
+    mutationFn: ({ userId, on }: { userId: string; on: boolean }) =>
+      sendJson(
+        'POST',
+        `/users/${userId}/${on ? 'enable' : 'disable'}`,
+        undefined,
+        userSummarySchema,
+      ),
+    onSuccess: refresh,
   });
 }
 

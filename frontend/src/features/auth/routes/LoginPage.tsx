@@ -44,7 +44,10 @@ export function LoginPage() {
           <CardTitle>
             <h1>Iniciar sesión</h1>
           </CardTitle>
-          <CardDescription>Tu usuario es el número de tu depto, por ejemplo 501.</CardDescription>
+          <CardDescription>
+            Si eres dueño, tu usuario es el número de tu depto, por ejemplo 501. Si no, el que te
+            dio el administrador.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={(event) => void onSubmit(event)} noValidate>

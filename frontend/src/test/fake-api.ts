@@ -44,6 +44,15 @@ export const owner501: CurrentUser = {
   mustChangePassword: false,
 };
 
+/** A read-only user: the tenant of 302. */
+export const tenant302: CurrentUser = {
+  id: '5d4c3b2a-1f0e-4d9c-8b7a-6f5e4d3c2b10',
+  username: 'inquilino.302',
+  role: 'READER',
+  unit: 302,
+  mustChangePassword: false,
+};
+
 export const superadmin: CurrentUser = {
   id: '7f3c2b1a-9e8d-4c6b-8a5f-1e2d3c4b5a60',
   username: 'admin',
