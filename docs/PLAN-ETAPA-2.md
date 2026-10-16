@@ -102,15 +102,20 @@ Detalle en el ADR-0025. Antes había un usuario por depto (su dueño) más el su
 
 ### Fase 15: Herramientas: contador de efectivo
 
-Nueva sección _Herramientas_ en el menú. La primera es el contador de efectivo:
+Nueva sección _Herramientas_ (en «Más» en el celular y en el menú lateral desde tableta), para todos los usuarios. La primera es el **contador de efectivo** (`/tools/cash`):
 
-- Una fila por denominación vigente en México: a la izquierda la denominación y a la derecha un campo numérico con la cantidad de piezas, y el subtotal de la fila.
+- **Una fila por denominación vigente en México:** a la izquierda la denominación, en medio un campo con la cantidad de piezas y a la derecha el subtotal de la fila.
   - Billetes: $1,000, $500, $200, $100, $50 y $20.
   - Monedas: $20, $10, $5, $2, $1 y 50¢.
-- Debajo de todo, el total. Se recalcula al escribir, sin botones.
-- Botón «Limpiar» que regresa todo a cero.
-- Es solo una utilidad: no guarda nada ni toca el libro. Funciona sin conexión.
-- Campos grandes y teclado numérico en el celular; el cálculo se hace en centavos, como el resto de la app.
+- **Debajo de todo,** el total de billetes, el de monedas y el total general. Se recalcula al escribir, sin botones.
+- **«Limpiar»** regresa todo a cero y vuelve al primer campo.
+- **Captura rápida:**
+  - Campos grandes con el teclado numérico del celular. Solo admiten piezas enteras, hasta 99,999.
+  - Al tocar un campo se selecciona lo escrito.
+  - _Enter_ («Siguiente» en el celular) pasa a la siguiente denominación. Después de 50¢ cierra el teclado para que se vea el total.
+- **En escritorio,** billetes y monedas van lado a lado.
+- **Es solo una utilidad:** no guarda nada ni llama al servidor, así que sigue contando sin conexión.
+- **El cálculo es en centavos:** `features/tools/cash-count.ts` es una función pura con sus pruebas.
 
 **Conceptos:** estado local de formulario, componentes accesibles para captura rápida.
 
