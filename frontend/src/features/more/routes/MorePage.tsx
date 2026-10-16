@@ -1,4 +1,10 @@
-import { ListBulletsIcon, ReceiptIcon, UserCircleIcon, WrenchIcon } from '@phosphor-icons/react';
+import {
+  ListBulletsIcon,
+  ReceiptIcon,
+  ToolboxIcon,
+  UserCircleIcon,
+  WrenchIcon,
+} from '@phosphor-icons/react';
 import { MenuEntry, MenuList } from '@/components/MenuList';
 import { useCurrentUser } from '@/lib/use-session';
 
@@ -21,6 +27,12 @@ export function MorePage() {
           icon={<ReceiptIcon />}
           title="Estados de cuenta"
           description="Adeudos y adelantos de cada depto"
+        />
+        <MenuEntry
+          to="/tools"
+          icon={<ToolboxIcon />}
+          title="Herramientas"
+          description="Para contar el efectivo de la caja"
         />
         {user.role === 'SUPERADMIN' && (
           <MenuEntry

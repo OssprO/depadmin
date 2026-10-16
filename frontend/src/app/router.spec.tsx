@@ -84,6 +84,7 @@ describe('navigation and session', () => {
       'Turnos',
       'Bitácora',
       'Estados de cuenta',
+      'Herramientas',
       'Administración',
       'Mi cuenta',
     ]);

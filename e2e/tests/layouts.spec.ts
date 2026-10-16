@@ -46,4 +46,18 @@ test('adapts the menu, the book and the forms to the size of the screen', async 
   const form = page.getByRole('dialog');
   await expect(form).toBeVisible();
   await expect(form).toHaveAttribute('data-side', project === 'mobile-chrome' ? 'bottom' : 'right');
+
+  // The cash counter: bills and coins side by side on a desktop, one under the other elsewhere.
+  await page.goto('/tools/cash');
+  await expect(page.getByLabel('Billetes de $1,000')).toBeVisible();
+  const [bills, coins] = await Promise.all(
+    ['Billetes', 'Monedas'].map((name) =>
+      page
+        .getByRole('heading', { name, exact: true })
+        .locator('xpath=ancestor::*[@data-slot="card"][1]')
+        .boundingBox(),
+    ),
+  );
+  if (project === 'desktop') expect(coins!.x).toBeGreaterThan(bills!.x + bills!.width);
+  else expect(coins!.y).toBeGreaterThan(bills!.y + bills!.height);
 });

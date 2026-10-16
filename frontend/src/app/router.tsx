@@ -71,6 +71,14 @@ const ReportingStartPage = lazyRouteComponent(
   () => import('@/features/admin/routes/ReportingStartPage'),
   'ReportingStartPage',
 );
+const CashCounterPage = lazyRouteComponent(
+  () => import('@/features/tools/routes/CashCounterPage'),
+  'CashCounterPage',
+);
+const ToolsPage = lazyRouteComponent(
+  () => import('@/features/tools/routes/ToolsPage'),
+  'ToolsPage',
+);
 const ShiftsPage = lazyRouteComponent(
   () => import('@/features/shifts/routes/ShiftsPage'),
   'ShiftsPage',
@@ -204,6 +212,19 @@ const shiftsRoute = createRoute({
   component: ShiftsPage,
 });
 
+/** Utilities for everyone, apart from the books. */
+const toolsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/tools',
+  component: ToolsPage,
+});
+
+const cashCounterRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/tools/cash',
+  component: CashCounterPage,
+});
+
 /** The superadmin's tools. */
 const adminRoute = createRoute({
   getParentRoute: () => appRoute,
@@ -288,6 +309,8 @@ const routeTree = rootRoute.addChildren([
     moreRoute,
     shiftsRoute,
     auditRoute,
+    toolsRoute,
+    cashCounterRoute,
     accountRoute,
     changePasswordRoute,
     adminRoute.addChildren([
