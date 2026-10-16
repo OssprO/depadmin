@@ -35,6 +35,27 @@ describe('navigation and session', () => {
     expect(router.state.location.pathname).toBe('/admin/users');
   });
 
+  it('offers «Atrás» off the bottom bar: up a level when opened directly, else back', async () => {
+    fakeApi({
+      'POST /api/auth/refresh': sessionFor(superadmin),
+      'GET /api/users': () => Response.json([]),
+      'GET /api/health': health,
+    });
+    const { router } = renderApp('/admin/users');
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Atrás' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/admin'));
+    await userEvent.click(await screen.findByRole('link', { name: /Usuarios/ }));
+    await screen.findByRole('heading', { name: 'Usuarios' });
+    await userEvent.click(screen.getByRole('button', { name: 'Atrás' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/admin'));
+    // The bottom bar's own screens have none.
+    await router.navigate({ to: '/more' });
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Atrás' })).not.toBeInTheDocument(),
+    );
+  });
+
   it('explains a failed login', async () => {
     fakeApi({
       'POST /api/auth/refresh': () => problem(401, 'SESSION_INVALID'),

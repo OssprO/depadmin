@@ -2,7 +2,7 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { connectSession } from '@/lib/http';
-import { garbageRow, octoberReport, paymentRow } from '@/test/books';
+import { cleaningRow, garbageRow, octoberReport, paymentRow } from '@/test/books';
 import { fakeApi, owner501, problem, sessionFor, superadmin } from '@/test/fake-api';
 import { renderApp } from '@/test/render-app';
 
@@ -198,6 +198,62 @@ describe('BookPage', () => {
       week: null,
     });
     await vi.waitFor(() => expect(screen.queryByLabelText('Depto')).not.toBeInTheDocument());
+  });
+
+  it('groups the types into income and expenses, with observations for the income', async () => {
+    const api = fakeApi({
+      'POST /api/auth/refresh': sessionFor(superadmin),
+      'GET /api/months/2026-10': october(),
+      'POST /api/movements': () => Response.json({ id: paymentRow.id }, { status: 201 }),
+    });
+    renderApp('/book/2026-10');
+
+    await userEvent.click(await screen.findByRole('button', { name: /Agregar/ }));
+    const income = (await screen.findByText('Ingresos', { selector: 'legend' })).closest(
+      'fieldset',
+    )!;
+    const expenses = screen.getByText('Egresos', { selector: 'legend' }).closest('fieldset')!;
+    expect(
+      within(income)
+        .getAllByRole('radio')
+        .map((r) => r.closest('label')?.textContent),
+    ).toEqual(['Pago de depto', 'Otro ingreso']);
+    expect(within(expenses).getAllByRole('radio')).toHaveLength(3);
+
+    await userEvent.selectOptions(
+      await screen.findByLabelText('Depto'),
+      'Depto 302 · debe $700.00',
+    );
+    await userEvent.type(screen.getByLabelText('Observaciones (opcional)'), 'Liquida septiembre');
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    await vi.waitFor(() => expect(api.callsTo('POST /api/movements')).toHaveLength(1));
+    expect(api.callsTo('POST /api/movements')[0]?.body).toMatchObject({
+      unit: 302,
+      description: 'Liquida septiembre',
+    });
+
+    // An expense is described instead.
+    await userEvent.click(await screen.findByRole('button', { name: /Agregar/ }));
+    await userEvent.click(await screen.findByLabelText('Otro egreso'));
+    expect(screen.getByLabelText('Descripción')).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Observaciones/)).not.toBeInTheDocument();
+  });
+
+  it('shows what each payment says, and marks money in and out', async () => {
+    fakeApi({
+      'POST /api/auth/refresh': sessionFor(superadmin),
+      'GET /api/months/2026-10': october(
+        octoberReport({
+          movements: [{ ...paymentRow, description: 'LIQUIDA SEPTIEMBRE' }, cleaningRow],
+        }),
+      ),
+    });
+    renderApp('/book/2026-10');
+
+    const payment = (await screen.findByText('Pago Depto 401')).closest('li')!;
+    expect(within(payment).getByText('LIQUIDA SEPTIEMBRE')).toBeInTheDocument();
+    expect(payment).toHaveAttribute('data-direction', 'in');
+    expect(screen.getByText('Limpieza').closest('li')).toHaveAttribute('data-direction', 'out');
   });
 
   it('adapts the fields to the type and checks them before saving', async () => {

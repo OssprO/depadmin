@@ -709,6 +709,22 @@ describe('RenderMonthlyReport', () => {
     expect(fee(101)).toMatchObject({ paidThisMonth: Money.ZERO, outstanding: pesos(700) });
   });
 
+  it('puts a depto that paid twice in one line, its observations in the order paid', async () => {
+    const fx = await september();
+    await fx.add.execute(admin, {
+      ...payment('2026-10-10', 502, 230),
+      description: 'LIQUIDA OCTUBRE',
+    });
+    await fx.add.execute(admin, { ...payment('2026-10-03', 502, 470), description: 'ABONA 470' });
+    await fx.add.execute(admin, payment('2026-10-05', 502, 100));
+
+    const { units } = await fx.pdf.document(m('2026-10'));
+    expect(units.find((u) => u.unit.value === 502)).toMatchObject({
+      paid: pesos(800),
+      notes: ['ABONA 470', 'LIQUIDA OCTUBRE'],
+    });
+  });
+
   it('is a draft while the month is open, and needs the month opened', async () => {
     const fx = await september();
 

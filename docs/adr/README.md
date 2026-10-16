@@ -27,5 +27,6 @@ Cada ADR documenta una decisión: el contexto, lo que se decidió y sus consecue
 | [0021](0021-concurrencia.md)                        | Peticiones simultáneas: la base de datos tiene la última palabra | Aceptado             |
 | [0022](0022-historial.md)                           | El historial del edificio, aparte de los libros                  | Reemplazado por 0023 |
 | [0023](0023-historial-en-los-libros.md)             | El historial del edificio, dentro de los libros                  | Aceptado             |
+| [0024](0024-captura-y-apariencia.md)                | Capturar como en el papel, y una apariencia que sigue al sistema | Aceptado             |
 
 Plantilla: copia cualquier ADR y conserva las secciones _Contexto_, _Decisión_ y _Consecuencias_.

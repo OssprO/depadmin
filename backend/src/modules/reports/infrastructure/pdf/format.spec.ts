@@ -14,6 +14,7 @@ import {
   money,
   monthTitle,
   observations,
+  observationsCell,
   owedText,
   timestamp,
   visitDays,
@@ -69,6 +70,7 @@ function line(month: string, overrides: Partial<UnitReportLine> = {}): UnitRepor
     outstanding: Money.ZERO,
     credit: Money.ZERO,
     paper: null,
+    notes: [],
     ...overrides,
   };
 }
@@ -189,5 +191,22 @@ describe('report text', () => {
     expect(observations(line('2026-05', { active: false }), m('2026-05'), fee)).toBe('INACTIVO');
     expect(observations(line('2026-05'), m('2026-05'), fee)).toBe('');
     expect(currentFeeTone(line('2026-05', { currentFee: null }))).toBe('plain');
+  });
+
+  it('prints what the administrator wrote on the payments, else the paper or the account', () => {
+    // Nothing written: what the account says.
+    const settles = line('2026-04', { active: false });
+    expect(observationsCell(settles, m('2026-04'), fee)).toBe('INACTIVO');
+    // Paid twice in the month: one line, its notes joined in the order they were paid.
+    const twice = { ...settles, notes: ['ABONA 470', 'LIQUIDA OCTUBRE'] };
+    expect(observationsCell(twice, m('2026-04'), fee)).toBe('ABONA 470 | LIQUIDA OCTUBRE');
+    const fromPaper = {
+      ...settles,
+      paper: { current: fee, other: Money.ZERO, text: 'PAGÓ EN JULIO 2022' },
+    };
+    expect(observationsCell(fromPaper, m('2026-04'), fee)).toBe('PAGÓ EN JULIO 2022');
+    expect(observationsCell({ ...fromPaper, notes: ['LIQUIDÓ'] }, m('2026-04'), fee)).toBe(
+      'LIQUIDÓ',
+    );
   });
 });

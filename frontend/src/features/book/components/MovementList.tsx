@@ -51,12 +51,15 @@ export function MovementList({ movements, onSelect, showCoverage = true }: Movem
             const detail =
               (showCoverage ? describeCoverage(movement) : null) ??
               (movement.week && `semana ${formatWeek(movement.week)}`);
+            // A payment's observations, which the report prints for its depto.
+            const notes = movement.category === 'UNIT_PAYMENT' ? movement.description : null;
             const content = (
               <>
                 <Icon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
                 <span className="flex flex-1 flex-col text-left">
                   <span className="font-medium">{movementTitle(movement)}</span>
                   {detail && <span className="text-muted-foreground">{detail}</span>}
+                  {notes && <span className="text-muted-foreground italic">{notes}</span>}
                 </span>
                 <span className={cn('tabular-nums', income && 'font-medium')}>
                   {income ? '+' : '−'} {formatMoney(movement.amount)}
@@ -64,7 +67,12 @@ export function MovementList({ movements, onSelect, showCoverage = true }: Movem
               </>
             );
             return (
-              <li key={movement.id}>
+              <li
+                key={movement.id}
+                // Money in or out at a glance: an accent on the right edge, the text unchanged.
+                data-direction={income ? 'in' : 'out'}
+                className={cn('border-r-4 pr-2', income ? 'border-r-income' : 'border-r-expense')}
+              >
                 {onSelect ? (
                   <button
                     type="button"

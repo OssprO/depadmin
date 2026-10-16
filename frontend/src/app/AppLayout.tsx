@@ -1,14 +1,26 @@
 import {
   BookOpenTextIcon,
+  CaretLeftIcon,
   CalendarDotsIcon,
   ClockCounterClockwiseIcon,
   DotsThreeOutlineIcon,
   HouseIcon,
 } from '@phosphor-icons/react';
-import { Link, type LinkProps, Outlet, useRouterState } from '@tanstack/react-router';
+import {
+  Link,
+  type LinkProps,
+  Outlet,
+  useCanGoBack,
+  useNavigate,
+  useRouter,
+  useRouterState,
+} from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { Brand } from '@/components/Brand';
+import { Button } from '@/components/ui/button';
+import { buildingToday } from '@/lib/format';
 import { useCurrentUser } from '@/lib/use-session';
+import { parentOf } from './back-navigation';
 
 interface NavItemProps {
   readonly to: NonNullable<LinkProps['to']>;
@@ -34,6 +46,32 @@ function NavItem({ to, icon, label, sections = [] }: NavItemProps) {
   );
 }
 
+/**
+ * "Atrás" on every screen the bottom bar does not open: back to the previous screen of the
+ * app, or up to the one that lists this one when the page was opened directly.
+ */
+function BackButton() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const router = useRouter();
+  const navigate = useNavigate();
+  const canGoBack = useCanGoBack();
+  const parent = parentOf(pathname, buildingToday().slice(0, 7));
+  if (!parent) return null;
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="-ml-2 self-start"
+      onClick={() => {
+        if (canGoBack) router.history.back();
+        else void navigate({ to: parent });
+      }}
+    >
+      <CaretLeftIcon /> Atrás
+    </Button>
+  );
+}
+
 /** The signed-in shell: content on top, thumb-reachable navigation at the bottom. */
 export function AppLayout() {
   const user = useCurrentUser();
@@ -42,8 +80,9 @@ export function AppLayout() {
 
   return (
     <div className="mx-auto flex min-h-svh w-full max-w-md flex-col">
-      <header className="px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-4">
+      <header className="flex flex-col gap-2 px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-4">
         <Brand />
+        {showNav && <BackButton />}
       </header>
       <main className={`flex flex-1 flex-col gap-4 px-4 ${showNav ? 'pb-24' : 'pb-6'}`}>
         <Outlet />

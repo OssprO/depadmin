@@ -8,7 +8,7 @@ import {
   money,
   monthName,
   monthTitle,
-  observations,
+  observationsCell,
   timestamp,
   visitDays,
   weekLabel,
@@ -176,7 +176,7 @@ function UnitRow({ line, report }: { line: UnitReportLine; report: ReportDocumen
         {other.isPositive() ? money(other) : ''}
       </Cell>
       <Cell last style={{ ...styles.center, fontSize: 6.5 }}>
-        {line.paper?.text ?? observations(line, report.month, report.maintenanceFee)}
+        {observationsCell(line, report.month, report.maintenanceFee)}
       </Cell>
     </View>
   );

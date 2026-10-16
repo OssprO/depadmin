@@ -64,8 +64,12 @@ test('every main screen meets WCAG 2.1 AA as far as axe can tell', async ({ page
     await expectAccessible(page, screen);
   }
 
-  // The same screens with the phone in dark mode, which has its own colors.
+  // The same screens with the phone in dark mode, which has its own colors: the page follows
+  // the operating system's theme, so the background really changes.
+  const background = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  const light = await background();
   await page.emulateMedia({ colorScheme: 'dark' });
+  expect(await background()).not.toBe(light);
   for (const [path, screen, ready] of screens) {
     await page.goto(path);
     await ready(page);

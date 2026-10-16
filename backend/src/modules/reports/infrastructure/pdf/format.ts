@@ -208,6 +208,21 @@ export function observations(line: UnitReportLine, month: YearMonth, fee: Money 
   return texts.join(' | ');
 }
 
+/**
+ * A depto's OBSERVACIONES cell (ADR-0024): what the administrator wrote on its payments,
+ * joined when it paid more than once; without any, what its paper sheet says (a month of the
+ * history) or what its account suggests (a live month).
+ */
+export function observationsCell(
+  line: UnitReportLine,
+  month: YearMonth,
+  fee: Money | null,
+): string {
+  if (line.notes.length > 0) return line.notes.join(' | ');
+  if (line.paper) return line.paper.text;
+  return observations(line, month, fee);
+}
+
 /** How the "MES EN CURSO" cell reads: owed (red), paid in advance (green), or plain. */
 export function currentFeeTone(line: UnitReportLine): 'owed' | 'paidBefore' | 'plain' {
   const current = line.currentFee;

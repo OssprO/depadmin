@@ -18,6 +18,7 @@ import { FormError } from '@/components/FormError';
 import { Button } from '@/components/ui/button';
 import {
   Field,
+  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -25,6 +26,7 @@ import {
   FieldSet,
 } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import {
   Sheet,
@@ -47,6 +49,12 @@ import {
 import { cn } from '@/lib/utils';
 import { useAddMovement, useRemoveMovement, useReviseMovement } from '../api';
 import { CATEGORIES } from '../labels';
+
+/** The types of row, money in first and money out after, each with its accent. */
+const DIRECTIONS = [
+  { legend: 'Ingresos', direction: 'IN' },
+  { legend: 'Egresos', direction: 'OUT' },
+] as const;
 
 interface FormValues {
   category: MovementCategory;
@@ -270,32 +278,38 @@ export function MovementSheet({
             <SheetDescription>{formatMonth(report.month)}</SheetDescription>
           </SheetHeader>
           <FieldGroup className="px-4">
-            <FieldSet>
-              <FieldLegend variant="label">Tipo</FieldLegend>
-              <div className="flex flex-wrap gap-2">
-                {MOVEMENT_CATEGORIES.map((option) => (
-                  <label
-                    key={option}
-                    className={cn(
-                      'relative cursor-pointer border px-3 py-2 has-focus-visible:ring-2 has-focus-visible:ring-ring',
-                      option === category
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-input',
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="category"
-                      value={option}
-                      checked={option === category}
-                      onChange={() => chooseCategory(option)}
-                      className="sr-only"
-                    />
-                    {CATEGORIES[option]}
-                  </label>
-                ))}
-              </div>
-            </FieldSet>
+            {DIRECTIONS.map(({ legend, direction }) => (
+              <FieldSet key={direction}>
+                <FieldLegend variant="label">{legend}</FieldLegend>
+                <div className="flex flex-wrap gap-2">
+                  {MOVEMENT_CATEGORIES.filter(
+                    (option) => CATEGORY_RULES[option].direction === direction,
+                  ).map((option) => (
+                    <label
+                      key={option}
+                      className={cn(
+                        'relative cursor-pointer border border-b-4 px-3 py-2 has-focus-visible:ring-2 has-focus-visible:ring-ring',
+                        // Each side's color apart, so the accent below is never overridden.
+                        option === category
+                          ? 'border-x-primary border-t-primary bg-primary text-primary-foreground'
+                          : 'border-x-input border-t-input',
+                        direction === 'IN' ? 'border-b-income' : 'border-b-expense',
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name="category"
+                        value={option}
+                        checked={option === category}
+                        onChange={() => chooseCategory(option)}
+                        className="sr-only"
+                      />
+                      {CATEGORIES[option]}
+                    </label>
+                  ))}
+                </div>
+              </FieldSet>
+            ))}
             {rule.unit && (
               <Field data-invalid={!!errors.unit}>
                 <FieldLabel htmlFor="movement-unit">Depto</FieldLabel>
@@ -365,14 +379,29 @@ export function MovementSheet({
             </div>
             <Field data-invalid={!!errors.description}>
               <FieldLabel htmlFor="movement-description">
-                Descripción{rule.description ? '' : ' (opcional)'}
+                {rule.direction === 'IN' ? 'Observaciones' : 'Descripción'}
+                {rule.description ? '' : ' (opcional)'}
               </FieldLabel>
-              <Input
-                id="movement-description"
-                autoComplete="off"
-                aria-invalid={!!errors.description}
-                {...form.register('description')}
-              />
+              {rule.direction === 'IN' ? (
+                <Textarea
+                  id="movement-description"
+                  rows={2}
+                  aria-invalid={!!errors.description}
+                  {...form.register('description')}
+                />
+              ) : (
+                <Input
+                  id="movement-description"
+                  autoComplete="off"
+                  aria-invalid={!!errors.description}
+                  {...form.register('description')}
+                />
+              )}
+              {category === 'UNIT_PAYMENT' && (
+                <FieldDescription>
+                  Salen en el reporte junto al depto, como «Liquida julio» o «Adelanta agosto».
+                </FieldDescription>
+              )}
               <FieldError errors={[errors.description]} />
             </Field>
             <FormError message={error} />
