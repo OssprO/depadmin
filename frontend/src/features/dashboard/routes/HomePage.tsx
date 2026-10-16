@@ -11,9 +11,13 @@ export function HomePage() {
   const user = useCurrentUser();
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="font-heading text-lg font-bold">Hola, {userLabel(user)}</h1>
-      <PendingTasksCard />
+    // One column on the phone; from a tablet up the cards sit two by two, the pending tasks
+    // first and across.
+    <div className="grid items-start gap-4 md:grid-cols-2">
+      <h1 className="font-heading text-lg font-bold md:col-span-2">Hola, {userLabel(user)}</h1>
+      <div className="md:col-span-2 empty:hidden">
+        <PendingTasksCard />
+      </div>
       <CashCard />
       <CurrentShiftCard />
       <OwingCard />

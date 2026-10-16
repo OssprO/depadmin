@@ -142,7 +142,10 @@ export function HistoryReviewPage() {
       {history && (
         <>
           <SummaryCard history={history} />
-          <MonthList history={history} />
+          {/* A year per card; two side by side on a desktop. */}
+          <div className="grid items-start gap-4 lg:grid-cols-2">
+            <MonthList history={history} />
+          </div>
         </>
       )}
     </div>

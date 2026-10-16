@@ -5,12 +5,12 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { FormError } from '@/components/FormError';
+import { FormSheetContent } from '@/components/FormSheetContent';
 import { Button } from '@/components/ui/button';
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import {
   Sheet,
-  SheetContent,
   SheetDescription,
   SheetFooter,
   SheetHeader,
@@ -65,7 +65,7 @@ export function OwnerNameSheet({ unit }: { unit: Unit }) {
       >
         <PencilSimpleIcon />
       </SheetTrigger>
-      <SheetContent side="bottom" className="mx-auto max-w-md">
+      <FormSheetContent>
         <form onSubmit={(event) => void onSubmit(event)} noValidate>
           <SheetHeader>
             <SheetTitle>Propietario del Depto {unit.number}</SheetTitle>
@@ -93,7 +93,7 @@ export function OwnerNameSheet({ unit }: { unit: Unit }) {
             </Button>
           </SheetFooter>
         </form>
-      </SheetContent>
+      </FormSheetContent>
     </Sheet>
   );
 }

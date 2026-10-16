@@ -8,12 +8,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { FormError } from '@/components/FormError';
+import { FormSheetContent } from '@/components/FormSheetContent';
 import { Button } from '@/components/ui/button';
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import {
   Sheet,
-  SheetContent,
   SheetDescription,
   SheetFooter,
   SheetHeader,
@@ -79,7 +79,7 @@ export function DelegateSheet({ months, mode }: DelegateSheetProps) {
       <SheetTrigger render={<Button size="sm" variant={handover ? 'default' : 'outline'} />}>
         {handover ? 'Registrar entrega' : 'Delegar'}
       </SheetTrigger>
-      <SheetContent side="bottom" className="mx-auto max-w-md">
+      <FormSheetContent>
         <form onSubmit={(event) => void onSubmit(event)} noValidate>
           <SheetHeader>
             <SheetTitle>
@@ -173,7 +173,7 @@ export function DelegateSheet({ months, mode }: DelegateSheetProps) {
             </Button>
           </SheetFooter>
         </form>
-      </SheetContent>
+      </FormSheetContent>
     </Sheet>
   );
 }

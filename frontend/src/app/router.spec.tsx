@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { connectSession } from '@/lib/http';
@@ -54,6 +54,40 @@ describe('navigation and session', () => {
     await waitFor(() =>
       expect(screen.queryByRole('button', { name: 'Atrás' })).not.toBeInTheDocument(),
     );
+  });
+
+  it('shows every section in a side menu from a tablet up, and no bottom bar', async () => {
+    vi.stubGlobal(
+      'matchMedia',
+      (query: string) =>
+        ({
+          matches: query === '(min-width: 48rem)',
+          addEventListener: () => undefined,
+          removeEventListener: () => undefined,
+        }) as unknown as MediaQueryList,
+    );
+    fakeApi({
+      'POST /api/auth/refresh': sessionFor(superadmin),
+      'GET /api/users': () => Response.json([]),
+    });
+    renderApp('/admin/users');
+
+    const menu = await screen.findByRole('navigation', { name: 'Principal' });
+    expect(
+      within(menu)
+        .getAllByRole('link')
+        .map((link) => link.textContent),
+    ).toEqual([
+      'Inicio',
+      'Libro',
+      'Histórico',
+      'Turnos',
+      'Bitácora',
+      'Estados de cuenta',
+      'Administración',
+      'Mi cuenta',
+    ]);
+    expect(screen.queryByRole('link', { name: 'Más' })).not.toBeInTheDocument();
   });
 
   it('explains a failed login', async () => {

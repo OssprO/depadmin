@@ -1,12 +1,12 @@
 import { cleaningVisitsRequestSchema, type MonthlyReport } from '@depadmin/shared';
 import { useState } from 'react';
 import { FormError } from '@/components/FormError';
+import { FormSheetContent } from '@/components/FormSheetContent';
 import { Button } from '@/components/ui/button';
 import { Field, FieldError, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import {
   Sheet,
-  SheetContent,
   SheetDescription,
   SheetFooter,
   SheetHeader,
@@ -88,7 +88,7 @@ export function CleaningVisitsSheet({ report, onClose }: CleaningVisitsSheetProp
         if (!next) onClose();
       }}
     >
-      <SheetContent side="bottom" className="mx-auto max-h-[90svh] max-w-md overflow-y-auto">
+      <FormSheetContent>
         <SheetHeader>
           <SheetTitle>Marcar visitas de limpieza</SheetTitle>
           <SheetDescription>{formatMonth(report.month)}: una fila por visita.</SheetDescription>
@@ -154,7 +154,7 @@ export function CleaningVisitsSheet({ report, onClose }: CleaningVisitsSheetProp
               : `Registrar ${selected.length === 1 ? '1 visita' : `${selected.length} visitas`} · ${formatMoney(selected.length * perVisit)}`}
           </Button>
         </SheetFooter>
-      </SheetContent>
+      </FormSheetContent>
     </Sheet>
   );
 }

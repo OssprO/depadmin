@@ -150,6 +150,20 @@ describe('BookPage', () => {
     expect(screen.queryByRole('button', { name: 'Agregar hoja' })).not.toBeInTheDocument();
   });
 
+  it('opens a new row with the N key, but not while typing', async () => {
+    fakeApi({
+      'POST /api/auth/refresh': sessionFor(superadmin),
+      'GET /api/months/2026-10': october(),
+    });
+    renderApp('/book/2026-10');
+
+    await screen.findByText('Pago Depto 401');
+    await userEvent.keyboard('n');
+    expect(await screen.findByRole('heading', { name: 'Agregar movimiento' })).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText('Importe ($)'), 'n');
+    expect(screen.getAllByRole('heading', { name: 'Agregar movimiento' })).toHaveLength(1);
+  });
+
   it('is read-only for whoever cannot write the month', async () => {
     fakeApi({
       'POST /api/auth/refresh': sessionFor(owner501),

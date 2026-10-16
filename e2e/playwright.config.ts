@@ -19,6 +19,24 @@ export default defineConfig({
     timezoneId: 'America/Mexico_City',
     trace: 'retain-on-failure',
   },
-  // The app is used on phones: test it in a phone's viewport and with touch.
-  projects: [{ name: 'mobile-chrome', use: { ...devices['Pixel 7'] } }],
+  // The app is used mostly on phones: every test runs in a phone's viewport and with touch.
+  // Tablet and desktop check their own layout and run the accessibility pass again.
+  projects: [
+    { name: 'mobile-chrome', use: { ...devices['Pixel 7'] } },
+    {
+      name: 'tablet',
+      testMatch: /(layouts|screens-accessibility)\.spec\.ts/,
+      use: {
+        viewport: { width: 820, height: 1180 },
+        deviceScaleFactor: 2,
+        isMobile: true,
+        hasTouch: true,
+      },
+    },
+    {
+      name: 'desktop',
+      testMatch: /(layouts|screens-accessibility)\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } },
+    },
+  ],
 });

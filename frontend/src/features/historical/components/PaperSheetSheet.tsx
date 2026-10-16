@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { FormError } from '@/components/FormError';
+import { FormSheetContent } from '@/components/FormSheetContent';
 import { Button } from '@/components/ui/button';
 import {
   Field,
@@ -22,7 +23,6 @@ import {
 import { Input } from '@/components/ui/input';
 import {
   Sheet,
-  SheetContent,
   SheetDescription,
   SheetFooter,
   SheetHeader,
@@ -195,7 +195,7 @@ export function PaperSheetSheet({ month, sheet, onClose }: PaperSheetSheetProps)
         if (!next) onClose();
       }}
     >
-      <SheetContent side="bottom" className="mx-auto max-h-[90svh] max-w-md overflow-y-auto">
+      <FormSheetContent>
         <form onSubmit={(event) => void submit(event)} noValidate>
           <SheetHeader>
             <SheetTitle>{sheet ? 'Corregir hoja' : 'Agregar hoja'}</SheetTitle>
@@ -338,7 +338,7 @@ export function PaperSheetSheet({ month, sheet, onClose }: PaperSheetSheetProps)
               ))}
           </SheetFooter>
         </form>
-      </SheetContent>
+      </FormSheetContent>
     </Sheet>
   );
 }

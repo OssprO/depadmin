@@ -15,6 +15,7 @@ import { type ChangeEvent, useMemo, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { FormError } from '@/components/FormError';
+import { FormSheetContent } from '@/components/FormSheetContent';
 import { Button } from '@/components/ui/button';
 import {
   Field,
@@ -30,7 +31,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import {
   Sheet,
-  SheetContent,
   SheetDescription,
   SheetFooter,
   SheetHeader,
@@ -271,7 +271,7 @@ export function MovementSheet({
         if (!next) onClose();
       }}
     >
-      <SheetContent side="bottom" className="mx-auto max-h-[90svh] max-w-md overflow-y-auto">
+      <FormSheetContent>
         <form onSubmit={(event) => void submit(false)(event)} noValidate>
           <SheetHeader>
             <SheetTitle>{movement ? 'Corregir movimiento' : 'Agregar movimiento'}</SheetTitle>
@@ -442,7 +442,7 @@ export function MovementSheet({
               ))}
           </SheetFooter>
         </form>
-      </SheetContent>
+      </FormSheetContent>
     </Sheet>
   );
 }
