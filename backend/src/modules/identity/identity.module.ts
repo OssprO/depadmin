@@ -5,6 +5,10 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import type { Env } from '../../platform/config/env.js';
 import {
   ChangePassword,
+  ChangeUserAccess,
+  CreateReader,
+  DisableUser,
+  EnableUser,
   GetCurrentUser,
   ListUsers,
   PurgeExpiredSessions,
@@ -59,6 +63,10 @@ import { PurgeExpiredSessionsJob } from './jobs/purge-expired-sessions.job.js';
     ResetPassword,
     GetCurrentUser,
     ListUsers,
+    CreateReader,
+    ChangeUserAccess,
+    DisableUser,
+    EnableUser,
     PurgeExpiredSessions,
     PurgeExpiredSessionsJob,
   ],

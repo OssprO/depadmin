@@ -119,7 +119,10 @@ describe('PrismaAuditLogReader', () => {
 });
 
 describe('audit_log constraints', () => {
-  const insert = (data: { actorRole: 'OWNER' | 'SUPERADMIN'; actorUnit: number | null }) =>
+  const insert = (data: {
+    actorRole: 'OWNER' | 'SUPERADMIN' | 'READER';
+    actorUnit: number | null;
+  }) =>
     ctx.database.client.auditLog.create({
       data: {
         actorId: 'u',
@@ -132,13 +135,15 @@ describe('audit_log constraints', () => {
       },
     });
 
-  it('ties the depto to the owner role', async () => {
+  it('gives an owner its depto, the superadmin none, and a reader either', async () => {
     await expect(insert({ actorRole: 'OWNER', actorUnit: null })).rejects.toThrow(
-      /audit_log_actor_unit_iff_owner/,
+      /audit_log_owner_has_unit/,
     );
     await expect(insert({ actorRole: 'SUPERADMIN', actorUnit: 501 })).rejects.toThrow(
-      /audit_log_actor_unit_iff_owner/,
+      /audit_log_admin_and_app_have_no_unit/,
     );
+    await insert({ actorRole: 'READER', actorUnit: 302 });
+    await insert({ actorRole: 'READER', actorUnit: null });
   });
 
   it('keeps the changes a JSON array and the codes well formed', async () => {

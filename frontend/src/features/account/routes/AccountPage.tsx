@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCurrentUser, useSessionStore } from '@/lib/use-session';
-import { userLabel } from '@/lib/user-label';
+import { ROLES, userLabel } from '@/lib/user-label';
 
 export function AccountPage() {
   const user = useCurrentUser();
@@ -29,7 +29,7 @@ export function AccountPage() {
         <CardHeader>
           <CardTitle>{userLabel(user)}</CardTitle>
           <CardAction>
-            <Badge variant="outline">{user.role === 'SUPERADMIN' ? 'Superadmin' : 'Dueño'}</Badge>
+            <Badge variant="outline">{ROLES[user.role]}</Badge>
           </CardAction>
         </CardHeader>
         <CardContent>

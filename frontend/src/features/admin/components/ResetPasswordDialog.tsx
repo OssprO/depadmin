@@ -49,9 +49,9 @@ export function ResetPasswordDialog({ user }: { user: UserSummary }) {
         {temporaryPassword ? (
           <>
             <AlertDialogHeader>
-              <AlertDialogTitle>Contraseña temporal del {label}</AlertDialogTitle>
+              <AlertDialogTitle>Contraseña temporal de {label}</AlertDialogTitle>
               <AlertDialogDescription>
-                Compártela con el dueño. Al entrar, tendrá que elegir una propia. No se volverá a
+                Compártela con la persona. Al entrar, tendrá que elegir una propia. No se volverá a
                 mostrar.
               </AlertDialogDescription>
             </AlertDialogHeader>
@@ -74,8 +74,8 @@ export function ResetPasswordDialog({ user }: { user: UserSummary }) {
             <AlertDialogHeader>
               <AlertDialogTitle>
                 {user.hasPassword
-                  ? `¿Restablecer la contraseña del ${label}?`
-                  : `¿Dar acceso al ${label}?`}
+                  ? `¿Restablecer la contraseña de ${label}?`
+                  : `¿Dar acceso a ${label}?`}
               </AlertDialogTitle>
               <AlertDialogDescription>
                 Se generará una contraseña temporal

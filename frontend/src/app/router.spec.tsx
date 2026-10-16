@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { connectSession } from '@/lib/http';
-import { fakeApi, owner501, problem, sessionFor, superadmin } from '@/test/fake-api';
+import { fakeApi, owner501, problem, sessionFor, superadmin, tenant302 } from '@/test/fake-api';
 import { renderApp } from '@/test/render-app';
 
 const health = () =>
@@ -88,6 +88,19 @@ describe('navigation and session', () => {
       'Mi cuenta',
     ]);
     expect(screen.queryByRole('link', { name: 'Más' })).not.toBeInTheDocument();
+  });
+
+  it('greets a read-only user by name and offers no administration', async () => {
+    fakeApi({
+      'POST /api/auth/refresh': sessionFor(tenant302),
+    });
+    renderApp('/account');
+
+    expect(await screen.findByText('Solo lectura')).toBeInTheDocument();
+    expect(screen.getAllByText('inquilino.302').length).toBeGreaterThan(0);
+    await userEvent.click(screen.getByRole('link', { name: 'Más' }));
+    expect(await screen.findByRole('heading', { name: 'Más' })).toBeInTheDocument();
+    expect(screen.queryByText('Administración')).not.toBeInTheDocument();
   });
 
   it('explains a failed login', async () => {
