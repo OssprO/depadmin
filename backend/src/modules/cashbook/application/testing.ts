@@ -32,6 +32,11 @@ export class InMemoryCashMovementRepository implements CashMovementRepository {
     );
   }
 
+  /** One request at a time in memory: nothing to wait for. */
+  holdWeek(): Promise<void> {
+    return Promise.resolve();
+  }
+
   findPaymentsOf(unit: UnitNumber): Promise<CashMovement[]> {
     return Promise.resolve(this.payments().filter((m) => m.details.unit === unit));
   }

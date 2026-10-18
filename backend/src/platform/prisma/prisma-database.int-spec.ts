@@ -26,6 +26,33 @@ describe('PrismaDatabase (unit of work)', () => {
     expect(await ctx.database.client.unitInactivePeriod.count()).toBe(0);
   });
 
+  it('runs the work again when the database aborts it for a deadlock', async () => {
+    // Two transactions take the same two rows in opposite order: each holds one and waits
+    // for the other. Postgres aborts one of them, which runs again once the other commits.
+    let attempts = 0;
+    let arrived = 0;
+    let bothHoldOne!: () => void;
+    const holding = new Promise<void>((resolve) => (bothHoldOne = resolve));
+    const rename = (first: number, second: number) =>
+      ctx.database.run(async () => {
+        attempts++;
+        const { db } = ctx.database;
+        await db.$executeRaw`UPDATE unit SET owner_name = ${`by ${first}`} WHERE number = ${first}`;
+        if (++arrived === 2) bothHoldOne();
+        await holding;
+        await db.$executeRaw`UPDATE unit SET owner_name = ${`by ${first}`} WHERE number = ${second}`;
+      });
+
+    await Promise.all([rename(101, 102), rename(102, 101)]);
+
+    expect(attempts).toBe(3);
+    const names = await ctx.database.client.unit.findMany({
+      where: { number: { in: [101, 102] } },
+    });
+    // Whichever ran last renamed both.
+    expect(new Set(names.map((unit) => unit.ownerName)).size).toBe(1);
+  });
+
   it('uses the shared client outside a transaction', () => {
     expect(ctx.database.db).toBe(ctx.database.client);
   });

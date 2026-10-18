@@ -30,3 +30,14 @@ Cada caso de uso revisa sus reglas en el dominio antes de escribir: una semana d
 - Un error de restricción que no esté en la lista sigue siendo un 500. Es lo correcto: indica un error de programación, no una carrera.
 - El candado dura lo que la transacción, que en estos casos de uso son milisegundos.
 - Los fakes en memoria no bloquean nada, porque las pruebas unitarias no corren transacciones simultáneas. El comportamiento se prueba contra Postgres.
+
+## Actualización (2026-10-18): candado por semana y reintento por deadlock
+
+La CI de la fase 14 falló con tres confirmaciones de la misma semana de basura: dio 201, 500 y 500 en lugar de 201, 409 y 409. Forzando más concurrencia (8 a la vez) se reproduce, y el log de Postgres muestra la causa:
+
+- **Lo que pasaba:** cada renglón se guarda con un _upsert_ (`INSERT … ON CONFLICT (id)`), una inserción especulativa. Con la restricción de exclusión de la semana, cada inserción espera la fila especulativa de las otras, forman un ciclo y Postgres aborta una con `deadlock detected` (40P01). Ese error no es una violación de restricción, así que salía como 500. Reintentar no basta: los reintentos vuelven a llegar juntos y se bloquean otra vez.
+- **Candado por semana:** `CashbookAccess.assertConsistent` toma `CashMovementRepository.holdWeek(week)` antes de revisar que la semana no esté pagada. Es un candado consultivo de transacción, `pg_advisory_xact_lock`. Quien llega después espera ahí a que el primero confirme; luego el dominio encuentra la semana pagada y responde 409. La restricción de exclusión sigue como respaldo.
+- **Reintento general:** `PrismaDatabase.run` vuelve a correr la transacción, hasta 4 veces y con una pausa aleatoria corta, cuando Postgres la aborta por un conflicto con otra (`isWriteConflict`: 40P01, 40001 o P2034 de Prisma). Cubre las demás restricciones de exclusión (delegaciones, un dueño por depto), donde un deadlock entre dos es posible pero raro. Por eso el trabajo de una unidad de trabajo solo debe leer y escribir en la base: puede correr más de una vez.
+- **Pruebas:**
+  - La prueba de basura ahora lanza 6 confirmaciones a la vez, con 1 alta y 5 respuestas 409.
+  - `prisma-database.int-spec` provoca un deadlock real (dos transacciones toman dos filas en orden opuesto) y comprueba el reintento.

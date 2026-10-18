@@ -61,10 +61,14 @@ export class CashbookAccess {
     return cutover !== null && month.isBefore(cutover);
   }
 
-  /** Before saving a row: the garbage week it pays for is not paid by another row. */
+  /**
+   * Before saving a row: the garbage week it pays for is not paid by another row. The week
+   * is held until the write commits, so two requests paying it cannot both pass.
+   */
   async assertConsistent(movement: CashMovement): Promise<void> {
     const { week } = movement.details;
     if (!week) return;
+    await this.movements.holdWeek(week);
     assertWeekUnpaid(movement, await this.movements.findGarbageForWeeks(week, week));
   }
 }

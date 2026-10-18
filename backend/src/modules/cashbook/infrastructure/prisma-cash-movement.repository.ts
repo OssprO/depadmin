@@ -44,6 +44,15 @@ export class PrismaCashMovementRepository implements CashMovementRepository {
     return rows.map(toDomain);
   }
 
+  /**
+   * A transaction-level advisory lock on the week. Without it, racing inserts of a week
+   * each wait for the others' row under the exclusion constraint and deadlock (ADR-0021).
+   */
+  async holdWeek(week: LocalDate): Promise<void> {
+    await this.database.db.$executeRaw`
+      SELECT pg_advisory_xact_lock(hashtext('cash_movement.covers_week'), hashtext(${week.toString()}))`;
+  }
+
   async findPaymentsOf(unit: UnitNumber): Promise<CashMovement[]> {
     const rows = await this.database.db.cashMovement.findMany({
       where: { category: 'UNIT_PAYMENT', unitNumber: unit.value, removedAt: null },
