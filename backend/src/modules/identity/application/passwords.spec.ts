@@ -21,7 +21,7 @@ describe('passwords and accounts', () => {
 
   beforeEach(async () => {
     fx = identityFixture();
-    signIn = new SignIn(fx.users, fakeHasher, immediateUnitOfWork, fx.sessions);
+    signIn = new SignIn(fx.users, fakeHasher, immediateUnitOfWork, fx.clock, fx.sessions);
     change = new ChangePassword(
       fx.users,
       fx.refreshTokens,

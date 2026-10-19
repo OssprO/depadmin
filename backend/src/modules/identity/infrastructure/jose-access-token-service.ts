@@ -15,8 +15,8 @@ const AUDIENCE = 'depadmin-web';
 
 /**
  * Access tokens as JWTs signed with HMAC-SHA256. The API both signs and verifies them, so a
- * shared secret is enough (no key pairs). Claims: `sub` (user id), `role` and, for owners,
- * `unit`.
+ * shared secret is enough (no key pairs). Claims: `sub` (user id), `role` and, for owners
+ * and readers of a depto, `unit`.
  */
 @Injectable()
 export class JoseAccessTokenService implements AccessTokenService {
@@ -33,7 +33,7 @@ export class JoseAccessTokenService implements AccessTokenService {
     const issuedAt = Math.floor(this.clock.now().epochMillis / 1000);
     const token = await new SignJWT({
       role: actor.role,
-      ...(actor.role === 'OWNER' && { unit: actor.unit.value }),
+      ...(actor.role !== 'SUPERADMIN' && actor.unit && { unit: actor.unit.value }),
     })
       .setProtectedHeader({ alg: ALGORITHM })
       .setSubject(actor.userId)
@@ -56,9 +56,9 @@ export class JoseAccessTokenService implements AccessTokenService {
       });
       const userId = payload.sub as string;
       if (payload['role'] === 'SUPERADMIN') return { role: 'SUPERADMIN', userId };
-      if (payload['role'] === 'OWNER' && typeof payload['unit'] === 'number') {
-        return { role: 'OWNER', userId, unit: UnitNumber.of(payload['unit']) };
-      }
+      const unit = typeof payload['unit'] === 'number' ? UnitNumber.of(payload['unit']) : null;
+      if (payload['role'] === 'OWNER' && unit) return { role: 'OWNER', userId, unit };
+      if (payload['role'] === 'READER') return { role: 'READER', userId, unit };
       return null;
     } catch {
       return null; // bad signature, expired, malformed, or an unknown depto

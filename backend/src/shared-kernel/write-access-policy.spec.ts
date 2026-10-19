@@ -75,6 +75,22 @@ describe('WriteAccessPolicy', () => {
     expect(decide(owner(502), '2026-10', '2026-12-05', kept)).toEqual(allowed);
   });
 
+  it('never lets a read-only user write, even the tenant of the depto in turn', () => {
+    const tenant: Actor = { role: 'READER', userId: 't501', unit: UnitNumber.of(501) };
+    const accountant: Actor = { role: 'READER', userId: 'acc', unit: null };
+    expect(decide(tenant, '2026-08', '2026-08-10')).toEqual(denied('READ_ONLY'));
+    expect(decide(accountant, '2026-08', '2026-08-10')).toEqual(denied('READ_ONLY'));
+    expect(() =>
+      policy.assertCanWrite({
+        actor: tenant,
+        month: m('2026-08'),
+        today: LocalDate.parse('2026-08-10'),
+        responsibility: normal,
+      }),
+    ).toThrow(withCode('READ_ONLY'));
+    expect(() => policy.assertCanAdminister(tenant)).toThrow(withCode('SUPERADMIN_ONLY'));
+  });
+
   it('lets only the superadmin write a month nobody is responsible for', () => {
     expect(decide(owner(501), '2026-12', '2026-12-10')).toEqual(denied('NOT_RESPONSIBLE'));
     expect(decide(superadmin, '2026-12', '2026-12-10')).toEqual(allowed);

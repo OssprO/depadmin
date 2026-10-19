@@ -27,3 +27,17 @@ export async function translateViolations<T>(
     throw translate ? translate() : error;
   }
 }
+
+/**
+ * Whether the database aborted a transaction because it conflicted with a concurrent one: a
+ * deadlock (two inserts racing for an exclusion constraint can each wait for the other) or
+ * a serialization failure. Running it again is safe and settles it.
+ */
+export function isWriteConflict(error: unknown): boolean {
+  const { code, meta } = (error ?? {}) as {
+    code?: unknown;
+    meta?: { driverAdapterError?: { cause?: { originalCode?: unknown } } };
+  };
+  const sqlState = meta?.driverAdapterError?.cause?.originalCode;
+  return code === 'P2034' || sqlState === '40P01' || sqlState === '40001';
+}

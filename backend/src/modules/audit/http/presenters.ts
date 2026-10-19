@@ -14,7 +14,10 @@ function toAuditLogEntry(entry: AuditLogEntry): AuditLogEntryResponse {
     occurredAt: entry.occurredAt.toString(),
     actor: {
       role: entry.actor.role,
-      unit: entry.actor.role === 'OWNER' ? entry.actor.unit.value : null,
+      unit:
+        entry.actor.role === 'OWNER' || entry.actor.role === 'READER'
+          ? (entry.actor.unit?.value ?? null)
+          : null,
     },
     action: entry.action,
     entity: entry.entity,

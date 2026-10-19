@@ -44,8 +44,18 @@ export class InMemoryUserRepository implements UserRepository {
   /** Stored copies, so a use case that forgets to save is caught. */
   private copy(user: User | undefined): User | null {
     if (!user) return null;
-    const { id, username, role, unit, passwordHash, mustChangePassword } = user;
-    return User.restore({ id, username, role, unit, passwordHash, mustChangePassword });
+    const { id, username, role, unit, passwordHash, mustChangePassword, expiresOn, disabled } =
+      user;
+    return User.restore({
+      id,
+      username,
+      role,
+      unit,
+      passwordHash,
+      mustChangePassword,
+      expiresOn,
+      disabled,
+    });
   }
 }
 

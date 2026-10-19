@@ -25,7 +25,7 @@ export interface MonthAccessRequest {
   readonly responsibility: ShiftResponsibility;
 }
 
-export type AccessDenial = 'NOT_RESPONSIBLE' | 'OUTSIDE_WRITE_WINDOW';
+export type AccessDenial = 'READ_ONLY' | 'NOT_RESPONSIBLE' | 'OUTSIDE_WRITE_WINDOW';
 
 export type AccessDecision =
   { readonly allowed: true } | { readonly allowed: false; readonly reason: AccessDenial };
@@ -39,6 +39,7 @@ export interface WriteWindow {
 /**
  * Who can write, close and hand over a month:
  * - The superadmin, always (reopening a closed month is theirs alone).
+ * - A read-only user, never, whatever the shift.
  * - An owner whose depto is responsible for the month, from its first day until
  *   `WRITE_GRACE_DAYS` days after their responsibility ends. While 501 holds August and
  *   September it can still fix August in September; once the shift passes on 1 October it
@@ -75,6 +76,7 @@ export class WriteAccessPolicy {
   decide(request: MonthAccessRequest): AccessDecision {
     const { actor, today } = request;
     if (actor.role === 'SUPERADMIN') return { allowed: true };
+    if (actor.role === 'READER') return { allowed: false, reason: 'READ_ONLY' };
 
     const window = this.windowFor(actor.unit, request.month, request.responsibility);
     if (!window) return { allowed: false, reason: 'NOT_RESPONSIBLE' };

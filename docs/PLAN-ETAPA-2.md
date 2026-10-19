@@ -86,16 +86,17 @@ Lo pidió el administrador al probar la plataforma con el historial: capturar un
 
 ### Fase 14: Usuarios de solo lectura, inquilinos y temporales
 
-Hoy hay un usuario por depto (su dueño) más el superadmin (pregunta 10 de la Etapa 1).
+Detalle en el ADR-0025. Antes había un usuario por depto (su dueño) más el superadmin (pregunta 10 de la Etapa 1).
 
 - **Tipos de usuario:**
-  - _Dueño_ (como hoy): uno por depto, escribe cuando su depto está en turno.
-  - _Solo lectura_: ve todo lo que ve un dueño (transparencia total) y no puede escribir nunca. Puede estar ligado a un depto (un inquilino o un familiar) o a ninguno (por ejemplo, un contador).
-  - _Temporal_: cualquier usuario puede tener fecha de vencimiento. Al vencer ya no entra, y sus sesiones se cierran solas.
-- Varios usuarios por depto: el dueño y sus inquilinos o familiares.
-- Solo el superadmin crea, edita, desactiva y reactiva usuarios, y cada cambio va a la bitácora.
-- La regla de escritura sigue en `WriteAccessPolicy`: un usuario de solo lectura nunca pasa, sin importar el turno.
-- La lista de usuarios (_Administración → Usuarios_) muestra el tipo, el depto y el vencimiento.
+  - _Dueño_ (como antes): uno por depto, escribe cuando su depto está en turno.
+  - _Solo lectura_ (rol `READER`): ve todo lo que ve un dueño y nunca escribe. Puede estar ligado a un depto (un inquilino o un familiar) o a ninguno (por ejemplo, un contador). Su usuario no puede ser solo un número, que es el de un dueño.
+  - _Temporal_: cualquier usuario salvo el superadmin puede tener un último día. Al pasar ya no entra y su sesión se cierra al refrescarse (en 15 minutos a lo más).
+- **Desactivar y reactivar:** cualquier usuario salvo el superadmin; desactivar cierra sus sesiones al momento.
+- **Varios usuarios por depto:** el dueño (uno solo, garantizado por la base de datos) y sus inquilinos o familiares.
+- **Solo el superadmin** crea, cambia, desactiva y reactiva usuarios, y cada cambio va a la bitácora.
+- **La regla de escritura sigue en `WriteAccessPolicy`:** un usuario de solo lectura nunca pasa (`READ_ONLY`), sin importar el turno.
+- **_Administración → Usuarios_** muestra el tipo, el depto, el vencimiento y el estado de cada uno, y desde ahí se crean y se administran.
 
 **Conceptos:** roles frente a permisos derivados, expiración de credenciales.
 
@@ -208,7 +209,7 @@ Cada una tiene un valor por defecto para no bloquear el avance.
 | 11  | ¿Cómo entra el historial?                                                           | **Respondida:** dentro de los libros, desde mayo 2022; antes de agosto 2026 sin cuotas, cuentas ni bitácora de renglones | 12   |
 | 12  | ¿Aparecen las hojas que faltan (sección 4)?                                         | **Respondida:** aparecieron todas y ya están en el archivo de importación                                                | 12   |
 | 13  | ¿La carga inicial de agosto 2026 sale del balance de julio 2026?                    | **Respondida:** el superadmin captura los adeudos y adelantos; la caja sale del cierre de julio                          | 12   |
-| 14  | ¿Un usuario de solo lectura ve todo, como un dueño, o solo lo de su depto?          | Ve todo (transparencia total, como los dueños)                                                                           | 14   |
+| 14  | ¿Un usuario de solo lectura ve todo, como un dueño, o solo lo de su depto?          | **Respondida:** ve todo, como los dueños                                                                                 | 14   |
 | 15  | ¿El contador de efectivo incluye monedas de 20¢ y 10¢?                              | **Respondida:** no; llega hasta 50¢                                                                                      | 15   |
 | 16  | ¿Los vecinos tienen correo, o WhatsApp es el único canal realista?                  | WhatsApp como canal principal; el superadmin como respaldo                                                               | 17   |
 | 17  | ¿Quién pone el número de WhatsApp Business y la cuenta de Meta?                     | El superadmin, con un chip dedicado                                                                                      | 17   |

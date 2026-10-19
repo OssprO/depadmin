@@ -1,9 +1,10 @@
 import type { FieldChange, Instant, UnitNumber } from '../../../shared-kernel/index.js';
 
-/** Who acted, as the log froze it: the role, and the depto for an owner. */
+/** Who acted, as the log froze it: the role, and the depto for an owner or a reader. */
 export type AuditActor =
   | { readonly role: 'SUPERADMIN' }
   | { readonly role: 'OWNER'; readonly unit: UnitNumber }
+  | { readonly role: 'READER'; readonly unit: UnitNumber | null }
   | { readonly role: 'SYSTEM' };
 
 /** One recorded change, as read back from the log. */

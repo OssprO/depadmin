@@ -143,6 +143,18 @@ const localDateFormat = new Intl.DateTimeFormat('es-MX', {
 });
 
 /** A calendar date (no time), e.g. "2026-10-03" → "sábado, 3 de octubre". */
+const fullDateFormat = new Intl.DateTimeFormat('es-MX', {
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
+
+/** "31 de diciembre de 2026": a date that may be far off, so with its year. */
+export function formatFullDate(date: string): string {
+  return fullDateFormat.format(new Date(`${date}T00:00:00Z`));
+}
+
 export function formatLocalDate(date: string): string {
   return localDateFormat.format(new Date(`${date}T00:00:00Z`));
 }

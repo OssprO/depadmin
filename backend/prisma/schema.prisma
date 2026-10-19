@@ -45,6 +45,8 @@ enum ChargeType {
 enum Role {
   SUPERADMIN
   OWNER
+  /// Sees what an owner sees and never writes: a tenant, a relative, an accountant.
+  READER
 
   @@map("role")
 }
@@ -55,6 +57,7 @@ enum AuditActorRole {
   SUPERADMIN
   OWNER
   SYSTEM
+  READER
 
   @@map("audit_actor_role")
 }
@@ -79,7 +82,7 @@ model Unit {
   openingCredit    OpeningCredit?
   delegationsGiven ShiftDelegation[]    @relation("original")
   delegationsTaken ShiftDelegation[]    @relation("delegate")
-  owner            User?
+  users            User[]
 
   @@map("unit")
 }
@@ -89,11 +92,16 @@ model User {
   id                 String   @id @db.Uuid
   username           String   @unique
   role               Role
-  /// One owner per depto; null for the superadmin.
-  unitNumber         Int?     @unique @map("unit_number")
+  /// An owner's depto (one owner per depto), or a read-only user's (any number); null for
+  /// the superadmin and for a read-only user tied to no depto.
+  unitNumber         Int?     @map("unit_number")
   /// Null until the superadmin gives the owner a first (temporary) password.
   passwordHash       String?  @map("password_hash")
   mustChangePassword Boolean  @default(false) @map("must_change_password")
+  /// A temporary user's last day; null for no end.
+  expiresOn          DateTime? @map("expires_on") @db.Date
+  /// Deactivated by the superadmin: it cannot sign in until reactivated.
+  disabled           Boolean  @default(false)
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz
 

@@ -46,7 +46,7 @@ const codeOf = (responses: request.Response[], status: number) =>
   problemDetailsSchema.parse(responses.find((r) => r.status === status)?.body).code;
 
 describe('concurrent requests', () => {
-  it('pays a garbage week once when two confirmations race', async () => {
+  it('pays a garbage week once when several confirmations race', async () => {
     const confirm = () =>
       http().post('/api/movements').auth(admin, { type: 'bearer' }).send({
         date: '2026-10-01',
@@ -57,9 +57,11 @@ describe('concurrent requests', () => {
         week: '2026-09-28',
       });
 
-    const responses = await Promise.all([confirm(), confirm(), confirm()]);
+    // Enough of them that two often deadlock on the exclusion constraint: the one Postgres
+    // aborts runs again and gets the same 409 as the rest.
+    const responses = await Promise.all(Array.from({ length: 6 }, confirm));
 
-    expect(statuses(responses)).toEqual([201, 409, 409]);
+    expect(statuses(responses)).toEqual([201, 409, 409, 409, 409, 409]);
     expect(codeOf(responses, 409)).toBe('GARBAGE_WEEK_PAID');
     expect(await ctx.database.client.cashMovement.count()).toBe(1);
   });

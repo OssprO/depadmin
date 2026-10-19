@@ -58,8 +58,9 @@ export class RefreshSession {
     }
     if (state !== 'ACTIVE') return { ok: false, code: 'SESSION_INVALID' };
 
+    // A user deactivated or past their expiry loses their sessions at the next refresh.
     const user = await this.users.findById(current.userId);
-    if (!user?.canSignIn) {
+    if (!user?.canSignInOn(this.clock.today())) {
       await this.refreshTokens.revokeSession(current.sessionId, now);
       return { ok: false, code: 'SESSION_INVALID' };
     }

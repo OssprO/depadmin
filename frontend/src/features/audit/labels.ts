@@ -1,11 +1,19 @@
-import type { AuditLogEntry, AuditValue, DelegationReason, FieldChange } from '@depadmin/shared';
+import type {
+  AuditLogEntry,
+  AuditValue,
+  DelegationReason,
+  FieldChange,
+  Role,
+} from '@depadmin/shared';
 import {
+  formatFullDate,
   formatLocalDate,
   formatMoney,
   formatMonth,
   formatMonthShort,
   formatWeek,
 } from '@/lib/format';
+import { ROLES } from '@/lib/user-label';
 import { CATEGORIES } from '../book/labels';
 import { REASONS } from '../shifts/labels';
 
@@ -15,6 +23,10 @@ import { REASONS } from '../shifts/labels';
 const ACTIONS: Record<string, string> = {
   USER_PASSWORD_CHANGED: 'Contraseña cambiada',
   USER_PASSWORD_RESET: 'Contraseña temporal generada',
+  USER_CREATED: 'Usuario creado',
+  USER_ACCESS_CHANGED: 'Acceso cambiado',
+  USER_DISABLED: 'Usuario desactivado',
+  USER_ENABLED: 'Usuario reactivado',
   UNIT_DEACTIVATED: 'Depto marcado inactivo',
   UNIT_REACTIVATED: 'Depto reactivado',
   UNIT_OWNER_RENAMED: 'Propietario actualizado',
@@ -52,6 +64,8 @@ const FIELDS: Record<string, Record<string, string>> = {
     unit: 'Depto',
     password: 'Contraseña',
     mustChangePassword: 'Debe cambiar la contraseña',
+    expiresOn: 'Vence',
+    disabled: 'Desactivado',
   },
   unit: { ownerName: 'Propietario', inactivePeriods: 'Inactivo' },
   opening_balance: { debts: 'Adeudos', credit: 'Adelanto' },
@@ -116,6 +130,10 @@ const money = (value: string | number) => (typeof value === 'number' ? formatMon
 
 /** Field values that read better than their stored form. */
 const VALUES: Record<string, Record<string, (value: string | number) => string>> = {
+  user: {
+    role: (v) => ROLES[v as Role] ?? String(v),
+    expiresOn: (v) => formatFullDate(String(v)),
+  },
   unit: { inactivePeriods: (v) => formatMonths(String(v)) },
   shift_delegation: {
     months: (v) => formatMonths(String(v)),
@@ -163,10 +181,15 @@ const ACTORS: Partial<Record<AuditLogEntry['actor']['role'], string>> = {
   SYSTEM: 'Sistema',
 };
 
+function actorOf({ role, unit }: AuditLogEntry['actor']): string {
+  if (role === 'READER') return unit === null ? 'Solo lectura' : `Solo lectura (Depto ${unit})`;
+  return ACTORS[role] ?? `Depto ${unit}`;
+}
+
 export function describeEntry(entry: AuditLogEntry): EntryText {
   return {
     title: ACTIONS[entry.action] ?? entry.action,
-    actor: ACTORS[entry.actor.role] ?? `Depto ${entry.actor.unit}`,
+    actor: actorOf(entry.actor),
     subject: `${ENTITIES[entry.entity] ?? entry.entity} ${entry.entityLabel}`,
     changes: entry.changes.map((change) => describeChange(entry.entity, change)),
   };
