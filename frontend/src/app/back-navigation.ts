@@ -9,9 +9,10 @@ export function parentOf(pathname: string, currentMonth: string): string | null 
   if (path === `/book/${currentMonth}`) return null;
   if (path.startsWith('/book/')) return '/history';
   if (path === '/history') return '/book';
-  if (path === '/accounts' || path === '/account' || path === '/admin') return '/more';
+  if (['/accounts', '/account', '/admin', '/tools'].includes(path)) return '/more';
   if (path.startsWith('/accounts/')) return '/accounts';
   if (path.startsWith('/account/')) return '/account';
   if (path.startsWith('/admin/')) return '/admin';
+  if (path.startsWith('/tools/')) return '/tools';
   return '/';
 }

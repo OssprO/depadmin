@@ -7,6 +7,7 @@ import {
   HouseIcon,
   ListBulletsIcon,
   ReceiptIcon,
+  ToolboxIcon,
   UserCircleIcon,
   WrenchIcon,
 } from '@phosphor-icons/react';
@@ -53,7 +54,7 @@ function NavItem({ to, icon, label, sections = [] }: NavItemProps) {
 }
 
 /** On a wide screen these are in the side menu, so they need no "Atrás" there. */
-const SIDE_MENU_ROOTS = ['/history', '/accounts', '/admin', '/account'];
+const SIDE_MENU_ROOTS = ['/history', '/accounts', '/tools', '/admin', '/account'];
 
 /**
  * "Atrás" on every screen the menu does not open: back to the previous screen of the app,
@@ -123,6 +124,7 @@ export function AppLayout() {
             <SideItem to="/shifts" icon={<CalendarDotsIcon />} label="Turnos" />
             <SideItem to="/audit" icon={<ClockCounterClockwiseIcon />} label="Bitácora" />
             <SideItem to="/accounts" icon={<ReceiptIcon />} label="Estados de cuenta" />
+            <SideItem to="/tools" icon={<ToolboxIcon />} label="Herramientas" />
             {user.role === 'SUPERADMIN' && (
               <SideItem to="/admin" icon={<WrenchIcon />} label="Administración" />
             )}
@@ -165,7 +167,7 @@ export function AppLayout() {
               to="/more"
               icon={<DotsThreeOutlineIcon />}
               label="Más"
-              sections={['/accounts', '/admin', '/account']}
+              sections={['/accounts', '/tools', '/admin', '/account']}
             />
           </div>
         </nav>
