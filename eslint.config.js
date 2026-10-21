@@ -278,7 +278,7 @@ export default defineConfig([
   },
 
   {
-    files: ['packages/shared/**/*.ts'],
+    files: ['packages/*/**/*.ts'],
     rules: { '@typescript-eslint/consistent-type-imports': 'error' },
   },
 

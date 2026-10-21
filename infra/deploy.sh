@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Runs on the VPS, from the Deploy workflow or by hand:  ./deploy.sh <image tag>
+# Runs on the VPS, from the Deploy workflow or by hand:  ./deploy.sh <version>
 # Pulls that version, applies the migrations and replaces the containers that changed.
 set -euo pipefail
 cd "$(dirname "$0")"
 
-tag="${1:?usage: ./deploy.sh <image tag, e.g. a commit sha>}"
+tag="${1:?usage: ./deploy.sh <version, e.g. 1.0.3, or a commit sha>}"
 if grep -q '^DEPADMIN_TAG=' .env; then
   sed -i "s/^DEPADMIN_TAG=.*/DEPADMIN_TAG=${tag}/" .env
 else

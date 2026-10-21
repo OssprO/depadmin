@@ -14,7 +14,7 @@ Navegador ──HTTPS──▶ nginx del VPS (certificado de Let's Encrypt; un v
                                                                           contenedor db (Postgres 18)
 ```
 
-- **Cada versión nueva se publica sola.** Cuando un cambio llega a `main` y pasa CI, GitHub Actions construye las imágenes, las sube a GHCR y las despliega en el VPS por SSH.
+- **Cada versión nueva se publica sola.** Cuando un cambio llega a `main` y pasa CI, GitHub Actions le pone un número de versión (como `1.0.3`, [ADR-0027](adr/0027-versiones.md)), construye las imágenes, las sube a GHCR, las despliega en el VPS por SSH y anota la versión en **GitHub Releases**.
 - **Respaldo cada noche:** el VPS guarda una copia de la base y conserva 14 días.
 
 **Convenciones de la guía:**
@@ -294,7 +294,7 @@ Se copia tu base de desarrollo tal como está: el historial, la carga inicial, l
 - **(en tu computadora)**:
 
   ```bash
-  curl -s https://depadmin.osspro.site/api/health                       # "status":"ok" y version = el commit
+  curl -s https://depadmin.osspro.site/api/health                       # "status":"ok" y la versión, p. ej. "1.0.0"
   curl -sI https://depadmin.osspro.site | grep -iE 'strict-transport|content-security'
   ```
 
@@ -346,16 +346,16 @@ Se copia tu base de desarrollo tal como está: el historial, la carga inicial, l
 
 Los comandos de esta sección se corren **como deploy** dentro de `/opt/depadmin`, salvo que se diga otra cosa.
 
-| Para                         | Haz                                                                                                                                                                                  |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Publicar una versión         | Llévala a `main`; el workflow Deploy hace lo demás                                                                                                                                   |
-| Ver si todo está bien        | `docker compose ps`                                                                                                                                                                  |
-| Ver los logs                 | `docker compose logs -f api` (o `web`, `db`, `migrate`); `docker compose logs --since 1h api`                                                                                        |
-| Volver a la versión anterior | `./deploy.sh <commit>`, con el commit de un despliegue anterior en **Actions → Deploy**. Si la versión nueva agregó una migración, restaura además el respaldo de esa noche (paso 9) |
-| Reiniciar la API             | `docker compose restart api`                                                                                                                                                         |
-| Cerrar todas las sesiones    | Cambia `JWT_SECRET` en `.env` y corre `docker compose up -d`                                                                                                                         |
-| Actualizar Ubuntu            | Con tu usuario: `sudo apt update && sudo apt upgrade -y`. Ubuntu ya instala solo los parches de seguridad (`unattended-upgrades`)                                                    |
-| Renovar el certificado       | Nada: el temporizador de certbot lo renueva (`systemctl list-timers \| grep certbot`)                                                                                                |
+| Para                         | Haz                                                                                                                                                         |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Publicar una versión         | Llévala a `main`; el workflow Deploy hace lo demás. Su número sale de los commits (ADR-0027) y se ve en la app, en «Estado del sistema»                     |
+| Ver si todo está bien        | `docker compose ps`                                                                                                                                         |
+| Ver los logs                 | `docker compose logs -f api` (o `web`, `db`, `migrate`); `docker compose logs --since 1h api`                                                               |
+| Volver a la versión anterior | `./deploy.sh 1.0.2`, con una versión de **Releases** en GitHub. Si la versión nueva agregó una migración, restaura además el respaldo de esa noche (paso 9) |
+| Reiniciar la API             | `docker compose restart api`                                                                                                                                |
+| Cerrar todas las sesiones    | Cambia `JWT_SECRET` en `.env` y corre `docker compose up -d`                                                                                                |
+| Actualizar Ubuntu            | Con tu usuario: `sudo apt update && sudo apt upgrade -y`. Ubuntu ya instala solo los parches de seguridad (`unattended-upgrades`)                           |
+| Renovar el certificado       | Nada: el temporizador de certbot lo renueva (`systemctl list-timers \| grep certbot`)                                                                       |
 
 ---
 
