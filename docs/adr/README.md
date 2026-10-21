@@ -12,7 +12,7 @@ Cada ADR documenta una decisión: el contexto, lo que se decidió y sus consecue
 | [0006](0006-stack-frontend.md)                      | React + TanStack Router/Query + shadcn (Base UI)                 | Aceptado             |
 | [0007](0007-pdf.md)                                 | PDF con @react-pdf/renderer                                      | Aceptado             |
 | [0008](0008-pruebas.md)                             | Vitest + Testcontainers + Playwright                             | Aceptado             |
-| [0009](0009-despliegue.md)                          | Docker Compose + Caddy en VPS                                    | Aceptado             |
+| [0009](0009-despliegue.md)                          | Docker Compose + Caddy en VPS                                    | Reemplazado por 0026 |
 | [0010](0010-convenciones-dominio.md)                | Dinero en centavos, código en inglés, base de caja               | Aceptado             |
 | [0011](0011-nest12-esm-eslint.md)                   | NestJS 12 en ESM, ESLint como único linter                       | Aceptado             |
 | [0012](0012-persistencia.md)                        | Convenciones de persistencia (Prisma 7)                          | Aceptado             |
@@ -29,5 +29,6 @@ Cada ADR documenta una decisión: el contexto, lo que se decidió y sus consecue
 | [0023](0023-historial-en-los-libros.md)             | El historial del edificio, dentro de los libros                  | Aceptado             |
 | [0024](0024-captura-y-apariencia.md)                | Capturar como en el papel, y una apariencia que sigue al sistema | Aceptado             |
 | [0025](0025-usuarios-de-solo-lectura.md)            | Usuarios de solo lectura, temporales y desactivados              | Aceptado             |
+| [0026](0026-despliegue-con-nginx.md)                | Despliegue detrás del nginx del VPS                              | Aceptado             |
 
 Plantilla: copia cualquier ADR y conserva las secciones _Contexto_, _Decisión_ y _Consecuencias_.

@@ -142,7 +142,7 @@ Incluye:
 | Contratos compartidos    | `packages/shared` con esquemas Zod                                                            |
 | Frontend (routing/datos) | TanStack Router + TanStack Query + react-hook-form                                            |
 | Pruebas                  | Vitest + Testcontainers (Postgres) + Playwright                                               |
-| Despliegue               | Docker Compose + Caddy (HTTPS automático)                                                     |
+| Despliegue               | Docker Compose detrás de nginx (HTTPS con Let's Encrypt)                                      |
 | Arquitectura             | Hexagonal (puertos y adaptadores), SOLID, DRY                                                 |
 
 ### 8.1 Estructura de repositorio

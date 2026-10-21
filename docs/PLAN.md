@@ -18,7 +18,7 @@ Este plan reemplaza a la sección 11 de la spec. Cada fase termina en algo que s
 | Frontend             | React 19 + TanStack Router + TanStack Query + react-hook-form + shadcn/ui (Base UI)                                                                   | Rutas tipadas, caché de servidor y formularios validados con los esquemas compartidos                  |
 | PDF                  | @react-pdf/renderer en el backend                                                                                                                     | Sin Chromium, ligero para el VPS y escrito con componentes React                                       |
 | Pruebas              | Vitest en todo el repo · Testcontainers (Postgres real) · Playwright en viewport móvil                                                                | Un solo runner; las pruebas de integración corren contra el mismo motor que producción                 |
-| Despliegue           | Docker Compose (api, web, db) + Caddy con HTTPS automático                                                                                            | Reproducible; el entorno local es igual al de producción                                               |
+| Despliegue           | Docker Compose (db, api, web) detrás del nginx del VPS, con Let's Encrypt (ADR-0026)                                                                  | Reproducible; el entorno local es igual al de producción                                               |
 | CI                   | GitHub Actions: lint, typecheck, pruebas y build en cada PR                                                                                           | El repo ya está en `github.com/OssprO/depadmin`                                                        |
 | Idioma               | Código en inglés, UI en español, glosario en la sección 3                                                                                             | Convención estándar, conservando el lenguaje del negocio                                               |
 | Dinero               | Enteros en **centavos** (value object `Money`)                                                                                                        | Evita errores de punto flotante                                                                        |
@@ -38,7 +38,7 @@ depadmin/
 ├── frontend/           React + Vite (SPA mobile-first)
 ├── packages/shared/    Esquemas Zod, tipos de API, constantes de dominio compartidas
 ├── docs/               SPEC, PLAN, ADRs
-├── infra/              docker-compose, Caddyfile, scripts de backup
+├── infra/              docker-compose, nginx (contenedor y virtual host), deploy y backup
 └── .github/workflows/  CI/CD
 ```
 
@@ -208,15 +208,15 @@ Va antes de las funcionalidades de escritura para que todas la usen desde el pri
 
 **Conceptos:** trazabilidad, inmutabilidad, por qué se audita en la capa de aplicación y no con un interceptor HTTP.
 
-### Fase 5: Despliegue (pospuesta)
+### Fase 5: Despliegue
 
-**Pospuesta (2026-10-14):** todavía no hay dominio y la idea es agregar más funcionalidad y los datos históricos antes de publicar. Se hará cuando el producto esté más avanzado, antes o junto con la fase 11. Mientras tanto, las fases continúan en local y en CI.
+**Hecha (2026-10-20, ADR-0026):** en el VPS Ubuntu del administrador, en `https://depadmin.osspro.site`, detrás del nginx que ya tiene para otros experimentos. Ese nginx reemplaza a Caddy (ADR-0009). El paso a paso está en `docs/DESPLIEGUE.md`.
 
-- Dockerfiles multi-stage (api, web), `infra/docker-compose.yml`, Caddyfile con tu dominio.
-- Migraciones automáticas al desplegar; secretos fuera del repo (`JWT_SECRET`, credenciales del superadmin para el seed).
-- `trust proxy` en Express para que el límite de intentos de login vea la IP real detrás de Caddy.
-- Backups diarios con `pg_dump` y retención, más una prueba de restauración documentada.
-- CD con GitHub Actions: imagen al registry (GHCR) y despliegue por SSH al VPS.
+- `Dockerfile` multi-stage con dos imágenes: `api` (también corre las migraciones) y `web` (nginx con la SPA, sus cabeceras y el proxy a `/api`).
+- `infra/docker-compose.yml` con `db`, `migrate`, `api` y `web`; solo `web` se publica, en `127.0.0.1`. Los secretos viven en el `.env` del VPS (`infra/env.production.example`).
+- `TRUST_PROXY` para que el límite de intentos de login vea la IP real detrás de los dos proxies.
+- Respaldos cada noche con `pg_dump` (`infra/backup.sh`, 14 días), su copia fuera del VPS y una prueba de restauración documentadas.
+- CD con GitHub Actions: CI construye las imágenes en cada PR; `Deploy` las publica en GHCR y despliega por SSH (`infra/deploy.sh`) cuando CI pasa en `main`.
 
 **Conceptos:** imágenes reproducibles, reverse proxy, HTTPS, backups probados.
 
@@ -336,6 +336,6 @@ Cada una tiene un valor por defecto para no bloquear el avance. Se confirman en 
 | 5   | ¿Quieres adjuntar fotos de comprobantes en los egresos? Implica almacenar archivos en el VPS y respaldarlos.                                                                  | **Aplicado:** no en la primera versión                                                                                                                                          | 8    |
 | 6   | Necesito **uno o dos PDFs reales** del reporte actual para replicar su formato.                                                                                               | **Aplicado:** el PDF sigue las hojas «Balance Correspondencia 63» que compartiste                                                                                               | 10   |
 | 7   | Mes de corte, saldo de caja y adeudos o adelantos vigentes por depto para la carga inicial.                                                                                   | **Mecanismo listo:** el superadmin captura el corte en Inicio de la contabilidad y Carga inicial                                                                                | 11a  |
-| 8   | Dominio y subdominio, y acceso SSH al VPS (distribución y si ya tiene Docker).                                                                                                | —                                                                                                                                                                               | 5    |
+| 8   | Dominio y subdominio, y acceso SSH al VPS (distribución y si ya tiene Docker).                                                                                                | **Respondida:** `depadmin.osspro.site` (Namecheap), VPS Ubuntu propio con nginx; el paso a paso cubre Docker                                                                    | 5    |
 | 9   | ¿Los dueños pueden cambiar su propia contraseña? ¿Hay recuperación por email?                                                                                                 | **Aplicado:** cambio propio sí; sin email: el superadmin genera una contraseña temporal                                                                                         | 3    |
 | 10  | ¿Puede haber varios usuarios por depto (por ejemplo, pareja o inquilino con solo lectura)?                                                                                    | **Aplicado:** un usuario por depto, como dice la spec                                                                                                                           | 3    |

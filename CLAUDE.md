@@ -13,7 +13,7 @@ Mobile-first web app to manage maintenance fees for a 10-unit building ("Edifici
 
 **Working mode:** one phase per PR. Explain the reasoning behind a design before implementing, include tests, and wait for the user's approval before starting the next phase.
 
-**Current state:** phases 0–4, 6–11b and 12 are merged into `develop`; only phase 5 (deployment, postponed) remains of the first plan. Stage 2 (`docs/PLAN-ETAPA-2.md`) continues the numbering from phase 12. Phase 12 put the building's history inside the books (ADR-0023): the books start in May 2022 from the transcription of the paper sheets, and the platform goes live at the cut-over, August 2026; its data lives outside the repo in `../../Documents/importacion/`, because it names the neighbors. Phase 13a (ADR-0024, merged) reworked capture and looks: income and expense types apart, a payment's observations printed for its depto, «Atrás», the OS theme and green/red accents. Phase 13b (tablet and desktop layouts) is on `feat/fase-13b-tableta-y-escritorio`, phase 14 (`feat/fase-14-usuarios`, ADR-0025) adds read-only, temporary and deactivated users on top of it, and phase 15 (`feat/fase-15-herramientas`) adds the _Herramientas_ section with the cash counter on top of that.
+**Current state:** phases 0–4 and 6–15 are merged into `develop`. Phase 5 (deployment, ADR-0026) is on `feat/fase-5-despliegue`: production runs at `https://depadmin.osspro.site` on the admin's Ubuntu VPS, behind its nginx, following `docs/DESPLIEGUE.md`. Stage 2 (`docs/PLAN-ETAPA-2.md`) continues the numbering from phase 12. Phase 12 put the building's history inside the books (ADR-0023): the books start in May 2022 from the transcription of the paper sheets, and the platform goes live at the cut-over, August 2026; its data lives outside the repo in `../../Documents/importacion/`, because it names the neighbors. Phase 13a (ADR-0024) reworked capture and looks: income and expense types apart, a payment's observations printed for its depto, «Atrás», the OS theme and green/red accents. Phase 13b added tablet and desktop layouts, phase 14 (ADR-0025) read-only, temporary and deactivated users, and phase 15 the _Herramientas_ section with the cash counter. Next in stage 2: phase 16 (document archive), 17 (WhatsApp) and 18 (user guide).
 
 ## Layout & tooling
 
@@ -38,12 +38,16 @@ pnpm db:migrate       # prisma migrate dev: create/apply migrations on the dev D
 pnpm db:seed          # 10 deptos, their owner accounts, the superadmin (SUPERADMIN_* env) and rates; idempotent
 pnpm db:generate      # regenerate the Prisma Client (also runs on install)
 
+# production images (Dockerfile at the root; docs/DESPLIEGUE.md deploys them)
+docker build --target api -t depadmin-api .
+docker build --target web -t depadmin-web .
+
 # single package / single test
 pnpm --filter @depadmin/backend test -- src/platform/config/env.spec.ts
 pnpm --filter @depadmin/frontend test -- -t "offers a retry"
 ```
 
-CI (`.github/workflows/ci.yml`) runs format:check, lint, typecheck, test, domain and application coverage, test:int, test:e2e, build and test:browser. Husky runs lint-staged on commit, and commitlint enforces Conventional Commits.
+CI (`.github/workflows/ci.yml`) runs format:check, lint, typecheck, test, domain and application coverage, test:int, test:e2e, build and test:browser, and builds both production images. `.github/workflows/deploy.yml` publishes them to GHCR and deploys them over SSH when CI passes on `main`. Husky runs lint-staged on commit, and commitlint enforces Conventional Commits.
 
 ### Gotchas
 
@@ -71,7 +75,8 @@ CI (`.github/workflows/ci.yml`) runs format:check, lint, typecheck, test, domain
 - **Errors inside a transaction:** a use case that must persist something and still fail (e.g. revoking a session on refresh-token reuse) returns an outcome from `unitOfWork.run()` and throws after it; throwing inside rolls the write back.
 - **Time:** `Clock` (token `CLOCK`, provided globally by `platform/clock`) gives `today()` in America/Mexico_City and `now()` as an `Instant`. Use `Instant` for expiries, never `Date`, in domain and application code.
 - **API integration specs:** `useTestApp()` from `backend/test/support/app.ts` boots the real `AppModule` on the Testcontainers database (pair it with `useTestDatabase()`); it resets the login rate limiter before each test.
-- **Env vars:** new environment variables must be added to the Zod schema in `backend/src/platform/config/env.ts` and to `backend/.env.example`.
+- **Env vars:** new environment variables must be added to the Zod schema in `backend/src/platform/config/env.ts` and to `backend/.env.example`, and, if production needs them, to the `api` service in `infra/docker-compose.yml` (secrets go in the VPS's `.env`, see `infra/env.production.example`).
+- **Production** (ADR-0026): the VPS's nginx ends TLS and proxies to the `web` container (`127.0.0.1:WEB_PORT`), whose nginx (`infra/web/`) serves the SPA with its CSP and security headers and proxies `/api` to `api`; a one-shot `migrate` service runs `prisma migrate deploy` first (so `prisma` is a production dependency). The API trusts the proxies in `TRUST_PROXY` for the client IP the login limit counts. The CSP forbids `eval`, which is why `@depadmin/shared` sets Zod `jitless` before defining any schema; a new browser dependency that needs `eval`, inline scripts or another origin has to change `infra/web/security-headers.conf`. Production changes are verified by running the stack locally from the built images and pointing the Playwright suite at it.
 
 ## Architecture rules
 

@@ -1,6 +1,6 @@
 # Seguridad: revisión OWASP ASVS nivel 1
 
-**Fecha:** 2026-10-14 · **Fase:** 11b · **Alcance:** API (NestJS), SPA (React) y base de datos. El despliegue (fase 5) aún no existe; lo que depende de él está al final.
+**Fecha:** 2026-10-14 · **Fase:** 11b, actualizada en la fase 5 · **Alcance:** API (NestJS), SPA (React), base de datos y despliegue.
 
 ## Lo que ya cumple
 
@@ -33,13 +33,23 @@
 - **No se revisa si una contraseña ya se filtró** (ASVS 2.1.7). Requiere un servicio externo (Have I Been Pwned). Con 11 usuarios, contraseñas de 10 caracteres o más y el límite de intentos, se deja para después.
 - **Un 401 aparece en la consola del navegador** al abrir la app sin sesión. Es la consulta de la cookie de sesión, que el JavaScript no puede leer (es `httpOnly`); no es un error.
 
-## Pendiente para el despliegue (fase 5)
+## Resuelto en el despliegue (fase 5, ADR-0026)
 
-- **`trust proxy`:** Express debe confiar en Caddy para conocer la IP real. Sin eso, el límite de intentos de login cuenta a todos los usuarios como una sola IP. Será una variable de entorno con la red del proxy.
-- **Cabeceras para la SPA:** Caddy sirve el frontend y debe enviar `Strict-Transport-Security`, una `Content-Security-Policy` (`default-src 'self'`, sin scripts en línea), `X-Content-Type-Options` y `Referrer-Policy`.
-- **Respaldos** diarios de Postgres, cifrados y fuera del VPS, con una restauración de prueba.
-- **Secretos:** `JWT_SECRET` y la contraseña de la base generados en el servidor, nunca en el repositorio.
+- **`trust proxy`:** la API confía en los proxies de `TRUST_PROXY` (en producción, las direcciones privadas del nginx del VPS y del contenedor `web`). El límite de intentos de login cuenta la IP del cliente, y falsificar `X-Forwarded-For` no lo esquiva. Hay pruebas de ambos casos.
+- **Cabeceras de la SPA** (`infra/web/security-headers.conf`):
+  - `Content-Security-Policy`: `default-src 'self'`, sin scripts en línea ni `eval`.
+  - `Strict-Transport-Security`, `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `Permissions-Policy` y `X-Robots-Tag`.
+
+  Una prueba de navegador recorrió todas las pantallas detrás del nginx de producción sin violar la CSP. Para lograrlo, Zod corre `jitless` (no prueba `new Function`).
+
+- **Solo lo necesario queda expuesto:** el nginx del VPS (80 y 443) es lo único abierto a internet. La app escucha en `127.0.0.1`, y la API y Postgres no se publican. Los contenedores de la API y de `web` no corren como root.
+- **Secretos:** la contraseña de Postgres y el `JWT_SECRET` se generan al azar en el VPS, en un `.env` con permisos `600`. GitHub guarda solo una llave SSH dedicada a un usuario sin `sudo`.
+- **Respaldos:** un `pg_dump` cada noche, con permisos solo para su dueño y 14 días de retención. `docs/DESPLIEGUE.md` documenta cómo copiarlos fuera del VPS (a una carpeta cifrada) y cómo probar una restauración.
+
+## Pendiente
+
 - **Auditar las dependencias de forma continua:** `pnpm audit --prod` en CI, o Dependabot.
+- **Respaldos cifrados en el propio VPS:** hoy se cifran solo al copiarlos a otra máquina.
 
 ## Rendimiento y accesibilidad (Lighthouse 13.5, móvil simulado)
 

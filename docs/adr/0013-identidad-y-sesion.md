@@ -45,6 +45,6 @@ La fase 3 implementa el ADR-0005: login, sesión de semanas en el celular y una 
 
 - Al resetear la contraseña de un usuario o cerrar su sesión, su access token sigue siendo válido hasta 15 minutos. Es el precio de no consultar la base en cada petición.
 - Si el superadmin olvida su contraseña, no hay recuperación desde la app; se resuelve desde el servidor.
-- Detrás de Caddy, Express debe confiar en el proxy (`trust proxy`) para que el límite use la IP real del cliente. Se configura en la fase 5.
+- Detrás de Caddy, Express debe confiar en el proxy (`trust proxy`) para que el límite use la IP real del cliente. Se configuró en la fase 5 (`TRUST_PROXY`, ADR-0026).
 - Los tokens vencidos se acumulan en `refresh_token`: unas filas por día. La limpieza periódica queda para la fase 11.
 - Las pruebas de navegador (Playwright, en `e2e/`) levantan todo el sistema construido: Postgres, la API compilada y la SPA con `vite preview`.
