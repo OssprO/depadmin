@@ -16,7 +16,14 @@ describe('validateEnv', () => {
       JWT_SECRET,
       LOGIN_ATTEMPTS_PER_MINUTE: 5,
       JOBS_ENABLED: true,
+      TRUST_PROXY: [],
     });
+  });
+
+  it('reads TRUST_PROXY as a list of proxies', () => {
+    expect(
+      validateEnv({ ...required, TRUST_PROXY: ' loopback, 172.16.0.0/12 ,' }).TRUST_PROXY,
+    ).toEqual(['loopback', '172.16.0.0/12']);
   });
 
   it('reads JOBS_ENABLED as a boolean', () => {

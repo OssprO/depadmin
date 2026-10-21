@@ -93,6 +93,8 @@ describe('auth API', () => {
     for (let i = 0; i < 5; i++) expect((await attempt('501')).status).toBe(401);
 
     expectProblem(await attempt('501'), 429, 'TOO_MANY_REQUESTS');
+    // Without TRUST_PROXY, X-Forwarded-For is just a header anyone can send.
+    expect((await attempt('501').set('X-Forwarded-For', '198.51.100.1')).status).toBe(429);
     // Another username from the same IP (a neighbour on the same Wi-Fi) is unaffected.
     expect((await attempt('502')).status).toBe(401);
   });

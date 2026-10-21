@@ -12,6 +12,21 @@ const envSchema = z.object({
   LOGIN_ATTEMPTS_PER_MINUTE: z.coerce.number().int().min(1).max(1000).default(5),
   /** Scheduled jobs (opening the month when nobody did). Tests turn them off. */
   JOBS_ENABLED: z.stringbool().default(true),
+  /**
+   * The reverse proxies in front of the API, as Express' `trust proxy` list (addresses,
+   * subnets or `loopback`, `linklocal`, `uniquelocal`), comma separated. The client's IP is
+   * then the last address in X-Forwarded-For that none of them owns, which the login limit
+   * counts. Empty (the default) trusts nobody: the IP is the socket's.
+   */
+  TRUST_PROXY: z
+    .string()
+    .default('')
+    .transform((value) =>
+      value
+        .split(',')
+        .map((entry) => entry.trim())
+        .filter(Boolean),
+    ),
 });
 
 export type Env = z.infer<typeof envSchema>;
