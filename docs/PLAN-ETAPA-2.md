@@ -130,7 +130,7 @@ Nueva sección _Herramientas_ (en «Más» en el celular y en el menú lateral d
 
 ### Fase 5: Despliegue
 
-Sin cambios respecto a `docs/PLAN.md`, más los pendientes de `docs/SEGURIDAD.md`. Necesita el dominio.
+**Hecha (ADR-0026):** en el VPS Ubuntu del administrador, en `https://depadmin.osspro.site`, detrás de su nginx. El paso a paso está en `docs/DESPLIEGUE.md`, y el resumen en `docs/PLAN.md`. Incluye los pendientes de despliegue de `docs/SEGURIDAD.md`.
 
 ### Fase 17: WhatsApp: recuperación de contraseña y libros mensuales
 

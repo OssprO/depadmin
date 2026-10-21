@@ -5,6 +5,7 @@ Administración de las cuotas de mantenimiento del **Edificio Correspondencia 63
 - Reglas de negocio: [`docs/SPEC.md`](docs/SPEC.md)
 - Plan de trabajo y arquitectura: [`docs/PLAN.md`](docs/PLAN.md)
 - Decisiones técnicas: [`docs/adr/`](docs/adr/README.md)
+- Despliegue en el VPS, paso a paso: [`docs/DESPLIEGUE.md`](docs/DESPLIEGUE.md)
 
 ## Requisitos
 
@@ -47,7 +48,7 @@ backend/            API NestJS 12 (hexagonal: src/modules, src/shared-kernel, sr
 frontend/           SPA React 19 + Vite (src/app, src/features, src/components/ui)
 packages/shared/    Contratos Zod compartidos por API y web
 e2e/                Pruebas de navegador (Playwright) contra el sistema completo
-infra/              Docker Compose
+infra/              Docker Compose (desarrollo y producción), nginx y scripts del VPS
 docs/               Spec, plan y ADRs
 ```
 

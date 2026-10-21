@@ -1,6 +1,6 @@
 # ADR-0009: Docker Compose + Caddy en VPS
 
-**Estado:** Aceptado · **Fecha:** 2026-10-07
+**Estado:** Reemplazado por [ADR-0026](0026-despliegue-con-nginx.md) · **Fecha:** 2026-10-07
 
 ## Contexto
 

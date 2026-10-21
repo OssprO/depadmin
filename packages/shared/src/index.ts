@@ -1,3 +1,5 @@
+import './zod-config.js';
+
 export * from './audit.js';
 export * from './auth.js';
 export * from './books.js';

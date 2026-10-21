@@ -1,0 +1,73 @@
+# Production (docs/adr/0026-despliegue-con-nginx.md; step by step in docs/DESPLIEGUE.md).
+# Lives on the VPS in /opt/depadmin next to its .env (from infra/env.production.example);
+# the Deploy workflow copies it there. Only `web` is published, and only on 127.0.0.1: the
+# VPS's nginx is the one facing the internet.
+name: depadmin
+
+x-logging: &logging # Docker keeps logs forever by default; this caps them at 30 MB per service.
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: '3'
+
+x-api-image: &api-image ${DEPADMIN_IMAGE:-ghcr.io/osspro/depadmin}-api:${DEPADMIN_TAG:?set DEPADMIN_TAG in .env}
+
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: depadmin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: depadmin
+    volumes:
+      # Postgres 18 images keep data under a versioned subfolder of this path.
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U depadmin -d depadmin']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    logging: *logging
+
+  # Applies pending migrations, then exits; the API starts only after it succeeds.
+  migrate:
+    image: *api-image
+    command: ['node_modules/.bin/prisma', 'migrate', 'deploy']
+    environment:
+      DATABASE_URL: postgresql://depadmin:${POSTGRES_PASSWORD}@db:5432/depadmin
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: 'no'
+    logging: *logging
+
+  api:
+    image: *api-image
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DATABASE_URL: postgresql://depadmin:${POSTGRES_PASSWORD}@db:5432/depadmin
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      LOGIN_ATTEMPTS_PER_MINUTE: ${LOGIN_ATTEMPTS_PER_MINUTE:-5}
+      # Both proxies (the VPS's nginx and the web container) reach the API from private
+      # addresses; the client's IP is the last public one they forward.
+      TRUST_PROXY: loopback, uniquelocal
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    logging: *logging
+
+  web:
+    image: ${DEPADMIN_IMAGE:-ghcr.io/osspro/depadmin}-web:${DEPADMIN_TAG}
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:${WEB_PORT:-8063}:8080'
+    depends_on:
+      api:
+        condition: service_healthy
+    logging: *logging
+
+volumes:
+  db-data:

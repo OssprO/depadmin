@@ -11,7 +11,7 @@ const frontend = `${root}frontend`;
 /**
  * The whole system as it runs in production: PostgreSQL 18 with the real migrations and
  * seed, the compiled API, and the built SPA served by `vite preview` (which proxies /api,
- * as Caddy will). Returns a function that tears it all down.
+ * as nginx does in production). Returns a function that tears it all down.
  */
 export async function startStack({
   apiPort = API_PORT,

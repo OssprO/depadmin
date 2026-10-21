@@ -1,0 +1,15 @@
+# Only what the images build from (Dockerfile): the workspace's sources and lockfile.
+**/node_modules
+**/dist
+**/coverage
+**/.env
+**/.env.*
+**/*.tsbuildinfo
+.git
+.github
+.husky
+docs
+e2e/test-results
+e2e/playwright-report
+infra/*.sh
+infra/*.yml
