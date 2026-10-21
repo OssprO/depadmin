@@ -6,9 +6,10 @@ import {
   WrenchIcon,
 } from '@phosphor-icons/react';
 import { MenuEntry, MenuList } from '@/components/MenuList';
+import { SystemStatus } from '@/features/system-status/SystemStatus';
 import { useCurrentUser } from '@/lib/use-session';
 
-/** Everything that does not fit in the bottom bar. */
+/** Everything that does not fit in the bottom bar, and the state of the system at its foot. */
 export function MorePage() {
   const user = useCurrentUser();
 
@@ -49,6 +50,9 @@ export function MorePage() {
           description="Contraseña y cerrar sesión"
         />
       </MenuList>
+      <footer className="border-t pt-4">
+        <SystemStatus />
+      </footer>
     </div>
   );
 }
