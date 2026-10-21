@@ -1,0 +1,161 @@
+import {
+  ConflictError,
+  LocalDate,
+  type Money,
+  NotFoundError,
+  ValidationError,
+  type YearMonth,
+} from '../../../shared-kernel/index.js';
+import { closingBalanceOf, MonthlyReport, type MonthTotals } from './monthly-report.js';
+
+/**
+ * Where the books start: the first month and the cash on hand at its beginning, and the
+ * cut-over: the first month kept live on the platform. The months between them are the
+ * building's history, transcribed from its paper sheets (ADR-0023); without one, the books
+ * start at the cut-over.
+ */
+export interface ReportingStart {
+  readonly month: YearMonth;
+  readonly openingBalance: Money;
+  readonly cutover: YearMonth;
+}
+
+/** Live totals of a month's cashbook, supplied by the application layer. */
+export type LiveTotals = (month: YearMonth) => MonthTotals;
+
+export interface MonthBalances {
+  readonly openingBalance: Money;
+  readonly closingBalance: Money;
+}
+
+/**
+ * The chain of monthly reports from the reporting start. Each month opens with the previous
+ * month's closing balance. Months are opened in order, closed in order, and reopening a month
+ * restates every later closed month once it is closed again (cascade).
+ */
+export class ReportLedger {
+  private constructor(
+    readonly start: ReportingStart,
+    private readonly chain: MonthlyReport[],
+  ) {}
+
+  static restore(start: ReportingStart, reports: readonly MonthlyReport[]): ReportLedger {
+    if (start.cutover.isBefore(start.month)) {
+      throw new ValidationError(
+        'REPORTING_START_INVALID',
+        `The cut-over ${start.cutover} comes before the start ${start.month}`,
+      );
+    }
+    const chain = [...reports].sort((a, b) => a.month.compareTo(b.month));
+    chain.forEach((report, i) => {
+      if (!report.month.equals(start.month.plus(i))) {
+        throw new ValidationError(
+          'REPORT_CHAIN_INVALID',
+          `Reports must be consecutive from ${start.month}; found ${report.month} at position ${i}`,
+        );
+      }
+    });
+    return new ReportLedger(start, chain);
+  }
+
+  get reports(): readonly MonthlyReport[] {
+    return this.chain;
+  }
+
+  /** Whether the month is of the history: from the start of the books, before the cut-over. */
+  isHistory(month: YearMonth): boolean {
+    return !month.isBefore(this.start.month) && month.isBefore(this.start.cutover);
+  }
+
+  /** The next month to open: the reporting start, or the month after the last report. */
+  get nextMonth(): YearMonth {
+    const last = this.chain.at(-1);
+    return last ? last.month.next() : this.start.month;
+  }
+
+  openMonth(month: YearMonth): MonthlyReport {
+    if (!month.equals(this.nextMonth)) {
+      throw new ConflictError(
+        'MONTH_OUT_OF_ORDER',
+        `The next month to open is ${this.nextMonth}, not ${month}`,
+      );
+    }
+    const report = MonthlyReport.open(month);
+    this.chain.push(report);
+    return report;
+  }
+
+  report(month: YearMonth): MonthlyReport {
+    return this.chain[this.indexOf(month)] as MonthlyReport;
+  }
+
+  /**
+   * Balances of any opened month. A closed month answers with its snapshot, as frozen; an
+   * open month opens with the previous month's closing balance (itself live if still open).
+   */
+  balancesOf(month: YearMonth, live: LiveTotals): MonthBalances {
+    const index = this.indexOf(month);
+    const report = this.chain[index] as MonthlyReport;
+    if (report.snapshot) return report.snapshot;
+
+    let openingBalance = this.start.openingBalance;
+    for (const earlier of this.chain.slice(0, index)) {
+      openingBalance =
+        earlier.snapshot?.closingBalance ?? closingBalanceOf(openingBalance, live(earlier.month));
+    }
+    return { openingBalance, closingBalance: closingBalanceOf(openingBalance, live(month)) };
+  }
+
+  /**
+   * Why a month cannot be closed on `today`, or null if it can. A month closes once it is
+   * over (its rows may still come until its last day) and after the month before it.
+   */
+  closingBlocker(month: YearMonth, today: LocalDate): ConflictError | null {
+    const index = this.chain.findIndex((r) => r.month.equals(month));
+    const report = this.chain[index];
+    if (!report) return new ConflictError('MONTH_NOT_OPENED', `${month} has not been opened`);
+    if (!report.isOpen) return new ConflictError('MONTH_ALREADY_CLOSED', `${month} is closed`);
+    if (!today.isAfter(LocalDate.lastOf(month))) {
+      return new ConflictError('MONTH_IN_PROGRESS', `${month} is not over on ${today}`);
+    }
+    const previous = this.chain[index - 1];
+    if (previous?.isOpen) {
+      return new ConflictError('PREVIOUS_MONTH_OPEN', `Close ${previous.month} before ${month}`);
+    }
+    return null;
+  }
+
+  /**
+   * Closes a month with its live totals, then restates the later closed months that follow
+   * it without a gap. Returns every report that changed, for persistence.
+   */
+  closeMonth(month: YearMonth, live: LiveTotals, today: LocalDate): MonthlyReport[] {
+    const blocker = this.closingBlocker(month, today);
+    if (blocker) throw blocker;
+    const index = this.indexOf(month);
+    const previous = this.chain[index - 1];
+    const report = this.chain[index] as MonthlyReport;
+    const openingBalance = previous?.snapshot?.closingBalance ?? this.start.openingBalance;
+    let carried = report.close(openingBalance, live(month)).closingBalance;
+
+    const changed = [report];
+    for (const later of this.chain.slice(index + 1)) {
+      if (later.isOpen) break; // its balances are live; it cascades when it closes
+      carried = later.restate(carried).closingBalance;
+      changed.push(later);
+    }
+    return changed;
+  }
+
+  reopenMonth(month: YearMonth): MonthlyReport {
+    const report = this.report(month);
+    report.reopen();
+    return report;
+  }
+
+  private indexOf(month: YearMonth): number {
+    const index = this.chain.findIndex((r) => r.month.equals(month));
+    if (index < 0) throw new NotFoundError('REPORT_NOT_FOUND', `${month} has not been opened`);
+    return index;
+  }
+}

@@ -1,0 +1,292 @@
+// Persistence model. Conventions (docs/adr/0012-persistencia.md):
+// - Money is integer centavos (Int).
+// - Calendar dates are DATE. Months (YearMonth) are DATE on the first day of the month,
+//   enforced by CHECK constraints in the migration.
+// - Tables and columns are snake_case; the domain never sees these types.
+// - Constraints Prisma cannot express (CHECKs, exclusion constraints, the audit trigger)
+//   live in the migration SQL.
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/platform/prisma/generated"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MovementCategory {
+  UNIT_PAYMENT
+  OTHER_INCOME
+  GARBAGE
+  CLEANING
+  OTHER_EXPENSE
+
+  @@map("movement_category")
+}
+
+enum DelegationReason {
+  SKIPPED_SHIFT
+  INACTIVE_UNIT
+  OTHER
+
+  @@map("delegation_reason")
+}
+
+enum ChargeType {
+  MAINTENANCE_FEE
+  SHIFT_SKIP_PENALTY
+
+  @@map("charge_type")
+}
+
+enum Role {
+  SUPERADMIN
+  OWNER
+  /// Sees what an owner sees and never writes: a tenant, a relative, an accountant.
+  READER
+
+  @@map("role")
+}
+
+/// Who a change is recorded under: a user's role, or the app itself for scheduled jobs.
+/// Separate from Role so that no user can ever be the system.
+enum AuditActorRole {
+  SUPERADMIN
+  OWNER
+  SYSTEM
+  READER
+
+  @@map("audit_actor_role")
+}
+
+enum RateName {
+  MAINTENANCE_FEE
+  CLEANING_PER_VISIT
+  GARBAGE_WEEKLY
+  SHIFT_SKIP_PENALTY
+
+  @@map("rate_name")
+}
+
+model Unit {
+  number    Int     @id
+  /// As the monthly report shows it; set by the superadmin.
+  ownerName String? @map("owner_name")
+
+  inactivePeriods  UnitInactivePeriod[]
+  movements        CashMovement[]
+  charges          Charge[]
+  openingCredit    OpeningCredit?
+  delegationsGiven ShiftDelegation[]    @relation("original")
+  delegationsTaken ShiftDelegation[]    @relation("delegate")
+  users            User[]
+
+  @@map("unit")
+}
+
+/// "user" is a reserved word in PostgreSQL, hence app_user.
+model User {
+  id                 String   @id @db.Uuid
+  username           String   @unique
+  role               Role
+  /// An owner's depto (one owner per depto), or a read-only user's (any number); null for
+  /// the superadmin and for a read-only user tied to no depto.
+  unitNumber         Int?     @map("unit_number")
+  /// Null until the superadmin gives the owner a first (temporary) password.
+  passwordHash       String?  @map("password_hash")
+  mustChangePassword Boolean  @default(false) @map("must_change_password")
+  /// A temporary user's last day; null for no end.
+  expiresOn          DateTime? @map("expires_on") @db.Date
+  /// Deactivated by the superadmin: it cannot sign in until reactivated.
+  disabled           Boolean  @default(false)
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  unit          Unit?          @relation(fields: [unitNumber], references: [number], onDelete: Restrict)
+  refreshTokens RefreshToken[]
+
+  @@map("app_user")
+}
+
+/// One link of a session's rotation chain. Only the SHA-256 of the token is stored.
+model RefreshToken {
+  id        String    @id @db.Uuid
+  sessionId String    @map("session_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz
+  rotatedAt DateTime? @map("rotated_at") @db.Timestamptz
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([userId])
+  @@map("refresh_token")
+}
+
+model UnitInactivePeriod {
+  id         String    @id @db.Uuid
+  unitNumber Int       @map("unit_number")
+  fromMonth  DateTime  @map("from_month") @db.Date
+  toMonth    DateTime? @map("to_month") @db.Date
+
+  unit Unit @relation(fields: [unitNumber], references: [number])
+
+  @@index([unitNumber])
+  @@map("unit_inactive_period")
+}
+
+model ShiftDelegation {
+  id           String           @id @db.Uuid
+  fromMonth    DateTime         @map("from_month") @db.Date
+  toMonth      DateTime         @map("to_month") @db.Date
+  originalUnit Int              @map("original_unit")
+  delegateUnit Int              @map("delegate_unit")
+  reason       DelegationReason
+  cancelledAt  DateTime?        @map("cancelled_at") @db.Timestamptz
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz
+
+  original Unit @relation("original", fields: [originalUnit], references: [number])
+  delegate Unit @relation("delegate", fields: [delegateUnit], references: [number])
+
+  @@index([fromMonth])
+  @@map("shift_delegation")
+}
+
+model RateChange {
+  rate          RateName
+  effectiveFrom DateTime @map("effective_from") @db.Date
+  amount        Int
+
+  @@id([rate, effectiveFrom])
+  @@map("rate_change")
+}
+
+/// Singleton row: the cut-over month and the cash on hand at its start.
+model ReportingStart {
+  id             Int      @id @default(1) @db.SmallInt
+  month          DateTime @db.Date
+  openingBalance Int      @map("opening_balance")
+  /// The first month kept live (fees, accounts, shifts, audit); earlier months are history.
+  cutover        DateTime @db.Date
+
+  @@map("reporting_start")
+}
+
+model CashMovement {
+  id          String           @id @db.Uuid
+  date        DateTime         @db.Date
+  category    MovementCategory
+  amount      Int
+  description String?
+  unitNumber  Int?             @map("unit_number")
+  /// Garbage rows only: the Monday of the week the row pays for.
+  coversWeek  DateTime?        @map("covers_week") @db.Date
+  removedAt   DateTime?        @map("removed_at") @db.Timestamptz
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+
+  unit Unit? @relation(fields: [unitNumber], references: [number], onDelete: Restrict)
+
+  @@index([date])
+  @@index([unitNumber, date])
+  @@map("cash_movement")
+}
+
+model Charge {
+  unitNumber Int        @map("unit_number")
+  month      DateTime   @db.Date
+  type       ChargeType
+  amount     Int
+
+  unit Unit @relation(fields: [unitNumber], references: [number])
+
+  @@id([unitNumber, month, type])
+  @@index([month])
+  @@map("charge")
+}
+
+/// Initial load: what a depto had paid in advance when the books started. Its debts from
+/// before then are ordinary charges dated before the start month.
+model OpeningCredit {
+  unitNumber Int      @id @map("unit_number")
+  /// The first month of the books; the credit counts as paid the day before it.
+  month      DateTime @db.Date
+  amount     Int
+
+  unit Unit @relation(fields: [unitNumber], references: [number])
+
+  @@map("opening_credit")
+}
+
+/// A month exists once opened. All snapshot columns are null while open and set when closed.
+model MonthlyReport {
+  month          DateTime  @id @db.Date
+  closedAt       DateTime? @map("closed_at") @db.Timestamptz
+  openingBalance Int?      @map("opening_balance")
+  income         Int?
+  expense        Int?
+  closingBalance Int?      @map("closing_balance")
+
+  @@map("monthly_report")
+}
+
+/// Append-only: a trigger rejects UPDATE, DELETE and TRUNCATE (see the migration).
+/// Who acted and what was touched are copied in, not referenced: the log must read the
+/// same years later, whatever happens to the users and rows it mentions.
+model AuditLog {
+  id          BigInt         @id @default(autoincrement())
+  occurredAt  DateTime       @default(now()) @map("occurred_at") @db.Timestamptz
+  actorId     String         @map("actor_id")
+  actorRole   AuditActorRole @map("actor_role")
+  /// The owner's depto; null for the superadmin.
+  actorUnit   Int?           @map("actor_unit")
+  action      String
+  entity      String
+  entityId    String         @map("entity_id")
+  entityLabel String         @map("entity_label")
+  /// [{ field, before, after }] or [{ field, redacted: true }]
+  changes     Json
+
+  @@index([entity, entityId])
+  @@index([occurredAt])
+  @@map("audit_log")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The building's history (ADR-0023): the months from the start of the books to the
+// cut-over are ordinary months of the books, transcribed from the paper sheets. What the
+// rows cannot hold, each sheet's own figures and its line per depto, is kept here so the
+// month can be checked against its paper and its report reads like the sheet.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// One paper sheet: a month, or the part of one that an administrator handed over mid-month.
+/// Its figures are what the paper says (null where the paper is missing or unreadable).
+model PaperSheet {
+  id           String   @id @db.Uuid
+  month        DateTime @db.Date
+  /// Day of the month the sheet starts on (1, or e.g. 10 for a mid-month handover).
+  fromDay      Int      @map("from_day") @db.SmallInt
+  /// Where it was transcribed from (a PDF page or a photo).
+  source       String
+  /// Who the sheet says administered it («Responsable: …»), as written.
+  responsible  String?
+  paperOpening Int?     @map("paper_opening")
+  paperIncome  Int?     @map("paper_income")
+  paperExpense Int?     @map("paper_expense")
+  paperClosing Int?     @map("paper_closing")
+  /// Transcription remarks: what does not add up, what is missing.
+  alerts       String[]
+  /// [{ unit, ownerName, current, other, text }]: the sheet's line per depto, as written.
+  lines        Json
+  /// The rows the sheet lists (from the import); other rows of its month go by their date.
+  movementIds  String[] @map("movement_ids") @db.Uuid
+
+  @@unique([month, fromDay])
+  @@map("paper_sheet")
+}

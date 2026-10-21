@@ -1,0 +1,31 @@
+packages:
+  - backend
+  - frontend
+  - e2e
+  - packages/*
+
+# pnpm blocks dependency build scripts unless they are listed here.
+allowBuilds:
+  # Downloads the schema engine binary that `prisma migrate` needs.
+  '@prisma/engines': true
+  # The rest only verify or repair native binaries that already arrive through
+  # optionalDependencies, print notices, or build optional native add-ons that
+  # Testcontainers' SSH transport does not need locally.
+  esbuild: false
+  unrs-resolver: false
+  prisma: false
+  protobufjs: false
+  ssh2: false
+  cpu-features: false
+
+# Patched releases of transitive dependencies with known advisories (pnpm audit --prod),
+# within the ranges their parents accept. Drop each one once its parent requires it.
+overrides:
+  # IP spoofing through IPv4-mapped IPv6 addresses in Express' trust proxy (critical).
+  proxy-addr: ^2.0.8
+  # Denial of service and array-limit bypass in query string parsing (Express).
+  qs: ^6.16.0
+  # URI authority injection and host confusion (ajv, through Prisma).
+  fast-uri: ^3.1.8
+  # Event-loop denial of service on crafted source maps.
+  source-map-js: ^1.2.2
