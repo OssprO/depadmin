@@ -23,6 +23,7 @@ import {
 import type { ReactNode } from 'react';
 import { Brand } from '@/components/Brand';
 import { Button } from '@/components/ui/button';
+import { SystemStatus } from '@/features/system-status/SystemStatus';
 import { buildingToday } from '@/lib/format';
 import { useWideScreen } from '@/lib/use-media-query';
 import { useCurrentUser } from '@/lib/use-session';
@@ -130,6 +131,9 @@ export function AppLayout() {
             )}
             <SideItem to="/account" icon={<UserCircleIcon />} label="Mi cuenta" />
           </nav>
+          <footer className="mt-auto border-t px-3 pt-4">
+            <SystemStatus />
+          </footer>
         </aside>
       )}
       <div

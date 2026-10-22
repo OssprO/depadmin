@@ -30,5 +30,6 @@ Cada ADR documenta una decisión: el contexto, lo que se decidió y sus consecue
 | [0024](0024-captura-y-apariencia.md)                | Capturar como en el papel, y una apariencia que sigue al sistema | Aceptado             |
 | [0025](0025-usuarios-de-solo-lectura.md)            | Usuarios de solo lectura, temporales y desactivados              | Aceptado             |
 | [0026](0026-despliegue-con-nginx.md)                | Despliegue detrás del nginx del VPS                              | Aceptado             |
+| [0027](0027-versiones.md)                           | Versiones semánticas a partir de los commits                     | Aceptado             |
 
 Plantilla: copia cualquier ADR y conserva las secciones _Contexto_, _Decisión_ y _Consecuencias_.

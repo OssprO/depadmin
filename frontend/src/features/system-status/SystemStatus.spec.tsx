@@ -1,13 +1,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { SystemStatusCard } from './SystemStatusCard';
+import { SystemStatus } from './SystemStatus';
 
-function renderCard() {
+function renderStatus() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <SystemStatusCard />
+      <SystemStatus />
     </QueryClientProvider>,
   );
 }
@@ -16,7 +16,7 @@ function mockFetch(response: Response) {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
 }
 
-describe('SystemStatusCard', () => {
+describe('SystemStatus', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
@@ -31,7 +31,7 @@ describe('SystemStatusCard', () => {
       }),
     );
 
-    renderCard();
+    renderStatus();
 
     expect(await screen.findByText('En línea')).toBeInTheDocument();
     expect(screen.getByText('1.4.0')).toBeInTheDocument();
@@ -41,7 +41,7 @@ describe('SystemStatusCard', () => {
   it('offers a retry when the API is unreachable', async () => {
     mockFetch(new Response(null, { status: 502 }));
 
-    renderCard();
+    renderStatus();
 
     expect(await screen.findByText('Sin conexión')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /reintentar/i })).toBeInTheDocument();
@@ -50,7 +50,7 @@ describe('SystemStatusCard', () => {
   it('treats a response that breaks the shared contract as an error', async () => {
     mockFetch(Response.json({ status: 'ok' }));
 
-    renderCard();
+    renderStatus();
 
     expect(await screen.findByText('Sin conexión')).toBeInTheDocument();
   });

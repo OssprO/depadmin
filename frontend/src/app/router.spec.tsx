@@ -56,7 +56,7 @@ describe('navigation and session', () => {
     );
   });
 
-  it('shows every section in a side menu from a tablet up, and no bottom bar', async () => {
+  it('shows every section in a side menu from a tablet up, the system at its foot', async () => {
     vi.stubGlobal(
       'matchMedia',
       (query: string) =>
@@ -69,6 +69,7 @@ describe('navigation and session', () => {
     fakeApi({
       'POST /api/auth/refresh': sessionFor(superadmin),
       'GET /api/users': () => Response.json([]),
+      'GET /api/health': health,
     });
     renderApp('/admin/users');
 
@@ -89,11 +90,15 @@ describe('navigation and session', () => {
       'Mi cuenta',
     ]);
     expect(screen.queryByRole('link', { name: 'Más' })).not.toBeInTheDocument();
+    const status = screen.getByRole('region', { name: 'Estado del sistema' });
+    expect(status.closest('aside')).toContainElement(menu);
+    expect(await within(status).findByText('1.0.0')).toBeInTheDocument();
   });
 
   it('greets a read-only user by name and offers no administration', async () => {
     fakeApi({
       'POST /api/auth/refresh': sessionFor(tenant302),
+      'GET /api/health': health,
     });
     renderApp('/account');
 
@@ -102,6 +107,9 @@ describe('navigation and session', () => {
     await userEvent.click(screen.getByRole('link', { name: 'Más' }));
     expect(await screen.findByRole('heading', { name: 'Más' })).toBeInTheDocument();
     expect(screen.queryByText('Administración')).not.toBeInTheDocument();
+    // On the phone the state of the system is at the foot of «Más».
+    const status = screen.getByRole('region', { name: 'Estado del sistema' });
+    expect(await within(status).findByText('1.0.0')).toBeInTheDocument();
   });
 
   it('explains a failed login', async () => {
