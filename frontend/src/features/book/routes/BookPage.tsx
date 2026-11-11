@@ -104,10 +104,15 @@ export function BookPage({ month }: { month: string }) {
       )}
       {data && data.status === 'NOT_OPENED' && <OpenMonthCard report={data} />}
       {data && data.status !== 'NOT_OPENED' && (
-        // One column on the phone and tablet. On a desktop the rows take the right column and
-        // everything about the month stays on the left.
-        <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start lg:gap-6">
-          <section aria-label="El mes" className="flex flex-col gap-4 lg:col-start-1">
+        // One column on the phone and tablet. On a desktop the rows take the left column and
+        // everything about the month stacks on the right: the rows span every row of the grid
+        // and the last one (1fr) takes their extra height, so the two sections on the right
+        // stay together however long the list is.
+        <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:grid-rows-[auto_auto_1fr] lg:items-start lg:gap-6">
+          <section
+            aria-label="El mes"
+            className="flex flex-col gap-4 lg:col-start-2 lg:row-start-1"
+          >
             <MonthSummary report={data} />
             {data.historical && <PaperCard month={month} />}
             <ReportPdfActions report={data} />
@@ -123,7 +128,7 @@ export function BookPage({ month }: { month: string }) {
           </section>
           <section
             aria-label="Movimientos"
-            className="flex flex-col gap-4 lg:col-start-2 lg:row-span-2 lg:row-start-1"
+            className="flex flex-col gap-4 lg:col-start-1 lg:row-span-3 lg:row-start-1"
           >
             {data.canWrite && wide && <div className="flex justify-end">{addButton}</div>}
             <MovementList
@@ -135,7 +140,10 @@ export function BookPage({ month }: { month: string }) {
               }
             />
           </section>
-          <section aria-label="Limpieza y cierre" className="flex flex-col gap-4 lg:col-start-1">
+          <section
+            aria-label="Limpieza y cierre"
+            className="flex flex-col gap-4 lg:col-start-2 lg:row-start-2"
+          >
             <CleaningCard
               report={data}
               onMarkVisits={data.canWrite ? () => setEditing({ kind: 'visits' }) : undefined}
