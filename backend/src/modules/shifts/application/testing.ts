@@ -78,7 +78,7 @@ export function shiftsFixture(today: string, inactive: Record<number, YearMonthR
     audit,
     delegations,
     charges,
-    calendar: new GetShiftCalendar(calendars, clock),
+    calendar: new GetShiftCalendar(calendars, clock, months),
     delegate: new DelegateShift(
       delegations,
       unitOfWork,

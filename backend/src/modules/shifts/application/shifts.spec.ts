@@ -51,6 +51,26 @@ describe('GetShiftCalendar', () => {
     expect(months[1]?.responsibleUnits.map((unit) => unit.value)).toEqual([502, 501]);
   });
 
+  it('does not offer the closed months, which DelegateShift refuses', async () => {
+    const fx = shiftsFixture('2026-11-12');
+    fx.months.set('2026-10', 'CLOSED').set('2026-11', 'OPEN');
+
+    const months = await fx.calendar.execute(admin, m('2026-10'), m('2026-12'));
+    expect(summary(months)).toEqual([
+      '2026-10 502 -',
+      '2026-11 502 delegable',
+      '2026-12 401 delegable',
+    ]);
+    await expect(
+      fx.delegate.execute(admin, {
+        from: m('2026-10'),
+        to: m('2026-11'),
+        delegateUnit: u(101),
+        reason: 'OTHER',
+      }),
+    ).rejects.toThrow(withCode('DELEGATION_MONTH_CLOSED'));
+  });
+
   it('rejects reversed or very long ranges', async () => {
     const fx = shiftsFixture('2026-09-15');
 

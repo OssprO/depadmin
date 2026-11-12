@@ -3,6 +3,8 @@ import {
   type Actor,
   CLOCK,
   type Clock,
+  MONTH_LEDGER,
+  type MonthLedger,
   ValidationError,
   WriteAccessPolicy,
   type YearMonth,
@@ -26,6 +28,7 @@ export class GetShiftCalendar {
   constructor(
     private readonly calendars: LoadShiftCalendar,
     @Inject(CLOCK) private readonly clock: Clock,
+    @Inject(MONTH_LEDGER) private readonly ledger: MonthLedger,
   ) {}
 
   async execute(actor: Actor, from: YearMonth, to: YearMonth): Promise<CalendarMonth[]> {
@@ -36,13 +39,30 @@ export class GetShiftCalendar {
       );
     }
     const calendar = await this.calendars.execute(from, to);
+    const closed = await this.closedMonths(from.through(to));
     return from.through(to).map((month) => {
       const assignment = calendar.assignmentFor(month);
-      return { ...assignment, canDelegate: this.canDelegate(actor, assignment, calendar) };
+      const canDelegate =
+        !closed.has(String(month)) && this.canDelegate(actor, assignment, calendar);
+      return { ...assignment, canDelegate };
     });
   }
 
-  /** The current month, the first month of the next period, and today's date. */
+  /**
+   * The months `DelegateShift` would refuse because they are closed. Only a month that is
+   * over can be closed, so the current month and the ones ahead are not asked about.
+   */
+  private async closedMonths(months: readonly YearMonth[]): Promise<Set<string>> {
+    const thisMonth = this.clock.today().yearMonth;
+    const past = months.filter((month) => month.isBefore(thisMonth));
+    const statuses = await Promise.all(past.map((month) => this.ledger.statusOf(month)));
+    return new Set(past.filter((_, i) => statuses[i] === 'CLOSED').map(String));
+  }
+
+  /**
+   * The current month, the first month of the next period, and today's date. Neither month
+   * is over, so neither can be closed.
+   */
   async current(actor: Actor) {
     const today = this.clock.today();
     const month = today.yearMonth;
@@ -60,7 +80,8 @@ export class GetShiftCalendar {
   /**
    * Mirrors the checks `DelegateShift` makes, so the screen offers the action only where it
    * would succeed: no active delegation yet, and for an owner, a handover of the period
-   * that follows theirs while they can still act on it.
+   * that follows theirs while they can still act on it. `execute` also leaves out the
+   * closed months.
    */
   private canDelegate(actor: Actor, assignment: ShiftAssignment, calendar: ShiftCalendar): boolean {
     if (assignment.delegation || assignment.beforeRotation) return false;
