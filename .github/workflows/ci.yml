@@ -50,6 +50,20 @@ jobs:
           path: e2e/test-results/
           retention-days: 7
 
+  # Known advisories in what production runs (docs/SEGURIDAD.md). A job of its own: a new
+  # advisory shows up here without hiding whether the tests pass. Fix it with an update or
+  # an override in pnpm-workspace.yaml; accept one only through auditConfig.ignoreGhsas there.
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - run: pnpm audit --prod --audit-level high
+
   # The production images (Dockerfile) still build. They are published only from main, by
   # the Deploy workflow, which reuses this cache.
   images:

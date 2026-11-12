@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { withCode } from '../../../../test/support/domain-error.js';
 import { Instant } from '../../../shared-kernel/index.js';
-import { REFRESH_TOKEN_LIFETIME_DAYS, RefreshToken } from './refresh-token.js';
+import {
+  REFRESH_REUSE_GRACE_SECONDS,
+  REFRESH_TOKEN_LIFETIME_DAYS,
+  RefreshToken,
+} from './refresh-token.js';
 
 const now = Instant.ofEpochMillis(Date.parse('2026-10-13T12:00:00Z'));
 const session = { id: 'session-1', userId: 'u-501' };
@@ -23,6 +27,7 @@ describe('RefreshToken', () => {
 
     expect(rotated.stateAt(later)).toBe('ROTATED');
     expect(rotated.rotatedAt).toEqual(later);
+    expect(rotated.replacedById).toBe('t2');
     expect(next).toMatchObject({ id: 't2', tokenHash: 'h2', sessionId: 'session-1' });
     expect(next.expiresAt).toEqual(later.plusDays(REFRESH_TOKEN_LIFETIME_DAYS));
     expect(next.stateAt(later)).toBe('ACTIVE');
@@ -44,10 +49,36 @@ describe('RefreshToken', () => {
       tokenHash: 'h1',
       expiresAt: now,
       rotatedAt: now,
+      replacedById: 't2',
       revokedAt: now,
     });
 
     expect(token.stateAt(now.plusDays(1))).toBe('REVOKED');
     expect(token.revokedAt).toEqual(now);
+  });
+
+  it('is forgivable only for a short while after its rotation', () => {
+    const { rotated, next } = issued().rotate({ id: 't2', tokenHash: 'h2' }, now);
+    const margin = now.plusSeconds(REFRESH_REUSE_GRACE_SECONDS);
+
+    expect(rotated.isForgivableAt(margin.plusSeconds(-1))).toBe(true);
+    expect(rotated.isForgivableAt(margin)).toBe(false);
+    expect(next.isForgivableAt(now)).toBe(false);
+  });
+
+  it('is never forgivable once revoked, or without a known successor', () => {
+    const rotated = {
+      id: 't1',
+      sessionId: 'session-1',
+      userId: 'u-501',
+      tokenHash: 'h1',
+      expiresAt: now.plusDays(1),
+      rotatedAt: now,
+    };
+    const revoked = RefreshToken.restore({ ...rotated, replacedById: 't2', revokedAt: now });
+    const older = RefreshToken.restore({ ...rotated, replacedById: null, revokedAt: null });
+
+    expect(revoked.isForgivableAt(now)).toBe(false);
+    expect(older.isForgivableAt(now)).toBe(false);
   });
 });

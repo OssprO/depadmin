@@ -4,7 +4,7 @@ import {
   type SessionResponse,
   sessionResponseSchema,
 } from '@depadmin/shared';
-import { readApiError } from './api-error';
+import { ApiError, readApiError } from './api-error';
 import { send } from './transport';
 
 export type SessionState =
@@ -13,6 +13,10 @@ export type SessionState =
   | { readonly status: 'authenticated'; readonly user: CurrentUser; readonly accessToken: string };
 
 const REFRESH_LOCK = 'depadmin-refresh';
+/** How long to wait before asking for a refresh again when the first one got no answer. */
+export const REFRESH_RETRY_DELAY_MS = 1000;
+/** Answers from the proxies in front of the API, which may have handled the request. */
+const GATEWAY_ERRORS = new Set([502, 503, 504]);
 
 /**
  * The signed-in user and their access token, kept only in memory: a page reload loses it
@@ -82,7 +86,7 @@ export class SessionStore {
   }
 
   private async requestRefresh(): Promise<string | null> {
-    const response = await post('/api/auth/refresh');
+    const response = await postRefresh();
     if (response.status === 401) {
       this.set({ status: 'anonymous' });
       return null;
@@ -100,6 +104,23 @@ export class SessionStore {
 
 function post(url: string, body?: unknown): Promise<Response> {
   return send(url, { method: 'POST', body });
+}
+
+/**
+ * A refresh that got no answer may still have rotated the token on the server, so the
+ * cookie may now hold a token that was just exchanged. The API forgives presenting it once
+ * more within a few seconds (`REFRESH_REUSE_GRACE_SECONDS`), so one retry is safe and
+ * spares the user a sign-in after a dropped connection.
+ */
+async function postRefresh(): Promise<Response> {
+  try {
+    const response = await post('/api/auth/refresh');
+    if (!GATEWAY_ERRORS.has(response.status)) return response;
+  } catch (error) {
+    if (!(error instanceof ApiError && error.code === 'NETWORK_ERROR')) throw error;
+  }
+  await new Promise((resolve) => setTimeout(resolve, REFRESH_RETRY_DELAY_MS));
+  return post('/api/auth/refresh');
 }
 
 function withLock<T>(name: string, work: () => Promise<T>): Promise<T> {
