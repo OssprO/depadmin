@@ -1,10 +1,10 @@
 # Plan de trabajo — Etapa 2
 
-**Versión:** 1.0 (borrador para aprobar) · **Fecha:** 2026-10-14 · **Base:** `docs/PLAN.md` v2.1
+**Versión:** 1.1 (cerrada) · **Fecha:** 2026-11-12 · **Base:** `docs/PLAN-ETAPA-1.md` v2.1
 
 La Etapa 1 dejó la plataforma completa en local; solo falta publicarla (fase 5). Esta etapa agrega lo que pidió el administrador del sistema después de usarla: el historial completo del edificio, más tipos de usuario, pantallas para tableta y escritorio, herramientas, recuperación de contraseña, avisos por WhatsApp y una guía para los dueños.
 
-El modo de trabajo no cambia: una fase por PR, con el porqué de cada decisión, pruebas y aprobación antes de seguir. La numeración continúa la de `docs/PLAN.md`.
+El modo de trabajo no cambia: una fase por PR, con el porqué de cada decisión, pruebas y aprobación antes de seguir. La numeración continúa la de `docs/PLAN-ETAPA-1.md`.
 
 ---
 
@@ -18,10 +18,10 @@ El modo de trabajo no cambia: una fase por PR, con el porqué de cada decisión,
 | 15   | Herramientas: contador de efectivo                       | Pequeña e independiente; estrena la sección _Herramientas_ ya con el diseño nuevo                                                                                          |
 | 5    | Despliegue (de la Etapa 1)                               | Requisito para WhatsApp y para que los dueños usen la app; necesita el dominio                                                                                             |
 | 18   | Guía de usuario para los dueños                          | Antes del 1 de diciembre de 2026, cuando el turno pasa a 401; las capturas se regeneran con Playwright, así que no hace falta esperar a que las pantallas dejen de cambiar |
-| 16   | Archivo de documentos                                    | Pospuesta (noviembre 2026); guarda los PDF y fotos originales y necesita almacenamiento en disco y respaldos                                                               |
-| 17   | WhatsApp: recuperación de contraseña y libros            | Pospuesta (noviembre 2026); necesita un número de WhatsApp Business y plantillas aprobadas por Meta                                                                        |
+| 16   | Archivo de documentos                                    | Pasa a la Etapa 3 (`docs/PLAN-ETAPA-3.md`), junto con los comprobantes adjuntos del libro                                                                                  |
+| 17   | WhatsApp: recuperación de contraseña y libros            | Descartada (noviembre 2026) por costo y mantenimiento; la Etapa 3 usa correo (fase 24)                                                                                     |
 
-Las fases 14 y 15 no dependen entre sí y se pueden reordenar. La 17 depende de la 5. En noviembre 2026 la 18 pasó antes de la 16 y la 17, que quedan para después.
+Las fases 14 y 15 no dependen entre sí y se pueden reordenar. La 17 depende de la 5. En noviembre 2026 la 18 pasó antes de la 16 y la 17. Al cerrar la etapa, la 16 pasó a la Etapa 3 y la 17 se descartó: el correo la reemplaza.
 
 ---
 
@@ -121,6 +121,8 @@ Nueva sección _Herramientas_ (en «Más» en el celular y en el menú lateral d
 
 ### Fase 16: Archivo de documentos
 
+**Pasa a la Etapa 3,** junto con los comprobantes adjuntos del libro (`docs/PLAN-ETAPA-3.md`).
+
 - Sección _Documentos_: los PDF y fotos originales de los balances, el reglamento interno y el rol de administración, para verlos y descargarlos.
 - El superadmin sube, renombra y borra; todos los demás ven y descargan.
 - Cada mes importado (fase 12) enlaza a la hoja de donde salió.
@@ -130,9 +132,11 @@ Nueva sección _Herramientas_ (en «Más» en el celular y en el menú lateral d
 
 ### Fase 5: Despliegue
 
-**Hecha (ADR-0026):** en el VPS Ubuntu del administrador, en `https://depadmin.osspro.site`, detrás de su nginx. El paso a paso está en `docs/DESPLIEGUE.md`, y el resumen en `docs/PLAN.md`. Incluye los pendientes de despliegue de `docs/SEGURIDAD.md`.
+**Hecha (ADR-0026):** en el VPS Ubuntu del administrador, en `https://depadmin.osspro.site`, detrás de su nginx. El paso a paso está en `docs/DESPLIEGUE.md`, y el resumen en `docs/PLAN-ETAPA-1.md`. Incluye los pendientes de despliegue de `docs/SEGURIDAD.md`.
 
 ### Fase 17: WhatsApp: recuperación de contraseña y libros mensuales
+
+**Descartada** en noviembre 2026: un número de WhatsApp Business, las plantillas de Meta y el cobro por mensaje no caben en el presupuesto de un proyecto personal. La recuperación de contraseña y los avisos van por correo en la Etapa 3 (fases 24 y 25).
 
 Ver la sección 3. En resumen:
 
@@ -211,13 +215,13 @@ Fuentes: [precios de la plataforma de WhatsApp Business (Meta)](https://develope
 
 Cada una tiene un valor por defecto para no bloquear el avance.
 
-| #   | Pregunta                                                                            | Valor por defecto                                                                                                        | Fase |
-| --- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ---- |
-| 11  | ¿Cómo entra el historial?                                                           | **Respondida:** dentro de los libros, desde mayo 2022; antes de agosto 2026 sin cuotas, cuentas ni bitácora de renglones | 12   |
-| 12  | ¿Aparecen las hojas que faltan (sección 4)?                                         | **Respondida:** aparecieron todas y ya están en el archivo de importación                                                | 12   |
-| 13  | ¿La carga inicial de agosto 2026 sale del balance de julio 2026?                    | **Respondida:** el superadmin captura los adeudos y adelantos; la caja sale del cierre de julio                          | 12   |
-| 14  | ¿Un usuario de solo lectura ve todo, como un dueño, o solo lo de su depto?          | **Respondida:** ve todo, como los dueños                                                                                 | 14   |
-| 15  | ¿El contador de efectivo incluye monedas de 20¢ y 10¢?                              | **Respondida:** no; llega hasta 50¢                                                                                      | 15   |
-| 16  | ¿Los vecinos tienen correo, o WhatsApp es el único canal realista?                  | WhatsApp como canal principal; el superadmin como respaldo                                                               | 17   |
-| 17  | ¿Quién pone el número de WhatsApp Business y la cuenta de Meta?                     | El superadmin, con un chip dedicado                                                                                      | 17   |
-| 18  | ¿Qué dicen las OBSERVACIONES del reporte cuando el administrador escribe las suyas? | **Respondida (opción b):** las del administrador; sin ellas, las que sugiere la cuenta o las de la hoja                  | 13   |
+| #   | Pregunta                                                                            | Valor por defecto                                                                                                               | Fase |
+| --- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 11  | ¿Cómo entra el historial?                                                           | **Respondida:** dentro de los libros, desde mayo 2022; antes de agosto 2026 sin cuotas, cuentas ni bitácora de renglones        | 12   |
+| 12  | ¿Aparecen las hojas que faltan (sección 4)?                                         | **Respondida:** aparecieron todas y ya están en el archivo de importación                                                       | 12   |
+| 13  | ¿La carga inicial de agosto 2026 sale del balance de julio 2026?                    | **Respondida:** el superadmin captura los adeudos y adelantos; la caja sale del cierre de julio                                 | 12   |
+| 14  | ¿Un usuario de solo lectura ve todo, como un dueño, o solo lo de su depto?          | **Respondida:** ve todo, como los dueños                                                                                        | 14   |
+| 15  | ¿El contador de efectivo incluye monedas de 20¢ y 10¢?                              | **Respondida:** no; llega hasta 50¢                                                                                             | 15   |
+| 16  | ¿Los vecinos tienen correo, o WhatsApp es el único canal realista?                  | **Respondida:** tienen correo (el superadmin tiene la lista y la va a corroborar); el correo reemplaza a WhatsApp en la Etapa 3 | 17   |
+| 17  | ¿Quién pone el número de WhatsApp Business y la cuenta de Meta?                     | **Ya no aplica:** la fase 17 se descartó                                                                                        | 17   |
+| 18  | ¿Qué dicen las OBSERVACIONES del reporte cuando el administrador escribe las suyas? | **Respondida (opción b):** las del administrador; sin ellas, las que sugiere la cuenta o las de la hoja                         | 13   |
