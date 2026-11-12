@@ -7,7 +7,7 @@
 // if there is none yet.
 //
 // The reporting start (cut-over month and cash on hand) is not seeded: it comes from the
-// initial load (docs/PLAN.md, phase 11).
+// initial load (docs/PLAN-ETAPA-1.md, phase 11).
 import { randomUUID } from 'node:crypto';
 import { PASSWORD_MIN_LENGTH } from '@depadmin/shared';
 import { User } from '../src/modules/identity/domain/index.js';
