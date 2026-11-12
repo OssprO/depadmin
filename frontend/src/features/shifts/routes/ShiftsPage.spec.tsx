@@ -85,8 +85,8 @@ describe('shifts', () => {
       'GET /api/shifts/current': () => Response.json(currentShift()),
       'GET /api/shifts/calendar': () =>
         Response.json([
-          shiftMonth('2026-10', { delegation: skip502 }),
-          shiftMonth('2026-11', { delegation: skip502 }),
+          shiftMonth('2026-10', { delegation: skip502, canCancel: true }),
+          shiftMonth('2026-11', { delegation: skip502, canCancel: true }),
         ]),
       [`POST /api/shifts/delegations/${skip502.id}/cancel`]: () => Response.json(skip502),
     });
@@ -102,5 +102,23 @@ describe('shifts', () => {
     await vi.waitFor(() =>
       expect(api.callsTo(`POST /api/shifts/delegations/${skip502.id}/cancel`)).toHaveLength(1),
     );
+  });
+
+  it('does not offer to cancel a delegation that covers a closed month', async () => {
+    fakeApi({
+      'POST /api/auth/refresh': sessionFor(superadmin),
+      'GET /api/shifts/current': () => Response.json(currentShift()),
+      'GET /api/shifts/calendar': () =>
+        Response.json([
+          shiftMonth('2026-10', { delegation: skip502 }),
+          shiftMonth('2026-11', { delegation: skip502 }),
+        ]),
+    });
+    renderApp('/shifts');
+
+    expect(
+      await screen.findByText('Depto 501 cubre a Depto 502 (no tomó el turno).'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Cancelar' })).not.toBeInTheDocument();
   });
 });

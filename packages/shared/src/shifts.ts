@@ -32,6 +32,8 @@ export const shiftMonthSchema = z.object({
   responsibleUnits: z.array(unitNumberSchema),
   /** Whether the caller can delegate this month now. */
   canDelegate: z.boolean(),
+  /** Whether the caller can cancel the month's delegation now. */
+  canCancel: z.boolean(),
 });
 export type ShiftMonth = z.infer<typeof shiftMonthSchema>;
 
