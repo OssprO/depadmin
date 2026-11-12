@@ -209,7 +209,7 @@ export const GUIDE: readonly GuideTopic[] = [
     title: 'Cerrar el mes y entregar el turno',
     summary: 'Del día 1 al 5 del mes siguiente',
     intro:
-      'Un mes se cierra cuando ya terminó, y siempre después del anterior. Tienes hasta el día 5 del mes que sigue a tu turno para cerrar tus meses; después solo puede el administrador.',
+      'Cada quien cierra solo los meses de su turno: el depto que te entrega el turno cierra los suyos, y tú los tuyos al terminar. Un mes se cierra cuando ya terminó, y siempre después del anterior. Tienes hasta el día 5 del mes que sigue a tu turno; después solo puede el administrador.',
     sections: [
       {
         steps: [

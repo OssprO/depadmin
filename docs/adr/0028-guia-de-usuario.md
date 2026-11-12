@@ -22,5 +22,5 @@ Una guía con capturas a mano se queda vieja en cuanto cambia una pantalla. El p
 
 - Cuando cambia una pantalla que la guía muestra, se corre `pnpm build` y luego `pnpm guide`, se revisan las imágenes nuevas y se suben con el cambio. Cada vez se vuelven a subir los binarios, así que conviene hacerlo solo cuando una pantalla cambia de verdad.
 - Las capturas muestran el mes en que se tomaron y datos de ejemplo, no los del edificio.
-- La instalación en el celular no tiene capturas, porque es el menú del navegador: son pasos escritos para Android (Chrome) y iPhone (Safari).
+- La instalación en el celular no tiene capturas, porque es el menú del navegador: son pasos escritos para Android (Chrome) y iPhone (Safari). Es la única parte que `pnpm guide` no comprueba; si Chrome o Safari renombran sus menús, hay que corregirla a mano.
 - `screens-accessibility.spec` revisa _Ayuda_ sin sesión, y una tarea con capturas en los tres tamaños y en los dos temas.
