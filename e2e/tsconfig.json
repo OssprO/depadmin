@@ -8,5 +8,5 @@
     "types": ["node"],
     "noEmit": true
   },
-  "include": ["*.ts", "tests", "support"]
+  "include": ["*.ts", "tests", "guide", "support"]
 }

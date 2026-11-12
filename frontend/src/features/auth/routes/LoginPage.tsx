@@ -1,6 +1,6 @@
 import { type LoginRequest, loginRequestSchema } from '@depadmin/shared';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { getRouteApi, useNavigate } from '@tanstack/react-router';
+import { getRouteApi, Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Brand } from '@/components/Brand';
@@ -84,9 +84,15 @@ export function LoginPage() {
           </form>
         </CardContent>
       </Card>
-      <p className="text-center text-xs text-muted-foreground">
-        ¿Olvidaste tu contraseña? Pídele al administrador una temporal.
-      </p>
+      <div className="flex flex-col items-center gap-2 text-center text-xs text-muted-foreground">
+        <p>¿Olvidaste tu contraseña? Pídele al administrador una temporal.</p>
+        <p>
+          ¿Es tu primera vez?{' '}
+          <Link to="/help" className="font-medium text-foreground underline underline-offset-4">
+            Lee la guía paso a paso
+          </Link>
+        </p>
+      </div>
     </main>
   );
 }

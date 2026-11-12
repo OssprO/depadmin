@@ -13,6 +13,8 @@ import {
 import { auditFiltersFrom } from '@/features/audit/filters';
 import { LoginPage } from '@/features/auth/routes/LoginPage';
 import { HomePage } from '@/features/dashboard/routes/HomePage';
+import { HelpLayout } from '@/features/help/components/HelpLayout';
+import { topicBySlug } from '@/features/help/guide';
 import { buildingToday } from '@/lib/format';
 import { safeRedirect } from '@/lib/safe-redirect';
 import type { SessionStore } from '@/lib/session';
@@ -53,6 +55,15 @@ const BookPage = lazyRouteComponent(() => import('@/features/book/routes/BookPag
 const ChangePasswordPage = lazyRouteComponent(
   () => import('@/features/auth/routes/ChangePasswordPage'),
   'ChangePasswordPage',
+);
+const HelpPage = lazyRouteComponent(() => import('@/features/help/routes/HelpPage'), 'HelpPage');
+const HelpPrintPage = lazyRouteComponent(
+  () => import('@/features/help/routes/HelpPrintPage'),
+  'HelpPrintPage',
+);
+const HelpTopicPage = lazyRouteComponent(
+  () => import('@/features/help/routes/HelpTopicPage'),
+  'HelpTopicPage',
 );
 const HistoryReviewPage = lazyRouteComponent(
   () => import('@/features/historical/routes/HistoryReviewPage'),
@@ -111,6 +122,42 @@ const loginRoute = createRoute({
     if (await context.session.restore()) throw redirect({ href: safeRedirect(search.redirect) });
   },
   component: LoginPage,
+});
+
+/** The user guide: public, so it also helps whoever cannot sign in. */
+const helpRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/help',
+  component: HelpLayout,
+});
+
+const helpIndexRoute = createRoute({
+  getParentRoute: () => helpRoute,
+  path: '/',
+  component: HelpPage,
+});
+
+/** The whole guide on one page, which e2e/guide/ prints to the PDF. */
+const helpPrintRoute = createRoute({
+  getParentRoute: () => helpRoute,
+  path: '/print',
+  component: HelpPrintPage,
+});
+
+const helpTopicRoute = createRoute({
+  getParentRoute: () => helpRoute,
+  path: '/$topic',
+  params: {
+    parse: ({ topic }) => {
+      if (!topicBySlug(topic)) throw notFound();
+      return { topic };
+    },
+    stringify: ({ topic }) => ({ topic }),
+  },
+  component: function HelpTopicRoute() {
+    const { topic } = helpTopicRoute.useParams();
+    return <HelpTopicPage key={topic} topic={topicBySlug(topic)!} />;
+  },
 });
 
 /** Everything below requires a session. */
@@ -299,6 +346,7 @@ const historicalMonthRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
+  helpRoute.addChildren([helpIndexRoute, helpPrintRoute, helpTopicRoute]),
   appRoute.addChildren([
     homeRoute,
     bookIndexRoute,

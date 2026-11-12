@@ -88,6 +88,7 @@ describe('navigation and session', () => {
       'Herramientas',
       'Administración',
       'Mi cuenta',
+      'Ayuda',
     ]);
     expect(screen.queryByRole('link', { name: 'Más' })).not.toBeInTheDocument();
     const status = screen.getByRole('region', { name: 'Estado del sistema' });
