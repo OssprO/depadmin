@@ -1,7 +1,8 @@
 name: Deploy
 
 # Publishes the images to GHCR and deploys them to the VPS (docs/DESPLIEGUE.md), after CI
-# passes on main, or by hand from the Actions tab.
+# passes on main, or by hand from the Actions tab. Each deploy is a release: a semantic
+# version from the commits (ADR-0027), tagged and listed in GitHub Releases once it runs.
 on:
   workflow_run:
     workflows: [CI]
@@ -20,20 +21,30 @@ permissions:
 
 jobs:
   images:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    # Only main is released, also when run by hand.
+    if: >
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     outputs:
-      tag: ${{ steps.names.outputs.tag }}
+      sha: ${{ steps.names.outputs.sha }}
+      version: ${{ steps.names.outputs.version }}
     steps:
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          # The whole history and its tags, to find the last release and the commits since.
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
       - id: names
-        name: Image names (GHCR wants them in lowercase)
+        name: Image names (GHCR wants them in lowercase) and the version
         run: |
           echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/depadmin" >> "$GITHUB_OUTPUT"
-          echo "tag=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "version=$(node packages/release/src/cli.ts)" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -45,9 +56,10 @@ jobs:
           context: .
           target: api
           push: true
-          build-args: APP_VERSION=${{ steps.names.outputs.tag }}
+          build-args: APP_VERSION=${{ steps.names.outputs.version }}
           tags: |
-            ${{ steps.names.outputs.image }}-api:${{ steps.names.outputs.tag }}
+            ${{ steps.names.outputs.image }}-api:${{ steps.names.outputs.version }}
+            ${{ steps.names.outputs.image }}-api:${{ steps.names.outputs.sha }}
             ${{ steps.names.outputs.image }}-api:latest
           cache-from: type=gha,scope=api
           cache-to: type=gha,scope=api,mode=max
@@ -57,7 +69,8 @@ jobs:
           target: web
           push: true
           tags: |
-            ${{ steps.names.outputs.image }}-web:${{ steps.names.outputs.tag }}
+            ${{ steps.names.outputs.image }}-web:${{ steps.names.outputs.version }}
+            ${{ steps.names.outputs.image }}-web:${{ steps.names.outputs.sha }}
             ${{ steps.names.outputs.image }}-web:latest
           cache-from: type=gha,scope=web
           cache-to: type=gha,scope=web,mode=max
@@ -77,7 +90,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.images.outputs.tag }}
+          ref: ${{ needs.images.outputs.sha }}
       - name: Key and known host of the VPS
         env:
           SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
@@ -92,4 +105,26 @@ jobs:
           scp -p -i ~/.ssh/deploy_key -P "$SSH_PORT"
           infra/docker-compose.yml infra/deploy.sh infra/backup.sh "$SSH_USER@$SSH_HOST:$APP_DIR/"
       - name: Deploy this version
-        run: ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" "$APP_DIR/deploy.sh ${{ needs.images.outputs.tag }}"
+        run: ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" "$APP_DIR/deploy.sh ${{ needs.images.outputs.version }}"
+
+  # Tags the commit and lists it in GitHub Releases once it runs in production, with notes
+  # from the pull requests it brings. A deploy run again finds the release already there.
+  release:
+    needs: [images, deploy]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: v${{ needs.images.outputs.version }}
+      SHA: ${{ needs.images.outputs.sha }}
+    steps:
+      - name: Release ${{ env.TAG }}
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "$TAG is already released."
+          else
+            gh release create "$TAG" --target "$SHA" --title "$TAG" --generate-notes
+          fi
