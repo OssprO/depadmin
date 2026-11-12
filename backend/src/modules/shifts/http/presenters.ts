@@ -32,6 +32,7 @@ export function toShiftMonth(month: CalendarMonth): ShiftMonth {
     delegation: month.delegation && toDelegation(month.delegation),
     responsibleUnits: month.responsibleUnits.map(unit),
     canDelegate: month.canDelegate,
+    canCancel: month.canCancel,
   };
 }
 

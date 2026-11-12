@@ -22,6 +22,7 @@ export function shiftMonth(month: string, overrides: Partial<ShiftMonth> = {}): 
     delegation,
     responsibleUnits: delegation ? [scheduledUnit, delegation.delegateUnit] : [scheduledUnit],
     canDelegate: false,
+    canCancel: false,
     ...overrides,
   };
 }
