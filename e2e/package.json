@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "test:browser": "playwright test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "guide": "playwright test -c playwright.guide.config.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "~4.13.0",

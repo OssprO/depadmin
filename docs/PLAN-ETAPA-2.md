@@ -10,18 +10,18 @@ El modo de trabajo no cambia: una fase por PR, con el porqué de cada decisión,
 
 ## 1. Resumen y orden propuesto
 
-| Fase | Qué                                                      | Por qué en este lugar                                                                                             |
-| ---- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| 12   | Historial del edificio (mayo 2022 – julio 2026)          | Los documentos ya están transcritos, y revisarlos contra el papel lleva tiempo                                    |
-| 13   | Captura y diseño (13a celular, 13b tableta y escritorio) | Prioridad del administrador al probarla: capturar como en el papel y una app más fácil de usar                    |
-| 14   | Usuarios de solo lectura, inquilinos y temporales        | Cambia el modelo de usuarios y permisos; usa ya el diseño nuevo                                                   |
-| 15   | Herramientas: contador de efectivo                       | Pequeña e independiente; estrena la sección _Herramientas_ ya con el diseño nuevo                                 |
-| 16   | Archivo de documentos                                    | Guarda los PDF y fotos originales; necesita almacenamiento en disco y respaldos, igual que el despliegue          |
-| 5    | Despliegue (de la Etapa 1)                               | Requisito para WhatsApp y para que los dueños usen la app; necesita el dominio                                    |
-| 17   | WhatsApp: recuperación de contraseña y libros            | Necesita la app publicada en HTTPS y un número de WhatsApp Business                                               |
-| 18   | Guía de usuario para los dueños                          | Al final, cuando las pantallas ya no cambien; las capturas se generan con Playwright para que no se queden viejas |
+| Fase | Qué                                                      | Por qué en este lugar                                                                                                                                                      |
+| ---- | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 12   | Historial del edificio (mayo 2022 – julio 2026)          | Los documentos ya están transcritos, y revisarlos contra el papel lleva tiempo                                                                                             |
+| 13   | Captura y diseño (13a celular, 13b tableta y escritorio) | Prioridad del administrador al probarla: capturar como en el papel y una app más fácil de usar                                                                             |
+| 14   | Usuarios de solo lectura, inquilinos y temporales        | Cambia el modelo de usuarios y permisos; usa ya el diseño nuevo                                                                                                            |
+| 15   | Herramientas: contador de efectivo                       | Pequeña e independiente; estrena la sección _Herramientas_ ya con el diseño nuevo                                                                                          |
+| 5    | Despliegue (de la Etapa 1)                               | Requisito para WhatsApp y para que los dueños usen la app; necesita el dominio                                                                                             |
+| 18   | Guía de usuario para los dueños                          | Antes del 1 de diciembre de 2026, cuando el turno pasa a 401; las capturas se regeneran con Playwright, así que no hace falta esperar a que las pantallas dejen de cambiar |
+| 16   | Archivo de documentos                                    | Pospuesta (noviembre 2026); guarda los PDF y fotos originales y necesita almacenamiento en disco y respaldos                                                               |
+| 17   | WhatsApp: recuperación de contraseña y libros            | Pospuesta (noviembre 2026); necesita un número de WhatsApp Business y plantillas aprobadas por Meta                                                                        |
 
-Las fases 14 y 15 no dependen entre sí y se pueden reordenar. La 17 depende de la 5.
+Las fases 14 y 15 no dependen entre sí y se pueden reordenar. La 17 depende de la 5. En noviembre 2026 la 18 pasó antes de la 16 y la 17, que quedan para después.
 
 ---
 
@@ -144,6 +144,8 @@ Ver la sección 3. En resumen:
 **Conceptos:** integración con un proveedor externo, plantillas de mensajes, códigos de un solo uso.
 
 ### Fase 18: Guía de usuario para los dueños
+
+**Hecha (ADR-0028):** sección _Ayuda_ pública en `/help`, con siete tareas, y el PDF `guia-depadmin.pdf`. Capturas y PDF salen de `pnpm guide`.
 
 - Clara, breve y pensada para personas mayores de 60 años: letra grande, una tarea por página, pasos numerados, una captura por paso, sin palabras técnicas.
 - Temas: entrar y cambiar la contraseña, instalar la app en el celular, ver el balance del mes y su PDF, ver el estado de cuenta, y qué hacer cuando le toca el turno (capturar pagos, basura y limpieza, y cerrar el mes).

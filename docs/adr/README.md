@@ -31,5 +31,6 @@ Cada ADR documenta una decisión: el contexto, lo que se decidió y sus consecue
 | [0025](0025-usuarios-de-solo-lectura.md)            | Usuarios de solo lectura, temporales y desactivados              | Aceptado             |
 | [0026](0026-despliegue-con-nginx.md)                | Despliegue detrás del nginx del VPS                              | Aceptado             |
 | [0027](0027-versiones.md)                           | Versiones semánticas a partir de los commits                     | Aceptado             |
+| [0028](0028-guia-de-usuario.md)                     | Guía de usuario dentro de la app, con capturas generadas         | Aceptado             |
 
 Plantilla: copia cualquier ADR y conserva las secciones _Contexto_, _Decisión_ y _Consecuencias_.

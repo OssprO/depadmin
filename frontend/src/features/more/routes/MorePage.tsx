@@ -1,5 +1,6 @@
 import {
   ListBulletsIcon,
+  QuestionIcon,
   ReceiptIcon,
   ToolboxIcon,
   UserCircleIcon,
@@ -48,6 +49,12 @@ export function MorePage() {
           icon={<UserCircleIcon />}
           title="Mi cuenta"
           description="Contraseña y cerrar sesión"
+        />
+        <MenuEntry
+          to="/help"
+          icon={<QuestionIcon />}
+          title="Ayuda"
+          description="Guía paso a paso para usar la app"
         />
       </MenuList>
       <footer className="border-t pt-4">
