@@ -1,0 +1,65 @@
+# Weekly update PRs against develop (docs/SEGURIDAD.md), grouped so they don't pile up:
+# one for minor and patch releases of each ecosystem; majors come one by one, since they
+# may need code changes. Security updates (when the repository turns them on) ignore
+# target-branch and go to main, whose merge deploys; merge main back into develop after.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: America/Mexico_City
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: America/Mexico_City
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        patterns: ['*']
+
+  - package-ecosystem: docker
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: America/Mexico_City
+    commit-message:
+      prefix: build
+    groups:
+      images:
+        patterns: ['*']
+    # A new Node major goes together with .nvmrc and CI, by hand.
+    ignore:
+      - dependency-name: node
+        update-types: ['version-update:semver-major']
+
+  # Postgres in production. Never its major version: moving to a new one needs a dump and a
+  # restore (docs/DESPLIEGUE.md), not just a new image.
+  - package-ecosystem: docker-compose
+    directory: /infra
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: America/Mexico_City
+    commit-message:
+      prefix: build
+    ignore:
+      - dependency-name: postgres
+        update-types: ['version-update:semver-major']

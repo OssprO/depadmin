@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { withCode } from '../../../../test/support/domain-error.js';
 import { UnitNumber } from '../../../shared-kernel/index.js';
-import { REFRESH_TOKEN_LIFETIME_DAYS } from '../domain/index.js';
+import { REFRESH_REUSE_GRACE_SECONDS, REFRESH_TOKEN_LIFETIME_DAYS } from '../domain/index.js';
 import { PurgeExpiredSessions } from './purge-expired-sessions.js';
 import { RefreshSession } from './refresh-session.js';
 import { SignIn } from './sign-in.js';
@@ -71,6 +71,7 @@ describe('sessions', () => {
     it('revokes the whole session when a rotated token is presented again', async () => {
       const first = await signIn.execute({ username: '501', password: 'correct horse' });
       const second = await refresh.execute(first.refreshToken.token);
+      fx.clock.advanceSeconds(REFRESH_REUSE_GRACE_SECONDS);
 
       await expect(refresh.execute(first.refreshToken.token)).rejects.toThrow(
         withCode('REFRESH_TOKEN_REUSED'),
@@ -78,6 +79,52 @@ describe('sessions', () => {
       await expect(refresh.execute(second.refreshToken.token)).rejects.toThrow(
         withCode('SESSION_INVALID'),
       );
+    });
+
+    it('forgives a retry with the token just rotated, while its successor is unused', async () => {
+      const first = await signIn.execute({ username: '501', password: 'correct horse' });
+      const lost = await refresh.execute(first.refreshToken.token);
+      fx.clock.advanceSeconds(REFRESH_REUSE_GRACE_SECONDS - 1);
+
+      const retried = await refresh.execute(first.refreshToken.token);
+
+      expect(retried.refreshToken.token).not.toBe(lost.refreshToken.token);
+      expect(fx.refreshTokens.activeSessionsOf('u-501', fx.clock.now())).toHaveLength(1);
+      // The successor that never arrived is spent: showing it later is a reuse.
+      fx.clock.advanceSeconds(REFRESH_REUSE_GRACE_SECONDS);
+      await expect(refresh.execute(lost.refreshToken.token)).rejects.toThrow(
+        withCode('REFRESH_TOKEN_REUSED'),
+      );
+      await expect(refresh.execute(retried.refreshToken.token)).rejects.toThrow(
+        withCode('SESSION_INVALID'),
+      );
+    });
+
+    it('does not forgive a token whose successor was already used', async () => {
+      const first = await signIn.execute({ username: '501', password: 'correct horse' });
+      const second = await refresh.execute(first.refreshToken.token);
+      await refresh.execute(second.refreshToken.token);
+
+      await expect(refresh.execute(first.refreshToken.token)).rejects.toThrow(
+        withCode('REFRESH_TOKEN_REUSED'),
+      );
+      expect(fx.refreshTokens.activeSessionsOf('u-501', fx.clock.now())).toEqual([]);
+    });
+
+    it('forgives a retry that loses the race to the request it repeats', async () => {
+      const first = await signIn.execute({ username: '501', password: 'correct horse' });
+      const rotate = fx.refreshTokens.rotate.bind(fx.refreshTokens);
+      // The first try commits its rotation while the retry is between its read and write.
+      fx.refreshTokens.rotate = async (rotated, next) => {
+        fx.refreshTokens.rotate = rotate;
+        await refresh.execute(first.refreshToken.token);
+        return rotate(rotated, next);
+      };
+
+      const retried = await refresh.execute(first.refreshToken.token);
+
+      expect(fx.refreshTokens.activeSessionsOf('u-501', fx.clock.now())).toHaveLength(1);
+      await refresh.execute(retried.refreshToken.token);
     });
 
     it('treats losing a concurrent rotation as a reuse', async () => {

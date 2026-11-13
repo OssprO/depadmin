@@ -14,6 +14,11 @@ export class PrismaRefreshTokenRepository implements RefreshTokenRepository {
     return row && toDomain(row);
   }
 
+  async findById(id: string): Promise<RefreshToken | null> {
+    const row = await this.database.db.refreshToken.findUnique({ where: { id } });
+    return row && toDomain(row);
+  }
+
   async add(token: RefreshToken): Promise<void> {
     await this.database.db.refreshToken.create({
       data: {
@@ -34,7 +39,10 @@ export class PrismaRefreshTokenRepository implements RefreshTokenRepository {
     return this.database.run(async () => {
       const { count } = await this.database.db.refreshToken.updateMany({
         where: { id: rotated.id, rotatedAt: null, revokedAt: null },
-        data: { rotatedAt: rotated.rotatedAt && toDbInstant(rotated.rotatedAt) },
+        data: {
+          rotatedAt: rotated.rotatedAt && toDbInstant(rotated.rotatedAt),
+          replacedById: rotated.replacedById,
+        },
       });
       if (count === 0) return false;
       await this.add(next);
@@ -72,6 +80,7 @@ function toDomain(row: TokenRow): RefreshToken {
     tokenHash: row.tokenHash,
     expiresAt: fromDbInstant(row.expiresAt),
     rotatedAt: row.rotatedAt && fromDbInstant(row.rotatedAt),
+    replacedById: row.replacedById,
     revokedAt: row.revokedAt && fromDbInstant(row.revokedAt),
   });
 }

@@ -43,14 +43,16 @@ Las fases 22 y 23 no dependen entre sí, y tampoco 28, 29 y 30: se pueden reorde
 
 ### Fase 19: Estabilidad
 
-Hallazgos H2, H3, H5 y H6 de la auditoría (sección 3). Es la única fase que debe estar en producción antes del 1 de diciembre.
+**Hecha (ADR-0029).** Además de lo planeado: un reintento que llega mientras la primera petición sigue rotando el token también se perdona, `deploy.sh` saca un respaldo antes de las migraciones, y Prisma 7.10.1 resolvió los avisos de su CLI, así que `pnpm audit --prod` no encuentra ninguno.
+
+Hallazgos H2, H3 y H6 de la auditoría (sección 3), y la parte de H4 que es del código (`ready`). Es la única fase que debe estar en producción antes del 1 de diciembre.
 
 - **Dependencias:**
   - Actualizar las que tienen avisos en la API: `zod` (≥ 4.6.6), `body-parser` (≥ 2.4.0) y `multer` (≥ 2.5.0), que permiten negar el servicio con un cuerpo de petición armado a propósito. También `vite` (≥ 8.2.4) y `seroval`. Donde el paquete padre aún no lo trae, con `overrides` en `pnpm-workspace.yaml`, como en la fase 11b.
   - Los de la CLI de `prisma` (`deepmerge-ts`, `mysql2`) siguen como riesgo aceptado si no hay versión que los corrija (`docs/SEGURIDAD.md`).
   - **CI:** un paso `pnpm audit --prod --audit-level high` que falla con un aviso alto nuevo, y Dependabot cada semana, con las actualizaciones agrupadas para no llenar de PR.
 - **Sesión:**
-  - **Margen al rotar el refresh token.** Hoy, si la respuesta de un refresh se pierde (red del celular, o un servidor lento), el siguiente intento presenta el token anterior y la API lo toma por robado: cierra la sesión (`REFRESH_TOKEN_REUSED`). Con un margen corto (unos 30 segundos), un token recién rotado se acepta una vez más: el sucesor que nadie recibió se revoca y se emite otro de la misma familia, así que nunca hay dos tokens válidos a la vez. Fuera del margen, sigue siendo reuso.
+  - **Margen al rotar el refresh token.** Hoy, si la respuesta de un refresh se pierde (red del celular, o un servidor lento), el siguiente intento presenta el token anterior y la API lo toma por robado: cierra la sesión (`REFRESH_TOKEN_REUSED`). Con un margen corto (unos 30 segundos), un token recién rotado se acepta una vez más: el sucesor que nadie recibió se da por usado y se emite otro de la misma familia, así que nunca hay dos tokens válidos a la vez. Fuera del margen, sigue siendo reuso.
   - En el cliente, un error de red al refrescar se reintenta una vez antes de rendirse; solo un 401 termina la sesión (ya es así).
 - **Salud:** `/api/health` sigue respondiendo sin tocar la base (lo usa el _healthcheck_ de Docker). Uno nuevo, `/api/health/ready`, prueba la base con una consulta mínima; es el que vigila el monitoreo de la fase 20.
 - **Despliegue (`infra/deploy.sh`):**

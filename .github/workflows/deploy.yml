@@ -78,7 +78,9 @@ jobs:
   deploy:
     needs: images
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # deploy.sh gives the pull 10 minutes and each start 5, plus a backup: room for a
+    # failed start and the way back to the previous version.
+    timeout-minutes: 25
     environment:
       name: production
       url: ${{ vars.APP_URL }}

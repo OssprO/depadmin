@@ -119,6 +119,8 @@ model RefreshToken {
   tokenHash String    @unique @map("token_hash")
   expiresAt DateTime  @map("expires_at") @db.Timestamptz
   rotatedAt DateTime? @map("rotated_at") @db.Timestamptz
+  /// The token it was exchanged for, so a retry right after the rotation can be forgiven.
+  replacedById String? @map("replaced_by_id") @db.Uuid
   revokedAt DateTime? @map("revoked_at") @db.Timestamptz
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
 

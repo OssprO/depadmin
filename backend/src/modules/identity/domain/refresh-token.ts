@@ -4,6 +4,14 @@ import { ConflictError, type Instant } from '../../../shared-kernel/index.js';
 export const REFRESH_TOKEN_LIFETIME_DAYS = 30;
 
 /**
+ * How long a token stays forgivable after its rotation: the response that carried its
+ * successor may have been lost (a phone on a bad network, a slow server), so the client
+ * retries with the token it still has. Within this margin that counts as using the
+ * successor, as long as nobody did.
+ */
+export const REFRESH_REUSE_GRACE_SECONDS = 30;
+
+/**
  * - `ACTIVE`: can be exchanged for a new pair of tokens, once.
  * - `ROTATED`: already exchanged. Presenting it again means someone else has a copy.
  * - `EXPIRED`: unused for `REFRESH_TOKEN_LIFETIME_DAYS`.
@@ -20,6 +28,8 @@ export interface RefreshTokenProps {
   readonly tokenHash: string;
   readonly expiresAt: Instant;
   readonly rotatedAt: Instant | null;
+  /** The token it was exchanged for; null until it rotates (and in rows older than it). */
+  readonly replacedById: string | null;
   readonly revokedAt: Instant | null;
 }
 
@@ -49,6 +59,7 @@ export class RefreshToken {
       userId: session.userId,
       expiresAt: now.plusDays(REFRESH_TOKEN_LIFETIME_DAYS),
       rotatedAt: null,
+      replacedById: null,
       revokedAt: null,
     });
   }
@@ -81,6 +92,10 @@ export class RefreshToken {
     return this.props.rotatedAt;
   }
 
+  get replacedById(): string | null {
+    return this.props.replacedById;
+  }
+
   get revokedAt(): Instant | null {
     return this.props.revokedAt;
   }
@@ -93,6 +108,21 @@ export class RefreshToken {
     return 'ACTIVE';
   }
 
+  /**
+   * Whether presenting this token again may still be a lost response rather than a stolen
+   * copy: it rotated less than `REFRESH_REUSE_GRACE_SECONDS` ago. The caller then exchanges
+   * its successor instead, if that one is still unused.
+   */
+  isForgivableAt(now: Instant): boolean {
+    const { rotatedAt, replacedById } = this.props;
+    return (
+      this.stateAt(now) === 'ROTATED' &&
+      replacedById !== null &&
+      rotatedAt !== null &&
+      now.isBefore(rotatedAt.plusSeconds(REFRESH_REUSE_GRACE_SECONDS))
+    );
+  }
+
   /** Exchanges this token for its successor in the same session. */
   rotate(successor: NewToken, now: Instant): { rotated: RefreshToken; next: RefreshToken } {
     const state = this.stateAt(now);
@@ -100,7 +130,7 @@ export class RefreshToken {
       throw new ConflictError('REFRESH_TOKEN_NOT_ACTIVE', `Refresh token ${this.id} is ${state}`);
     }
     return {
-      rotated: new RefreshToken({ ...this.props, rotatedAt: now }),
+      rotated: new RefreshToken({ ...this.props, rotatedAt: now, replacedById: successor.id }),
       next: RefreshToken.issue(successor, { id: this.sessionId, userId: this.userId }, now),
     };
   }

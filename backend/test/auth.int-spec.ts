@@ -20,6 +20,14 @@ const ctx = useTestDatabase();
 const api = useTestApp();
 const http = () => request(api.app.getHttpServer());
 
+/** Moves every rotation out of the margin in which a retry is forgiven. */
+async function rotatedAMinuteAgo(): Promise<void> {
+  await ctx.database.client.refreshToken.updateMany({
+    where: { rotatedAt: { not: null } },
+    data: { rotatedAt: new Date(Date.now() - 60_000) },
+  });
+}
+
 const ADMIN_PASSWORD = 'admin password 123';
 const OWNER_PASSWORD = 'la casa del 501';
 let ownerId: string;
@@ -107,6 +115,7 @@ describe('auth API', () => {
     expect(second).not.toBe(first);
     expect(sessionResponseSchema.parse(refreshed.body).user.username).toBe('501');
 
+    await rotatedAMinuteAgo();
     const reuse = await http().post('/api/auth/refresh').set('Cookie', first);
     expectProblem(reuse, 401, 'REFRESH_TOKEN_REUSED');
     expect([reuse.headers['set-cookie']].flat().join()).toMatch(/depadmin_refresh=;/);
@@ -116,6 +125,33 @@ describe('auth API', () => {
       401,
       'SESSION_INVALID',
     );
+  });
+
+  it('forgives a retry with the token just rotated, whose answer was lost', async () => {
+    const { cookie: first } = await login('501', OWNER_PASSWORD);
+    const lost = refreshCookieOf(
+      await http().post('/api/auth/refresh').set('Cookie', first).expect(200),
+    );
+
+    const retried = await http().post('/api/auth/refresh').set('Cookie', first).expect(200);
+    const kept = refreshCookieOf(retried);
+    expect(kept).not.toBe(lost);
+    await http().post('/api/auth/refresh').set('Cookie', kept).expect(200);
+  });
+
+  it('answers two refreshes with the same token at once, as a slow server sees a retry', async () => {
+    const { cookie } = await login('501', OWNER_PASSWORD);
+
+    const answers = await Promise.all([
+      http().post('/api/auth/refresh').set('Cookie', cookie),
+      http().post('/api/auth/refresh').set('Cookie', cookie),
+    ]);
+
+    expect(answers.map((answer) => answer.status)).toEqual([200, 200]);
+    const tokens = await ctx.database.client.refreshToken.findMany({
+      where: { rotatedAt: null, revokedAt: null },
+    });
+    expect(tokens).toHaveLength(1);
   });
 
   it('signs out: the refresh token stops working', async () => {
