@@ -30,7 +30,7 @@ En noviembre de 2026 el VPS estuvo limitado de CPU por otra app. La app se sinti
   - Si la versión nueva no queda sana en 5 minutos, imprime los logs, regresa a la versión anterior y falla. El workflow queda en rojo.
 - **Las dependencias se revisan siempre:**
   - Un job `audit` en CI corre `pnpm audit --prod --audit-level high`.
-  - Dependabot abre cada lunes, contra `develop`, PRs agrupados de npm, GitHub Actions y las imágenes de Docker. Nunca propone un cambio mayor de Node ni de Postgres.
+  - Dependabot abre el día 1 de cada mes, contra `develop`, PRs agrupados de npm, GitHub Actions y las imágenes de Docker. Nunca propone un cambio mayor de Node ni de Postgres.
 
 ## Consecuencias
 
