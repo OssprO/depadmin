@@ -16,6 +16,7 @@ describe('validateEnv', () => {
       JWT_SECRET,
       LOGIN_ATTEMPTS_PER_MINUTE: 5,
       JOBS_ENABLED: true,
+      HEALTHCHECKS_PING_URL: '',
       TRUST_PROXY: [],
     });
   });
@@ -29,6 +30,16 @@ describe('validateEnv', () => {
   it('reads JOBS_ENABLED as a boolean', () => {
     expect(validateEnv({ ...required, JOBS_ENABLED: 'false' }).JOBS_ENABLED).toBe(false);
     expect(() => validateEnv({ ...required, JOBS_ENABLED: 'maybe' })).toThrow(/JOBS_ENABLED/);
+  });
+
+  it('takes an https HEALTHCHECKS_PING_URL without its trailing slash', () => {
+    expect(
+      validateEnv({ ...required, HEALTHCHECKS_PING_URL: 'https://hc-ping.com/abc/' })
+        .HEALTHCHECKS_PING_URL,
+    ).toBe('https://hc-ping.com/abc');
+    expect(() =>
+      validateEnv({ ...required, HEALTHCHECKS_PING_URL: 'http://hc-ping.com/abc' }),
+    ).toThrow(/HEALTHCHECKS_PING_URL/);
   });
 
   it('coerces PORT from string', () => {

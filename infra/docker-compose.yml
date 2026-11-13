@@ -51,6 +51,7 @@ services:
       DATABASE_URL: postgresql://depadmin:${POSTGRES_PASSWORD}@db:5432/depadmin
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
       LOGIN_ATTEMPTS_PER_MINUTE: ${LOGIN_ATTEMPTS_PER_MINUTE:-5}
+      HEALTHCHECKS_PING_URL: ${HEALTHCHECKS_PING_URL:-}
       # Both proxies (the VPS's nginx and the web container) reach the API from private
       # addresses; the client's IP is the last public one they forward.
       TRUST_PROXY: loopback, uniquelocal
@@ -67,6 +68,25 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    logging: *logging
+
+  # Backups (backup.sh and restore-test.sh, ADR-0030): restic encrypts them before they
+  # leave the dump, in a repository on the VPS and its copy in Backblaze B2. It runs only
+  # when a script calls it (docker compose run), never with `up`.
+  restic:
+    image: restic/restic:0.19.1
+    profiles: [tools]
+    environment:
+      RESTIC_REPOSITORY: /backups/restic
+      RESTIC_PASSWORD: ${RESTIC_PASSWORD:-}
+      # The source when copying to B2 is the repository on the VPS: same password.
+      RESTIC_FROM_PASSWORD: ${RESTIC_PASSWORD:-}
+      RESTIC_CACHE_DIR: /backups/.cache
+      # B2's S3-compatible keys, which restic recommends over its native B2 backend.
+      AWS_ACCESS_KEY_ID: ${B2_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${B2_APPLICATION_KEY:-}
+    volumes:
+      - ${BACKUP_DIR:-/var/backups/depadmin}:/backups
     logging: *logging
 
 volumes:

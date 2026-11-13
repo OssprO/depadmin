@@ -65,6 +65,8 @@ Hallazgos H2, H3 y H6 de la auditoría (sección 3), y la parte de H4 que es del
 
 ### Fase 20: Operación
 
+**Hecha (ADR-0030).** Con lo que se decidió al diseñarla: los respaldos van a **Backblaze B2** y no a Google Drive, porque su llave no vence y `restic` la usa sin `rclone`; `restic` corre en un contenedor, así que el VPS no instala nada; la prueba de restauración también avisa a healthchecks.io, que la recuerda cada 90 días; y el suplente queda solo documentado en `docs/OPERACION.md`.
+
 Hallazgos H4, H5 y H7. Casi todo es infraestructura y documentación, con poco código.
 
 - **Respaldos fuera del VPS, en automático y cifrados:**
@@ -356,8 +358,8 @@ Cada una tiene un valor por defecto para no bloquear el avance.
 | 21  | ¿Entra la fase 16 a esta etapa?                                                                                                        | **Respondida:** sí, junto con los comprobantes del libro, con mucho cuidado en cómo el VPS sirve los archivos                          | 16   |
 | 22  | ¿Las reformas incluyen votaciones? ¿Con qué mayoría y plazo?                                                                           | **Respondida:** sí; 6 de 10 deptos, cuentan los inactivos, 15 días de plazo, y todo como parámetro                                     | 27   |
 | 23  | ¿Los correos de los dueños están al día?                                                                                               | El superadmin los corrobora con su lista física; cada dueño confirma el suyo con un enlace                                             | 24   |
-| 24  | ¿A dónde van los respaldos fuera del VPS?                                                                                              | Google Drive del superadmin, cifrados con `restic` (Backblaze B2 como alternativa)                                                     | 20   |
-| 25  | ¿Quién es el suplente del superadmin?                                                                                                  | Nadie hasta que se decida; mientras tanto, el documento de operación                                                                   | 20   |
+| 24  | ¿A dónde van los respaldos fuera del VPS?                                                                                              | **Respondida:** a Backblaze B2, cifrados con `restic`. Google Drive quedó descartado: su autorización puede vencer a los 7 días        | 20   |
+| 25  | ¿Quién es el suplente del superadmin?                                                                                                  | **Respondida por ahora:** nadie todavía; `docs/OPERACION.md` dice qué necesitaría y se crea su acceso cuando se elija                  | 20   |
 | 26  | ¿El voto de una reforma es público (como una firma) o secreto? ¿El superadmin tiene también la cuenta de dueño de su depto para votar? | Público: cada depto ve cómo votó cada uno, como en una lista de firmas. El superadmin vota solo con la cuenta de dueño de su depto     | 27   |
 | 27  | ¿Quién propone reformas: el administrador del mes en curso, o también el saliente en su entrega?                                       | Solo el depto con el turno del mes en curso y el superadmin                                                                            | 27   |
 | 28  | ¿Se puede cambiar un voto antes de que cierre la votación?                                                                             | No: votar es firmar. Si el texto cambia (reforma desactualizada), se vota de nuevo                                                     | 27   |

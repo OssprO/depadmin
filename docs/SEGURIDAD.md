@@ -1,6 +1,6 @@
 # Seguridad: revisión OWASP ASVS nivel 1
 
-**Fecha:** 2026-10-14 · **Fase:** 11b, actualizada en las fases 5 y 19 · **Alcance:** API (NestJS), SPA (React), base de datos y despliegue.
+**Fecha:** 2026-10-14 · **Fase:** 11b, actualizada en las fases 5, 19 y 20 · **Alcance:** API (NestJS), SPA (React), base de datos y despliegue.
 
 ## Lo que ya cumple
 
@@ -40,16 +40,22 @@
 
 - **Solo lo necesario queda expuesto:** el nginx del VPS (80 y 443) es lo único abierto a internet. La app escucha en `127.0.0.1`, y la API y Postgres no se publican. Los contenedores de la API y de `web` no corren como root.
 - **Secretos:** la contraseña de Postgres y el `JWT_SECRET` se generan al azar en el VPS, en un `.env` con permisos `600`. GitHub guarda solo una llave SSH dedicada a un usuario sin `sudo`.
-- **Respaldos:** un `pg_dump` cada noche, con permisos solo para su dueño y 14 días de retención. `docs/DESPLIEGUE.md` documenta cómo copiarlos fuera del VPS (a una carpeta cifrada) y cómo probar una restauración.
+- **Respaldos:** un `pg_dump` cada noche, con permisos solo para su dueño y 14 días de retención. Desde la fase 20 van cifrados y salen solos del VPS (abajo).
 
 ## Resuelto en la fase 19 (ADR-0029)
 
 - **Dependencias:** los avisos de producción habían subido de 3 a 19 (6 altos), entre ellos negaciones de servicio en `zod`, `body-parser` y `multer`, que corren en la API. Con las versiones nuevas (Prisma 7.10.1 incluido, que también resolvió los de su CLI) y los `overrides` de `qs` y `fast-uri`, `pnpm audit --prod` no encuentra ninguno.
 - **Auditoría continua:** el job `audit` de CI falla con un aviso alto en producción, y Dependabot abre PRs agrupados cada mes, más uno en cuanto sale un aviso de seguridad (`.github/dependabot.yml`). Para aceptar un aviso sin arreglo, va en `auditConfig.ignoreGhsas` de `pnpm-workspace.yaml` y en la lista de riesgos aceptados de este documento.
 
+## Resuelto en la fase 20 (ADR-0030)
+
+- **Respaldos cifrados, también en el VPS:** `restic` cifra cada copia (AES-256) antes de guardarla en el VPS y en Backblaze B2, que nunca ve los datos. La contraseña vive en el `.env` del VPS y en el gestor de contraseñas del superadmin. El `.dump` en claro existe solo mientras `restic` lo lee.
+- **Fallas que avisan:** healthchecks.io recibe el resultado de cada respaldo y de cada job, y UptimeRobot revisa `/api/health/ready`. Los avisos no llevan datos de los vecinos.
+- **Errores del navegador:** `POST /api/client-errors` es público para que lleguen también los del login. Por eso valida tamaños con un esquema compartido, se limita a 30 por minuto por IP y no guarda usuario ni la parte de la dirección después del `?`. Solo escribe en el log.
+
 ## Pendiente
 
-- **Respaldos cifrados en el propio VPS:** hoy se cifran solo al copiarlos a otra máquina (fase 20).
+- Nada de esta revisión.
 
 ## Rendimiento y accesibilidad (Lighthouse 13.5, móvil simulado)
 

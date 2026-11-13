@@ -29,3 +29,7 @@ overrides:
   fast-uri: ^3.1.9
   # Event-loop denial of service on crafted source maps.
   source-map-js: ^1.2.2
+  # Vite's bundler: the Linux binary of 1.2.18 dies with an illegal instruction on CPUs
+  # without AVX2, such as the admin's laptop; 1.2.19 runs there. Remove this once Vite
+  # asks for a newer rolldown (a Vite update whose CI fails here is this pin).
+  rolldown: ~1.2.19
