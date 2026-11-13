@@ -369,9 +369,9 @@ describe('BookPage', () => {
     });
     renderApp('/book/2026-10');
 
-    await userEvent.click(
-      await screen.findByRole('button', { name: 'Semana 5–11 oct: ajustar antes de confirmar' }),
-    );
+    const week = await screen.findByRole('button', { name: /^Semana 5–11 oct/ });
+    expect(week).toHaveAccessibleDescription('Ajustar antes de confirmar');
+    await userEvent.click(week);
     expect(await screen.findByRole('radio', { name: 'Basura' })).toBeChecked();
     expect(screen.getByLabelText('Semana que se paga')).toHaveValue('2026-10-05');
     expect(screen.getByLabelText('Fecha')).toHaveValue('2026-10-10');
