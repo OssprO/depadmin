@@ -2,15 +2,22 @@ import { Logger } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import { describe, expect, it, vi } from 'vitest';
 import type { Env } from '../../../platform/config/env.js';
+import { JobRunner } from '../../../platform/jobs/job-runner.js';
 import { YearMonth } from '../../../shared-kernel/index.js';
 import type { OpenCurrentMonth } from '../application/index.js';
 import { MonthlyReport } from '../domain/index.js';
 import { OpenCurrentMonthJob } from './open-current-month.job.js';
 
 function jobWith(enabled: boolean, execute: OpenCurrentMonth['execute']) {
-  const config = { get: () => enabled } as unknown as ConfigService<Env, true>;
+  const config = {
+    get: (key: keyof Env) => (key === 'JOBS_ENABLED' ? enabled : ''),
+  } as unknown as ConfigService<Env, true>;
   const useCase = { execute: vi.fn(execute) };
-  return { job: new OpenCurrentMonthJob(useCase as unknown as OpenCurrentMonth, config), useCase };
+  const job = new OpenCurrentMonthJob(
+    useCase as unknown as OpenCurrentMonth,
+    new JobRunner(config),
+  );
+  return { job, useCase };
 }
 
 describe('OpenCurrentMonthJob', () => {

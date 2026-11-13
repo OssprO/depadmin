@@ -33,5 +33,6 @@ Cada ADR documenta una decisión: el contexto, lo que se decidió y sus consecue
 | [0027](0027-versiones.md)                           | Versiones semánticas a partir de los commits                                 | Aceptado             |
 | [0028](0028-guia-de-usuario.md)                     | Guía de usuario dentro de la app, con capturas generadas                     | Aceptado             |
 | [0029](0029-estabilidad.md)                         | Sesiones que aguantan una red mala, salud real y despliegue con vuelta atrás | Aceptado             |
+| [0030](0030-operacion.md)                           | Respaldos cifrados fuera del VPS, avisos de fallas y errores del navegador   | Aceptado             |
 
 Plantilla: copia cualquier ADR y conserva las secciones _Contexto_, _Decisión_ y _Consecuencias_.

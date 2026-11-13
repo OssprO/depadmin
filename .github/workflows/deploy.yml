@@ -105,7 +105,7 @@ jobs:
       - name: Copy the compose file and the scripts
         run: >
           scp -p -i ~/.ssh/deploy_key -P "$SSH_PORT"
-          infra/docker-compose.yml infra/deploy.sh infra/backup.sh "$SSH_USER@$SSH_HOST:$APP_DIR/"
+          infra/docker-compose.yml infra/deploy.sh infra/backup.sh infra/restore-test.sh "$SSH_USER@$SSH_HOST:$APP_DIR/"
       - name: Deploy this version
         run: ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" "$APP_DIR/deploy.sh ${{ needs.images.outputs.version }}"
 

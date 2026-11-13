@@ -1,8 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
-import { ThrottlerModule } from '@nestjs/throttler';
-import type { Env } from '../../platform/config/env.js';
 import {
   ChangePassword,
   ChangeUserAccess,
@@ -36,16 +33,6 @@ import { PrismaUserRepository } from './infrastructure/prisma-user.repository.js
 import { PurgeExpiredSessionsJob } from './jobs/purge-expired-sessions.job.js';
 
 @Module({
-  // Only routes that opt in with LoginThrottlerGuard are limited: attempts per minute for
-  // each IP and username.
-  imports: [
-    ThrottlerModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (config: ConfigService<Env, true>) => [
-        { ttl: 60_000, limit: config.get('LOGIN_ATTEMPTS_PER_MINUTE', { infer: true }) },
-      ],
-    }),
-  ],
   controllers: [AuthController, UsersController],
   providers: [
     { provide: USER_REPOSITORY, useClass: PrismaUserRepository },

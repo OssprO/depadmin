@@ -15,7 +15,7 @@ Navegador ──HTTPS──▶ nginx del VPS (certificado de Let's Encrypt; un v
 ```
 
 - **Cada versión nueva se publica sola.** Cuando un cambio llega a `main` y pasa CI, GitHub Actions le pone un número de versión (como `1.0.3`, [ADR-0027](adr/0027-versiones.md)), construye las imágenes, las sube a GHCR, las despliega en el VPS por SSH y anota la versión en **GitHub Releases**.
-- **Respaldo cada noche:** el VPS guarda una copia de la base y conserva 14 días.
+- **Respaldo cifrado cada noche,** en el VPS y en Backblaze B2, y avisos por correo si algo falla: el respaldo, un job o la app entera ([ADR-0030](adr/0030-operacion.md)). Qué hacer cuando algo pasa está en [`OPERACION.md`](OPERACION.md).
 
 **Convenciones de la guía:**
 
@@ -304,42 +304,73 @@ Se copia tu base de desarrollo tal como está: el historial, la carga inicial, l
 
 ---
 
-## 9. Respaldos
+## 9. Respaldos y avisos
 
-1. **(como deploy)** Programa el respaldo de cada noche a las 3:30, hora del VPS (`timedatectl` te dice cuál es):
+Lo decide el [ADR-0030](adr/0030-operacion.md):
 
-   ```bash
-   crontab -e
-   ```
+- **Cada noche** `backup.sh` saca una copia de la base y la guarda **cifrada** con `restic`, en el VPS y en Backblaze B2. Conserva 14 copias diarias, 8 semanales y 12 mensuales.
+- **Antes de cada despliegue,** `deploy.sh` saca otra, solo en el VPS.
+- **healthchecks.io** te escribe si el respaldo o un job de la app falla, o si no llega a tiempo. **UptimeRobot** te escribe si la app deja de responder.
 
-   Agrega esta línea y guarda:
+Mientras `restic` no esté configurado, `backup.sh` saca un respaldo sin cifrar, como antes, y avisa que falta este paso.
 
-   ```
-   30 3 * * * /opt/depadmin/backup.sh >> /var/backups/depadmin/backup.log 2>&1
-   ```
+### 9.1 Backblaze B2 (en tu navegador, una vez)
 
-   Pruébalo una vez a mano: `/opt/depadmin/backup.sh` imprime el nombre y el tamaño del respaldo.
+1. Crea una cuenta en [backblaze.com](https://www.backblaze.com/sign-up/cloud-storage) (B2 Cloud Storage). Los primeros 10 GB son gratis.
+2. En **Buckets → Create a Bucket**, crea uno **privado** con un nombre único, por ejemplo `depadmin-respaldos-` y unas letras al azar. Deja _Object Lock_ apagado; el cifrado de B2 es opcional, porque `restic` ya cifra.
+3. En ese bucket, **Lifecycle Settings → Keep only the last version of the file.** `restic` borra las copias viejas escondiéndolas, y sin esta regla seguirían ocupando espacio.
+4. Anota su **Endpoint**, por ejemplo `s3.us-west-004.backblazeb2.com`.
+5. En **Application Keys → Add a New Application Key**, crea una llave llamada `depadmin-restic`, solo para ese bucket, de lectura y escritura. Copia el `keyID` y el `applicationKey`: este último se muestra una sola vez.
 
-2. **(en tu computadora)** Copia los respaldos fuera del VPS, por ejemplo cada semana. Si el VPS se pierde, sus respaldos se pierden con él.
+### 9.2 healthchecks.io y UptimeRobot (en tu navegador, una vez)
 
-   ```bash
-   rsync -av -e "ssh -i ~/.ssh/depadmin_deploy" deploy@TU_IP:/var/backups/depadmin/ ~/Respaldos/depadmin/
-   ```
+1. Crea una cuenta en [healthchecks.io](https://healthchecks.io/) (plan gratis) y un proyecto `DepAdmin`. En **Settings → Ping key**, genera la llave. Tu URL es `https://hc-ping.com/TU_PING_KEY`. Los avisos van al correo de tu cuenta.
+2. No crees las revisiones a mano: cada una aparece con su primer aviso (`backup`, `open-current-month`, `purge-expired-sessions` y `restore-test`), con un periodo de 1 día y 1 hora de gracia. Después de correr `./restore-test.sh` la primera vez, cambia **la de `restore-test`** a un periodo de **90 días** y 7 de gracia: así te recuerda probar la restauración cada tres meses.
+3. Crea una cuenta en [UptimeRobot](https://uptimerobot.com/) (plan gratis) y un monitor **HTTP(s)** a `https://depadmin.osspro.site/api/health/ready`, cada 5 minutos, que avise a tu correo. Responde 503 si la base no contesta, y eso cuenta como caída.
 
-   Guárdalos en un disco o una carpeta cifrada: tienen los nombres, los pagos y los hashes de las contraseñas.
+### 9.3 Los secretos (como deploy)
 
-3. **(como deploy)** Prueba que un respaldo se puede restaurar. Hazlo ahora y luego cada pocos meses. Se restaura en una base aparte, así que la de la app no se toca:
+Agrega al `.env` lo de los pasos anteriores. La contraseña de `restic` sale al azar:
 
-   ```bash
-   cd /opt/depadmin
-   ultimo=$(ls -t /var/backups/depadmin/depadmin-*.dump | head -1)
-   docker compose exec -T db createdb -U depadmin prueba_restauracion
-   docker compose exec -T db pg_restore -U depadmin -d prueba_restauracion --no-owner < "$ultimo"
-   docker compose exec -T db psql -U depadmin -d prueba_restauracion -c 'SELECT count(*) FROM cash_movement'
-   docker compose exec -T db dropdb -U depadmin prueba_restauracion
-   ```
+```bash
+cd /opt/depadmin
+cat >> .env <<EOF
+RESTIC_PASSWORD=$(openssl rand -base64 32)
+RESTIC_REMOTE_REPOSITORY=s3:TU_ENDPOINT/TU_BUCKET/depadmin
+B2_KEY_ID=TU_KEY_ID
+B2_APPLICATION_KEY=TU_APPLICATION_KEY
+HEALTHCHECKS_PING_URL=https://hc-ping.com/TU_PING_KEY
+EOF
+nano .env       # reemplaza los TU_… y revisa que no haya líneas repetidas
+grep '^RESTIC_PASSWORD=' .env
+```
 
-   **Para volver a un respaldo de verdad** (si se perdieron o dañaron los datos), repite el paso 7.2 con ese archivo en lugar de `depadmin-inicial.dump`.
+**Copia `RESTIC_PASSWORD` a tu gestor de contraseñas, junto con las llaves de B2.** Si el VPS se pierde, sin esa contraseña nadie puede abrir los respaldos de B2, ni siquiera tú.
+
+### 9.4 Crear los repositorios y probar (como deploy)
+
+```bash
+cd /opt/depadmin
+./backup.sh init            # crea el repositorio del VPS y el de B2; una sola vez
+./backup.sh                 # el respaldo de cada noche, ahora a mano
+./backup.sh list            # las copias que hay en cada uno
+./restore-test.sh           # restaura la última copia de B2 en una base aparte
+docker compose up -d api    # la API toma HEALTHCHECKS_PING_URL
+```
+
+`restore-test.sh` termina con `restore-test: OK (movimientos …, usuarios …, bitácora …)`. La base de la app no se toca.
+
+### 9.5 Cada noche, a las 3:30 (como deploy)
+
+Si no lo tienes ya, programa el respaldo con `crontab -e`, a las 3:30 hora del VPS (`timedatectl` te dice cuál es):
+
+```
+30 3 * * * /opt/depadmin/backup.sh >> /var/backups/depadmin/backup.log 2>&1
+```
+
+Los `.dump` sin cifrar de antes de `restic` se borran solos a las dos semanas. Las copias que bajaste a tu computadora con `rsync` ya no hacen falta; bórralas con `shred -u`.
+
+**Cada tres meses,** corre `./restore-test.sh`; healthchecks.io te lo recuerda. Para restaurar un respaldo de verdad, sigue [`OPERACION.md`](OPERACION.md).
 
 ---
 
@@ -347,31 +378,38 @@ Se copia tu base de desarrollo tal como está: el historial, la carga inicial, l
 
 Los comandos de esta sección se corren **como deploy** dentro de `/opt/depadmin`, salvo que se diga otra cosa.
 
-| Para                         | Haz                                                                                                                                                                                                                                                                         |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Publicar una versión         | Llévala a `main`; el workflow Deploy hace lo demás. Su número sale de los commits (ADR-0027) y se ve en la app, en «Estado del sistema». `deploy.sh` saca un respaldo antes de las migraciones, y si la versión nueva no arranca sana regresa sola a la anterior (ADR-0029) |
-| Ver si todo está bien        | `docker compose ps`                                                                                                                                                                                                                                                         |
-| Ver los logs                 | `docker compose logs -f api` (o `web`, `db`, `migrate`); `docker compose logs --since 1h api`                                                                                                                                                                               |
-| Volver a la versión anterior | `./deploy.sh 1.0.2`, con una versión de **Releases** en GitHub. Si la versión nueva agregó una migración que la anterior no entiende, restaura además el respaldo que `deploy.sh` sacó justo antes de desplegarla (paso 9)                                                  |
-| Un PR de Dependabot          | Llegan a `develop`, también los de seguridad. Si CI pasa, fusiónalo: llega a producción con el siguiente `develop → main` (si es de seguridad, ábrelo en seguida). Si CI falló por algo que ya se arregló en `develop`, comenta `@dependabot rebase` en el PR               |
-| Actualizar Postgres          | Solo dentro de la misma versión mayor (18.x), a propósito: `./backup.sh`, luego `docker compose pull db` y `docker compose up -d --wait db`. Los despliegues no la tocan. Cambiar de versión mayor requiere respaldar y restaurar                                           |
-| Reiniciar la API             | `docker compose restart api`                                                                                                                                                                                                                                                |
-| Cerrar todas las sesiones    | Cambia `JWT_SECRET` en `.env` y corre `docker compose up -d`                                                                                                                                                                                                                |
-| Actualizar Ubuntu            | Con tu usuario: `sudo apt update && sudo apt upgrade -y`. Ubuntu ya instala solo los parches de seguridad (`unattended-upgrades`)                                                                                                                                           |
-| Renovar el certificado       | Nada: el temporizador de certbot lo renueva (`systemctl list-timers \| grep certbot`)                                                                                                                                                                                       |
+| Para                             | Haz                                                                                                                                                                                                                                                                         |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Publicar una versión             | Llévala a `main`; el workflow Deploy hace lo demás. Su número sale de los commits (ADR-0027) y se ve en la app, en «Estado del sistema». `deploy.sh` saca un respaldo antes de las migraciones, y si la versión nueva no arranca sana regresa sola a la anterior (ADR-0029) |
+| Ver si todo está bien            | `docker compose ps`                                                                                                                                                                                                                                                         |
+| Ver los logs                     | `docker compose logs -f api` (o `web`, `db`, `migrate`); `docker compose logs --since 1h api`                                                                                                                                                                               |
+| Volver a la versión anterior     | `./deploy.sh 1.0.2`, con una versión de **Releases** en GitHub. Si la versión nueva agregó una migración que la anterior no entiende, restaura además el respaldo que `deploy.sh` sacó justo antes de desplegarla (`OPERACION.md`)                                          |
+| Un PR de Dependabot              | Llegan a `develop`, también los de seguridad. Si CI pasa, fusiónalo: llega a producción con el siguiente `develop → main` (si es de seguridad, ábrelo en seguida). Si CI falló por algo que ya se arregló en `develop`, comenta `@dependabot rebase` en el PR               |
+| Actualizar Postgres              | Solo dentro de la misma versión mayor (18.x), a propósito: `./backup.sh`, luego `docker compose pull db` y `docker compose up -d --wait db`. Los despliegues no la tocan. Cambiar de versión mayor requiere respaldar y restaurar                                           |
+| Ver los respaldos                | `./backup.sh list`; el último resultado está en `tail /var/backups/depadmin/backup.log`                                                                                                                                                                                     |
+| Probar que se pueden restaurar   | `./restore-test.sh`, cada tres meses                                                                                                                                                                                                                                        |
+| Ver los errores de los celulares | `docker compose logs --since 24h api \| grep BrowserError`: lo que falló en el navegador de un vecino, sin datos personales                                                                                                                                                 |
+| Reiniciar la API                 | `docker compose restart api`                                                                                                                                                                                                                                                |
+| Cerrar todas las sesiones        | Cambia `JWT_SECRET` en `.env` y corre `docker compose up -d`                                                                                                                                                                                                                |
+| Actualizar Ubuntu                | Con tu usuario: `sudo apt update && sudo apt upgrade -y`. Ubuntu ya instala solo los parches de seguridad (`unattended-upgrades`)                                                                                                                                           |
+| Renovar el certificado           | Nada: el temporizador de certbot lo renueva (`systemctl list-timers \| grep certbot`)                                                                                                                                                                                       |
 
 ---
 
 ## 11. Si algo falla
 
-| Síntoma                                                | Causa probable y solución                                                                                                                                  |
-| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Certbot falla al validar                               | El DNS todavía no apunta al VPS (`dig`), hay un `AAAA` que no responde, o el puerto 80 está cerrado en `ufw` o en el panel del proveedor                   |
-| **502 Bad Gateway**                                    | Los contenedores no están arriba (`docker compose ps`), o `WEB_PORT` del `.env` no coincide con el `proxy_pass` del virtual host                           |
-| Deploy: `Permission denied (publickey)`                | `DEPLOY_SSH_KEY` o `DEPLOY_USER` están mal, o la llave pública no quedó en `/home/deploy/.ssh/authorized_keys`                                             |
-| Deploy: `Host key verification failed`                 | `DEPLOY_KNOWN_HOSTS` no corresponde al VPS: repite el `ssh-keyscan` del paso 3                                                                             |
-| Deploy: `denied` al bajar las imágenes                 | Los paquetes de GHCR son privados (paso 6.4)                                                                                                               |
-| Deploy: `dependency failed to start` o `migrate` falla | `docker compose logs migrate` dice qué migración falló. `deploy.sh` ya regresó a la versión anterior; su salida en el workflow trae los últimos logs       |
-| Deploy: `could not pull`                               | GHCR no respondió en 10 minutos, o la versión no existe. La versión anterior sigue corriendo; vuelve a lanzar el workflow                                  |
-| «Demasiados intentos» para todos a la vez              | El virtual host no envía `X-Forwarded-For` (paso 5), y la API cuenta a todos como una sola IP                                                              |
-| El VPS se queda sin disco                              | `docker system df`; `docker image prune -a` borra las imágenes que ningún contenedor usa. Los logs de los contenedores ya tienen tope (30 MB por servicio) |
+| Síntoma                                                | Causa probable y solución                                                                                                                                      |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Certbot falla al validar                               | El DNS todavía no apunta al VPS (`dig`), hay un `AAAA` que no responde, o el puerto 80 está cerrado en `ufw` o en el panel del proveedor                       |
+| **502 Bad Gateway**                                    | Los contenedores no están arriba (`docker compose ps`), o `WEB_PORT` del `.env` no coincide con el `proxy_pass` del virtual host                               |
+| Deploy: `Permission denied (publickey)`                | `DEPLOY_SSH_KEY` o `DEPLOY_USER` están mal, o la llave pública no quedó en `/home/deploy/.ssh/authorized_keys`                                                 |
+| Deploy: `Host key verification failed`                 | `DEPLOY_KNOWN_HOSTS` no corresponde al VPS: repite el `ssh-keyscan` del paso 3                                                                                 |
+| Deploy: `denied` al bajar las imágenes                 | Los paquetes de GHCR son privados (paso 6.4)                                                                                                                   |
+| Deploy: `dependency failed to start` o `migrate` falla | `docker compose logs migrate` dice qué migración falló. `deploy.sh` ya regresó a la versión anterior; su salida en el workflow trae los últimos logs           |
+| Deploy: `could not pull`                               | GHCR no respondió en 10 minutos, o la versión no existe. La versión anterior sigue corriendo; vuelve a lanzar el workflow                                      |
+| «Demasiados intentos» para todos a la vez              | El virtual host no envía `X-Forwarded-For` (paso 5), y la API cuenta a todos como una sola IP                                                                  |
+| El VPS se queda sin disco                              | `docker system df`; `docker image prune -a` borra las imágenes que ningún contenedor usa. Los logs de los contenedores ya tienen tope (30 MB por servicio)     |
+| Correo de healthchecks.io: `backup` falló              | Dice en qué paso (`failed at: copying to B2`). La copia del VPS ya está; revisa las llaves de B2 en el `.env` y corre `./backup.sh` a mano. Ver `OPERACION.md` |
+| Correo de healthchecks.io: `backup` no llegó           | El cron no corrió: revisa `crontab -l` y `tail /var/backups/depadmin/backup.log`                                                                               |
+| Correo de healthchecks.io: `open-current-month`        | La API no abrió el mes. Ábrelo desde la app como superadmin y revisa `docker compose logs api`                                                                 |
+| Correo de UptimeRobot                                  | La app no responde. Sigue «La app no abre» en `OPERACION.md`                                                                                                   |

@@ -13,6 +13,15 @@ const envSchema = z.object({
   /** Scheduled jobs (opening the month when nobody did). Tests turn them off. */
   JOBS_ENABLED: z.stringbool().default(true),
   /**
+   * The project's ping URL on healthchecks.io (`https://hc-ping.com/<ping key>`): each job
+   * reports there how it went, under its own name (ADR-0030). Empty (the default) reports
+   * nothing.
+   */
+  HEALTHCHECKS_PING_URL: z
+    .union([z.literal(''), z.url({ protocol: /^https$/ })])
+    .default('')
+    .transform((url) => url.replace(/\/+$/, '')),
+  /**
    * The reverse proxies in front of the API, as Express' `trust proxy` list (addresses,
    * subnets or `loopback`, `linklocal`, `uniquelocal`), comma separated. The client's IP is
    * then the last address in X-Forwarded-For that none of them owns, which the login limit
