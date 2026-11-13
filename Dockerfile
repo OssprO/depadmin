@@ -43,7 +43,7 @@ HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=3 \
 CMD ["node", "dist/main.js"]
 
 # ---- Web: the built SPA behind nginx, which also proxies /api to the API ----
-FROM nginxinc/nginx-unprivileged:1.30-alpine AS web
+FROM nginxinc/nginx-unprivileged:1.31-alpine AS web
 LABEL org.opencontainers.image.source="https://github.com/OssprO/depadmin"
 COPY infra/web/default.conf /etc/nginx/conf.d/default.conf
 COPY infra/web/security-headers.conf /etc/nginx/snippets/security-headers.conf
