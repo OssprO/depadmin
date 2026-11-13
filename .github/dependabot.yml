@@ -1,15 +1,15 @@
-# Weekly update PRs against develop (docs/SEGURIDAD.md), grouped so they don't pile up:
-# one for minor and patch releases of each ecosystem; majors come one by one, since they
-# may need code changes. Security updates (when the repository turns them on) ignore
-# target-branch and go to the default branch, which is develop too.
+# Update PRs against develop on the 1st of each month (docs/SEGURIDAD.md), grouped so they
+# don't pile up: one for minor and patch releases of each ecosystem; majors come one by
+# one, since they may need code changes. Security updates (when the repository turns them
+# on) come as soon as an advisory is out; they ignore target-branch and go to the default
+# branch, which is develop too.
 version: 2
 updates:
   - package-ecosystem: npm
     directory: /
     target-branch: develop
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
       timezone: America/Mexico_City
     open-pull-requests-limit: 5
     commit-message:
@@ -27,8 +27,7 @@ updates:
     directory: /
     target-branch: develop
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
       timezone: America/Mexico_City
     commit-message:
       prefix: ci
@@ -40,8 +39,7 @@ updates:
     directory: /
     target-branch: develop
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
       timezone: America/Mexico_City
     commit-message:
       prefix: build
@@ -59,8 +57,7 @@ updates:
     directory: /infra
     target-branch: develop
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
       timezone: America/Mexico_City
     commit-message:
       prefix: build
