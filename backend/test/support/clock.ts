@@ -20,4 +20,8 @@ export class FixedClock implements Clock {
   advanceDays(days: number): void {
     this.instant = this.instant.plusDays(days);
   }
+
+  advanceSeconds(seconds: number): void {
+    this.instant = this.instant.plusSeconds(seconds);
+  }
 }

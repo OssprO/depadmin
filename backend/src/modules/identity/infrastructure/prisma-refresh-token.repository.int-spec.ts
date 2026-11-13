@@ -51,8 +51,10 @@ describe('PrismaRefreshTokenRepository', () => {
     expect(await repository().rotate(first.rotated, first.next)).toBe(true);
     expect(await repository().rotate(second.rotated, second.next)).toBe(false);
 
-    expect((await repository().findByHash(token.tokenHash))?.stateAt(now)).toBe('ROTATED');
-    expect((await repository().findByHash(first.next.tokenHash))?.stateAt(now)).toBe('ACTIVE');
+    const rotated = await repository().findByHash(token.tokenHash);
+    expect(rotated?.stateAt(now)).toBe('ROTATED');
+    expect(rotated?.replacedById).toBe(first.next.id);
+    expect((await repository().findById(first.next.id))?.stateAt(now)).toBe('ACTIVE');
     expect(await repository().findByHash(second.next.tokenHash)).toBeNull();
   });
 

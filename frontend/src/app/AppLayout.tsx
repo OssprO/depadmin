@@ -6,6 +6,7 @@ import {
   DotsThreeOutlineIcon,
   HouseIcon,
   ListBulletsIcon,
+  QuestionIcon,
   ReceiptIcon,
   ToolboxIcon,
   UserCircleIcon,
@@ -130,6 +131,7 @@ export function AppLayout() {
               <SideItem to="/admin" icon={<WrenchIcon />} label="Administración" />
             )}
             <SideItem to="/account" icon={<UserCircleIcon />} label="Mi cuenta" />
+            <SideItem to="/help" icon={<QuestionIcon />} label="Ayuda" />
           </nav>
           <footer className="mt-auto border-t px-3 pt-4">
             <SystemStatus />

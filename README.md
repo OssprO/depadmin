@@ -3,7 +3,7 @@
 Administración de las cuotas de mantenimiento del **Edificio Correspondencia 63**: ingresos, egresos, turnos de administración y el reporte mensual, desde el celular.
 
 - Reglas de negocio: [`docs/SPEC.md`](docs/SPEC.md)
-- Plan de trabajo y arquitectura: [`docs/PLAN.md`](docs/PLAN.md)
+- Plan de trabajo y arquitectura: [`docs/PLAN-ETAPA-1.md`](docs/PLAN-ETAPA-1.md); las etapas siguientes en [`docs/PLAN-ETAPA-2.md`](docs/PLAN-ETAPA-2.md) y [`docs/PLAN-ETAPA-3.md`](docs/PLAN-ETAPA-3.md)
 - Decisiones técnicas: [`docs/adr/`](docs/adr/README.md)
 - Despliegue en el VPS, paso a paso: [`docs/DESPLIEGUE.md`](docs/DESPLIEGUE.md)
 

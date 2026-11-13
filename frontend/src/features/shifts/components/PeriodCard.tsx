@@ -22,6 +22,8 @@ export function PeriodCard({ months, user, isCurrent }: PeriodCardProps) {
       months.flatMap((m) => (m.delegation ? [[m.delegation.id, m.delegation] as const] : [])),
     ).values(),
   ];
+  // A delegation can be cancelled only while none of its months is closed.
+  const cancellable = new Set(months.flatMap((m) => (m.canCancel ? [m.delegation?.id] : [])));
   const uncovered = months.filter((m) => m.responsibleUnits.length === 0);
   const delegable = months.filter((m) => m.canDelegate);
   const isAdmin = user.role === 'SUPERADMIN';
@@ -60,7 +62,7 @@ export function PeriodCard({ months, user, isCurrent }: PeriodCardProps) {
                 : ''}
               .
             </p>
-            {isAdmin && <CancelDelegationDialog delegation={delegation} />}
+            {cancellable.has(delegation.id) && <CancelDelegationDialog delegation={delegation} />}
           </div>
         ))}
         {uncovered.length > 0 && (

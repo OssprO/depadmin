@@ -69,10 +69,12 @@ export function PendingGarbage({ report, onAdjust }: PendingGarbageProps) {
             return (
               <li key={week.week} className="flex items-center gap-3 py-2">
                 {onAdjust ? (
+                  // Named by what it shows: a screen reader says what the eye reads
+                  // (WCAG 2.5.3), and what a tap does comes as the description.
                   <button
                     type="button"
                     className="flex flex-1 items-center gap-3"
-                    aria-label={`${label}: ajustar antes de confirmar`}
+                    aria-describedby="pending-garbage-adjust"
                     onClick={() => onAdjust(week)}
                   >
                     {content}
@@ -95,6 +97,11 @@ export function PendingGarbage({ report, onAdjust }: PendingGarbageProps) {
             );
           })}
         </ul>
+        {onAdjust && (
+          <span id="pending-garbage-adjust" className="sr-only">
+            Ajustar antes de confirmar
+          </span>
+        )}
         <FormError message={error} />
       </CardContent>
     </Card>

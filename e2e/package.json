@@ -4,13 +4,14 @@
   "type": "module",
   "scripts": {
     "test:browser": "playwright test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "guide": "playwright test -c playwright.guide.config.ts"
   },
   "devDependencies": {
-    "@axe-core/playwright": "~4.13.0",
-    "@playwright/test": "^1.64.0",
-    "@testcontainers/postgresql": "^12.2.0",
-    "@types/node": "^24.13.3",
+    "@axe-core/playwright": "~4.14.0",
+    "@playwright/test": "^1.65.0",
+    "@testcontainers/postgresql": "^12.2.1",
+    "@types/node": "^24.19.2",
     "typescript": "~6.0.2"
   }
 }

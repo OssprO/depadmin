@@ -22,6 +22,12 @@ test('every main screen meets WCAG 2.1 AA as far as axe can tell', async ({ page
   await expect(page.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible();
   await expectAccessible(page, 'login');
 
+  // The guide is public: a visitor reads it before signing in.
+  await page.getByRole('link', { name: 'Lee la guía paso a paso' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Ayuda' })).toBeVisible();
+  await expectAccessible(page, 'ayuda');
+  await page.goto('/login');
+
   await page.getByLabel('Usuario').fill(SUPERADMIN.username);
   await page.getByLabel('Contraseña').fill(SUPERADMIN.password);
   await page.getByRole('button', { name: 'Entrar' }).click();
@@ -63,6 +69,11 @@ test('every main screen meets WCAG 2.1 AA as far as axe can tell', async ({ page
       (p) => expect(p.getByLabel('Primer mes')).toBeVisible(),
     ],
     ['/admin/opening', 'carga inicial', (p) => expect(p.getByText('Depto 101')).toBeVisible()],
+    [
+      '/help/shift',
+      'ayuda: turno',
+      (p) => expect(p.getByRole('heading', { name: 'Cuando te toca el turno' })).toBeVisible(),
+    ],
   ];
   for (const [path, screen, ready] of screens) {
     await page.goto(path);

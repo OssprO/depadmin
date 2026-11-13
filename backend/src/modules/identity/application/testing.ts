@@ -66,6 +66,10 @@ export class InMemoryRefreshTokenRepository implements RefreshTokenRepository {
     return Promise.resolve([...this.rows.values()].find((t) => t.tokenHash === tokenHash) ?? null);
   }
 
+  findById(id: string): Promise<RefreshToken | null> {
+    return Promise.resolve(this.rows.get(id) ?? null);
+  }
+
   add(token: RefreshToken): Promise<void> {
     this.rows.set(token.id, token);
     return Promise.resolve();
@@ -110,8 +114,8 @@ export class InMemoryRefreshTokenRepository implements RefreshTokenRepository {
 }
 
 function propsOf(token: RefreshToken) {
-  const { id, sessionId, userId, tokenHash, expiresAt, rotatedAt, revokedAt } = token;
-  return { id, sessionId, userId, tokenHash, expiresAt, rotatedAt, revokedAt };
+  const { id, sessionId, userId, tokenHash, expiresAt, rotatedAt, replacedById, revokedAt } = token;
+  return { id, sessionId, userId, tokenHash, expiresAt, rotatedAt, replacedById, revokedAt };
 }
 
 /** Readable, reversible "hashes", so specs can tell which password was stored. */

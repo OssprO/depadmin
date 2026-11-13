@@ -3,7 +3,7 @@
 ## Edificio Correspondencia 63
 
 **Versión:** 0.4
-**Estado:** reglas de negocio confirmadas y stack definido. El plan de trabajo detallado vive en `docs/PLAN.md` y reemplaza a la sección 11.
+**Estado:** reglas de negocio confirmadas y stack definido. El plan de trabajo detallado vive en `docs/PLAN-ETAPA-1.md` y reemplaza a la sección 11.
 
 ---
 

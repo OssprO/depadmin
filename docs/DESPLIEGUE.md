@@ -295,6 +295,7 @@ Se copia tu base de desarrollo tal como está: el historial, la carga inicial, l
 
   ```bash
   curl -s https://depadmin.osspro.site/api/health                       # "status":"ok" y la versión, p. ej. "1.0.0"
+  curl -s https://depadmin.osspro.site/api/health/ready                 # lo mismo, pero solo si la base responde (si no, 503)
   curl -sI https://depadmin.osspro.site | grep -iE 'strict-transport|content-security'
   ```
 
@@ -346,16 +347,18 @@ Se copia tu base de desarrollo tal como está: el historial, la carga inicial, l
 
 Los comandos de esta sección se corren **como deploy** dentro de `/opt/depadmin`, salvo que se diga otra cosa.
 
-| Para                         | Haz                                                                                                                                                         |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Publicar una versión         | Llévala a `main`; el workflow Deploy hace lo demás. Su número sale de los commits (ADR-0027) y se ve en la app, en «Estado del sistema»                     |
-| Ver si todo está bien        | `docker compose ps`                                                                                                                                         |
-| Ver los logs                 | `docker compose logs -f api` (o `web`, `db`, `migrate`); `docker compose logs --since 1h api`                                                               |
-| Volver a la versión anterior | `./deploy.sh 1.0.2`, con una versión de **Releases** en GitHub. Si la versión nueva agregó una migración, restaura además el respaldo de esa noche (paso 9) |
-| Reiniciar la API             | `docker compose restart api`                                                                                                                                |
-| Cerrar todas las sesiones    | Cambia `JWT_SECRET` en `.env` y corre `docker compose up -d`                                                                                                |
-| Actualizar Ubuntu            | Con tu usuario: `sudo apt update && sudo apt upgrade -y`. Ubuntu ya instala solo los parches de seguridad (`unattended-upgrades`)                           |
-| Renovar el certificado       | Nada: el temporizador de certbot lo renueva (`systemctl list-timers \| grep certbot`)                                                                       |
+| Para                         | Haz                                                                                                                                                                                                                                                                         |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Publicar una versión         | Llévala a `main`; el workflow Deploy hace lo demás. Su número sale de los commits (ADR-0027) y se ve en la app, en «Estado del sistema». `deploy.sh` saca un respaldo antes de las migraciones, y si la versión nueva no arranca sana regresa sola a la anterior (ADR-0029) |
+| Ver si todo está bien        | `docker compose ps`                                                                                                                                                                                                                                                         |
+| Ver los logs                 | `docker compose logs -f api` (o `web`, `db`, `migrate`); `docker compose logs --since 1h api`                                                                                                                                                                               |
+| Volver a la versión anterior | `./deploy.sh 1.0.2`, con una versión de **Releases** en GitHub. Si la versión nueva agregó una migración que la anterior no entiende, restaura además el respaldo que `deploy.sh` sacó justo antes de desplegarla (paso 9)                                                  |
+| Un PR de Dependabot          | Llegan a `develop`, también los de seguridad. Si CI pasa, fusiónalo: llega a producción con el siguiente `develop → main` (si es de seguridad, ábrelo en seguida). Si CI falló por algo que ya se arregló en `develop`, comenta `@dependabot rebase` en el PR               |
+| Actualizar Postgres          | Solo dentro de la misma versión mayor (18.x), a propósito: `./backup.sh`, luego `docker compose pull db` y `docker compose up -d --wait db`. Los despliegues no la tocan. Cambiar de versión mayor requiere respaldar y restaurar                                           |
+| Reiniciar la API             | `docker compose restart api`                                                                                                                                                                                                                                                |
+| Cerrar todas las sesiones    | Cambia `JWT_SECRET` en `.env` y corre `docker compose up -d`                                                                                                                                                                                                                |
+| Actualizar Ubuntu            | Con tu usuario: `sudo apt update && sudo apt upgrade -y`. Ubuntu ya instala solo los parches de seguridad (`unattended-upgrades`)                                                                                                                                           |
+| Renovar el certificado       | Nada: el temporizador de certbot lo renueva (`systemctl list-timers \| grep certbot`)                                                                                                                                                                                       |
 
 ---
 
@@ -368,6 +371,7 @@ Los comandos de esta sección se corren **como deploy** dentro de `/opt/depadmin
 | Deploy: `Permission denied (publickey)`                | `DEPLOY_SSH_KEY` o `DEPLOY_USER` están mal, o la llave pública no quedó en `/home/deploy/.ssh/authorized_keys`                                             |
 | Deploy: `Host key verification failed`                 | `DEPLOY_KNOWN_HOSTS` no corresponde al VPS: repite el `ssh-keyscan` del paso 3                                                                             |
 | Deploy: `denied` al bajar las imágenes                 | Los paquetes de GHCR son privados (paso 6.4)                                                                                                               |
-| Deploy: `dependency failed to start` o `migrate` falla | `docker compose logs migrate` dice qué migración falló                                                                                                     |
+| Deploy: `dependency failed to start` o `migrate` falla | `docker compose logs migrate` dice qué migración falló. `deploy.sh` ya regresó a la versión anterior; su salida en el workflow trae los últimos logs       |
+| Deploy: `could not pull`                               | GHCR no respondió en 10 minutos, o la versión no existe. La versión anterior sigue corriendo; vuelve a lanzar el workflow                                  |
 | «Demasiados intentos» para todos a la vez              | El virtual host no envía `X-Forwarded-For` (paso 5), y la API cuenta a todos como una sola IP                                                              |
 | El VPS se queda sin disco                              | `docker system df`; `docker image prune -a` borra las imágenes que ningún contenedor usa. Los logs de los contenedores ya tienen tope (30 MB por servicio) |

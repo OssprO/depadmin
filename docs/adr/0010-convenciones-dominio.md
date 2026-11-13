@@ -9,7 +9,7 @@ Se maneja dinero, y el negocio se expresa en español mientras que el ecosistema
 ## Decisión
 
 - **Dinero:** enteros en centavos dentro del value object `Money`. Nunca `number` con decimales.
-- **Idioma:** identificadores, tablas y commits en inglés; UI y documentación en español. Los términos se traducen con el glosario de `docs/PLAN.md` §3.
+- **Idioma:** identificadores, tablas y commits en inglés; UI y documentación en español. Los términos se traducen con el glosario de `docs/PLAN-ETAPA-1.md` §3.
 - **Contabilidad:** base de caja; cada movimiento cuenta en el mes de su fecha (spec §4.4).
 - **Tarifas con vigencia:** un cambio de cuota o de tarifa nunca reescribe los meses anteriores.
 

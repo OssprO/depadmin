@@ -71,6 +71,28 @@ describe('GetShiftCalendar', () => {
     ).rejects.toThrow(withCode('DELEGATION_MONTH_CLOSED'));
   });
 
+  it('offers the superadmin to cancel a delegation until one of its months closes', async () => {
+    const fx = shiftsFixture('2026-11-12');
+    fx.months.set('2026-10', 'OPEN').set('2026-11', 'OPEN');
+    const { id } = await fx.delegate.execute(admin, {
+      from: m('2026-10'),
+      to: m('2026-11'),
+      delegateUnit: u(101),
+      reason: 'OTHER',
+    });
+    const cancellable = async (actor: typeof admin) =>
+      (await fx.calendar.execute(actor, m('2026-11'), m('2026-12'))).map((a) => a.canCancel);
+
+    expect(await cancellable(admin)).toEqual([true, false]);
+    expect(await cancellable(owner(502))).toEqual([false, false]);
+
+    // October is outside the range asked for, and it still freezes the delegation.
+    fx.months.set('2026-10', 'CLOSED');
+    expect(await cancellable(admin)).toEqual([false, false]);
+    expect((await fx.calendar.current(admin)).current.canCancel).toBe(false);
+    await expect(fx.cancel.execute(admin, id)).rejects.toThrow(withCode('DELEGATION_MONTH_CLOSED'));
+  });
+
   it('rejects reversed or very long ranges', async () => {
     const fx = shiftsFixture('2026-09-15');
 

@@ -3,6 +3,7 @@ import type { RefreshToken } from './refresh-token.js';
 
 export interface RefreshTokenRepository {
   findByHash(tokenHash: string): Promise<RefreshToken | null>;
+  findById(id: string): Promise<RefreshToken | null>;
   add(token: RefreshToken): Promise<void>;
   /**
    * Stores the rotation of `rotated` and adds `next`, but only if `rotated` was still active
