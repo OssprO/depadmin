@@ -93,6 +93,6 @@ describe('SessionStore', () => {
     await store.logout();
 
     expect(store.user).toBeNull();
-    expect(store.getSnapshot()).toEqual({ status: 'anonymous' });
+    expect(store.getSnapshot()).toEqual({ status: 'anonymous', signedOut: true });
   });
 });
