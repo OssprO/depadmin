@@ -1,6 +1,6 @@
 import { KeyIcon, SignOutIcon } from '@phosphor-icons/react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate } from '@tanstack/react-router';
+import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -12,14 +12,13 @@ export function AccountPage() {
   const user = useCurrentUser();
   const session = useSessionStore();
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   const [leaving, setLeaving] = useState(false);
 
+  // Ending the session takes the app to the login (`AppLayout`).
   const logout = async () => {
     setLeaving(true);
     await session.logout();
     queryClient.clear(); // the next person on this phone must not see cached data
-    await navigate({ to: '/login', replace: true });
   };
 
   return (

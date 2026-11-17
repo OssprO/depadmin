@@ -9,7 +9,8 @@ import { send } from './transport';
 
 export type SessionState =
   | { readonly status: 'unknown' }
-  | { readonly status: 'anonymous' }
+  /** `signedOut`: the user ended it (rather than it expiring or being revoked). */
+  | { readonly status: 'anonymous'; readonly signedOut?: true }
   | { readonly status: 'authenticated'; readonly user: CurrentUser; readonly accessToken: string };
 
 const REFRESH_LOCK = 'depadmin-refresh';
@@ -75,7 +76,7 @@ export class SessionStore {
     } catch {
       // Offline: the refresh token expires on its own.
     } finally {
-      this.set({ status: 'anonymous' });
+      this.set({ status: 'anonymous', signedOut: true });
     }
   }
 
