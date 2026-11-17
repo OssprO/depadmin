@@ -67,6 +67,8 @@ Hallazgos H2, H3 y H6 de la auditoría (sección 3), y la parte de H4 que es del
 
 **Hecha (ADR-0030).** Con lo que se decidió al diseñarla: los respaldos van a **Backblaze B2** y no a Google Drive, porque su llave no vence y `restic` la usa sin `rclone`; `restic` corre en un contenedor, así que el VPS no instala nada; la prueba de restauración también avisa a healthchecks.io, que la recuerda cada 90 días; y el suplente queda solo documentado en `docs/OPERACION.md`.
 
+**Pendiente en producción:** el código ya está desplegado, pero faltan las cuentas de B2, healthchecks.io y UptimeRobot y los pasos de `docs/DESPLIEGUE.md` §9. Hasta entonces los respaldos siguen como antes: sin cifrar y solo en el VPS, y nadie avisa si un job o un respaldo fallan. No detiene las fases siguientes, salvo la 16, que guarda archivos fuera de la base y necesita los respaldos fuera del VPS.
+
 Hallazgos H4, H5 y H7. Casi todo es infraestructura y documentación, con poco código.
 
 - **Respaldos fuera del VPS, en automático y cifrados:**
@@ -353,6 +355,7 @@ No es una fase, pero hay que hacerlo antes del cambio de turno a 401:
 - La cuenta de 401 probada: entra, ve su estado de cuenta y su turno empieza el 1 de diciembre.
 - 502 sabe que su entrega va del 1 al 5 de diciembre: cierra noviembre y registra la entrega del turno.
 - La guía en PDF (`guia-depadmin.pdf`) compartida en el grupo de los vecinos.
+- **Recomendado:** al menos healthchecks.io (`docs/DESPLIEGUE.md` §9.2), para que un aviso llegue si el job no abre diciembre el día 1.
 
 ---
 
