@@ -314,6 +314,8 @@ Lo decide el [ADR-0030](adr/0030-operacion.md):
 
 Mientras `restic` no esté configurado, `backup.sh` saca un respaldo sin cifrar, como antes, y avisa que falta este paso.
 
+**Se puede hacer por partes.** Solo healthchecks.io (9.2, la línea `HEALTHCHECKS_PING_URL` de 9.3 y `docker compose up -d api`) ya avisa si un job falla o no corre. Hasta que termines lo demás, el respaldo te escribirá cada noche que falta `restic`.
+
 ### 9.1 Backblaze B2 (en tu navegador, una vez)
 
 1. Crea una cuenta en [backblaze.com](https://www.backblaze.com/sign-up/cloud-storage) (B2 Cloud Storage). Los primeros 10 GB son gratis.
