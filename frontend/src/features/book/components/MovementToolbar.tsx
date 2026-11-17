@@ -38,7 +38,7 @@ export function MovementToolbar(props: MovementToolbarProps) {
         <Input
           type="search"
           aria-label="Buscar en descripciones y observaciones"
-          placeholder="Buscar en descripciones y observaciones"
+          placeholder="Buscar"
           className="pl-8"
           value={filters.q ?? ''}
           onChange={(event) => set({ q: event.target.value || undefined })}
@@ -58,7 +58,7 @@ export function MovementToolbar(props: MovementToolbarProps) {
             })
           }
         >
-          <NativeSelectOption value={ALL}>Todos los deptos</NativeSelectOption>
+          <NativeSelectOption value={ALL}>Depto: todos</NativeSelectOption>
           {UNIT_NUMBERS.map((unit) => (
             <NativeSelectOption key={unit} value={unit}>
               Depto {unit}
@@ -78,7 +78,7 @@ export function MovementToolbar(props: MovementToolbarProps) {
             })
           }
         >
-          <NativeSelectOption value={ALL}>Todos los tipos</NativeSelectOption>
+          <NativeSelectOption value={ALL}>Tipo: todos</NativeSelectOption>
           {MOVEMENT_CATEGORIES.map((category) => (
             <NativeSelectOption key={category} value={category}>
               {CATEGORIES[category]}

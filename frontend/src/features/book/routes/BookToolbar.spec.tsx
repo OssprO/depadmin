@@ -54,12 +54,12 @@ describe('the book’s rows: search, filters and order', () => {
     expect(await screen.findByText('1 de 4 movimientos')).toBeInTheDocument();
     expect(titles()).toEqual(['Recibo del agua']);
 
-    await userEvent.selectOptions(screen.getByLabelText('Filtrar por tipo'), 'Todos los tipos');
+    await userEvent.selectOptions(screen.getByLabelText('Filtrar por tipo'), 'Tipo: todos');
     await userEvent.selectOptions(screen.getByLabelText('Filtrar por depto'), 'Depto 401');
     expect(titles()).toEqual(['Pago Depto 401']);
     expect(router.state.location.search).toEqual({ depto: 401 });
 
-    await userEvent.selectOptions(screen.getByLabelText('Filtrar por depto'), 'Todos los deptos');
+    await userEvent.selectOptions(screen.getByLabelText('Filtrar por depto'), 'Depto: todos');
     await userEvent.type(screen.getByRole('searchbox'), 'AGUA');
     expect(titles()).toEqual(['Recibo del agua']);
     await userEvent.type(screen.getByRole('searchbox'), 'x');
