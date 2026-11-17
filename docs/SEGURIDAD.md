@@ -55,7 +55,7 @@
 
 ## Pendiente
 
-- Nada de esta revisión.
+- **Configurar en producción lo de la fase 20** (`docs/DESPLIEGUE.md` §9): las cuentas de B2, healthchecks.io y UptimeRobot, y `RESTIC_PASSWORD`. Mientras no se haga, los respaldos del VPS siguen sin cifrar (solo los lee el usuario `deploy`), no hay copia fuera del VPS y ninguna falla avisa.
 
 ## Rendimiento y accesibilidad (Lighthouse 13.5, móvil simulado)
 

@@ -53,6 +53,8 @@ Ve en orden, y para en cuanto encuentres la causa. Los comandos son **(como depl
 
 Solo si los datos se perdieron o se dañaron. Para comprobar que los respaldos sirven, basta `./restore-test.sh`, que no toca la base de la app.
 
+**Si `restic` todavía no está configurado** (`DESPLIEGUE.md` §9 pendiente), no hay copia en B2: los respaldos son los `depadmin-*.dump` de `/var/backups/depadmin`, sin cifrar. Salta los pasos 1 y 2 y usa en el paso 3 el más reciente (`ls -t /var/backups/depadmin/*.dump | head -1`) en lugar de `restaurar.dump`, sin borrarlo al final.
+
 1. **(como deploy)** Elige la copia. `./backup.sh list` muestra las del VPS y las de B2, con la hora en UTC. La más reciente es `latest`. Para otra, usa su ID.
 2. **(como deploy)** Sácala a un archivo. Desde el VPS:
 
