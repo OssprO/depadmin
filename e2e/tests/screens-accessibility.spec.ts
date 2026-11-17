@@ -55,6 +55,11 @@ test('every main screen meets WCAG 2.1 AA as far as axe can tell', async ({ page
       'estado de cuenta',
       (p) => expect(p.getByRole('heading', { name: 'Depto 101' })).toBeVisible(),
     ],
+    [
+      '/parameters',
+      'parámetros',
+      (p) => expect(p.getByRole('region', { name: 'Cuota de mantenimiento' })).toBeVisible(),
+    ],
     ['/tools', 'herramientas', (p) => expect(p.getByText('Contador de efectivo')).toBeVisible()],
     [
       '/tools/cash',

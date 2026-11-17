@@ -227,7 +227,7 @@ export const GUIDE: readonly GuideTopic[] = [
             alt: 'La pregunta para confirmar el cierre, con el saldo final.',
           },
           {
-            text: 'Si el depto que sigue no va a tomar el turno, entra a «Turnos» y toca «Registrar entrega» para anotar quién lo cubre. Hazlo también dentro de esos 5 días.',
+            text: 'Si el depto que sigue no va a tomar el turno, o está inactivo, entra a «Turnos» y toca «Registrar entrega» para anotar quién lo cubre. Hazlo también dentro de esos 5 días; si te equivocas, en esos días puedes cancelarla.',
           },
         ],
       },
@@ -235,6 +235,7 @@ export const GUIDE: readonly GuideTopic[] = [
     tips: [
       'Un mes cerrado ya no se puede cambiar. Si hay que corregir algo, pídele al administrador que lo reabra.',
       'El depto que no toma su turno paga una multa por cada mes.',
+      'Si la asamblea acuerda cambiar la cuota o una tarifa, quien lleva la administración del mes lo registra en «Más» → «Parámetros», desde un mes que todavía no empieza.',
     ],
   },
 ];

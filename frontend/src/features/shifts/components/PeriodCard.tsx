@@ -27,7 +27,8 @@ export function PeriodCard({ months, user, isCurrent }: PeriodCardProps) {
   const uncovered = months.filter((m) => m.responsibleUnits.length === 0);
   const delegable = months.filter((m) => m.canDelegate);
   const isAdmin = user.role === 'SUPERADMIN';
-  // An owner can only hand over a whole untouched period, starting with its first month.
+  // An owner can only hand over a whole untouched period, starting with its first month,
+  // whether its depto skips it or is inactive (ADR-0031).
   const canHandOver = !isAdmin && first.canDelegate;
 
   return (
@@ -67,8 +68,8 @@ export function PeriodCard({ months, user, isCurrent }: PeriodCardProps) {
         ))}
         {uncovered.length > 0 && (
           <p className="text-destructive">
-            Sin responsable en {formatMonthRange(uncovered[0]!.month, uncovered.at(-1)!.month)}: el
-            superadmin debe asignar quién cubre.
+            Sin responsable en {formatMonthRange(uncovered[0]!.month, uncovered.at(-1)!.month)}: lo
+            asigna el depto saliente en su entrega, o el superadmin.
           </p>
         )}
       </CardContent>

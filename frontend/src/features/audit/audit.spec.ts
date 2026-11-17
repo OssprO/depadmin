@@ -75,6 +75,35 @@ describe('describeEntry', () => {
     ]);
   });
 
+  it('describes a rate change with the agreement behind it', () => {
+    const text = describeEntry(
+      entry({
+        actor: { role: 'OWNER', unit: 502 },
+        action: 'RATE_CHANGE_SCHEDULED',
+        entity: 'rate_change',
+        entityId: 'maintenanceFee:2027-01-01',
+        entityLabel: '2027-01',
+        changes: [
+          { field: 'rate', before: null, after: 'maintenanceFee' },
+          { field: 'effectiveFrom', before: null, after: '2027-01-01' },
+          { field: 'amount', before: null, after: 80000 },
+          { field: 'agreedOn', before: null, after: '2026-11-10' },
+          { field: 'agreement', before: null, after: 'Asamblea de noviembre' },
+        ],
+      }),
+    );
+
+    expect(text.title).toBe('Cambio de tarifa');
+    expect(text.subject).toBe('Tarifa desde enero 2027');
+    expect(text.changes).toEqual([
+      { field: 'Tarifa', text: 'Cuota de mantenimiento' },
+      { field: 'Desde', text: 'enero 2027' },
+      { field: 'Importe', text: '$800.00' },
+      { field: 'Fecha del acuerdo', text: '10 de noviembre de 2026' },
+      { field: 'Acuerdo', text: 'Asamblea de noviembre' },
+    ]);
+  });
+
   it('shows codes it does not know as they are', () => {
     const text = describeEntry(
       entry({

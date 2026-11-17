@@ -1,7 +1,14 @@
 import { type LocalDate, Money } from '../../../shared-kernel/index.js';
 import { type RateChange, RateTimeline } from './rate-timeline.js';
 
-export type RateName = 'maintenanceFee' | 'cleaningPerVisit' | 'garbageWeekly' | 'shiftSkipPenalty';
+export const RATE_NAMES = [
+  'maintenanceFee',
+  'cleaningPerVisit',
+  'garbageWeekly',
+  'shiftSkipPenalty',
+] as const;
+
+export type RateName = (typeof RATE_NAMES)[number];
 
 /** The rates in force on one date. */
 export type Rates = Readonly<Record<RateName, Money>>;
@@ -56,6 +63,14 @@ export class RateSettings {
 
   change(name: RateName, change: RateChange): RateSettings {
     return new RateSettings({ ...this.timelines, [name]: this.timelines[name].withChange(change) });
+  }
+
+  /** Takes back a scheduled change of one rate (see `RateTimeline.withoutChange`). */
+  withdraw(name: RateName, effectiveFrom: LocalDate): RateSettings {
+    return new RateSettings({
+      ...this.timelines,
+      [name]: this.timelines[name].withoutChange(effectiveFrom),
+    });
   }
 
   /** A value from before every other of that rate (see `RateTimeline.withEarlier`). */

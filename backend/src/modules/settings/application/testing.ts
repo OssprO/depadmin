@@ -14,6 +14,14 @@ export class InMemoryRateSettingsRepository implements RateSettingsRepository {
     this.settings = settings;
     return Promise.resolve();
   }
+
+  /** How many times a use case took the lock. */
+  locks = 0;
+
+  lock(): Promise<void> {
+    this.locks++;
+    return Promise.resolve();
+  }
 }
 
 /** The initial rates, in force since August 2026. */

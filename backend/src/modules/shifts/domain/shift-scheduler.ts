@@ -80,8 +80,9 @@ export class ShiftScheduler {
 
   /**
    * Extra rules when the outgoing administrator records the handover (instead of the
-   * superadmin): it starts the next period and means the scheduled depto skips its shift,
-   * so it pays the penalty for each month covered by someone else.
+   * superadmin): it starts the next period, and either the scheduled depto skips its shift
+   * (it pays the penalty for each month covered by someone else) or it is inactive and
+   * someone covers it (ADR-0031). Any other reason is the superadmin's, as an auxiliary.
    */
   assertIsHandover(candidate: ShiftDelegation): void {
     const period = this.rotation.periodFor(candidate.months.from);
@@ -91,10 +92,10 @@ export class ShiftScheduler {
         `A handover starts a shift period; ${candidate.months.from} is inside ${period.start}..${period.end}`,
       );
     }
-    if (candidate.reason !== 'SKIPPED_SHIFT') {
+    if (candidate.reason === 'OTHER') {
       throw new ValidationError(
         'HANDOVER_INVALID',
-        `An owner can only record a skipped shift; ${candidate.reason} is for the superadmin`,
+        'A handover is a skipped shift or an inactive depto; another reason is for the superadmin',
       );
     }
   }

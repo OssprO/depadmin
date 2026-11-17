@@ -22,16 +22,19 @@ import { useTestDatabase } from './support/database.js';
 // the loser must get the same answer as if it had come second.
 
 const ctx = useTestDatabase();
-const api = useTestApp({ clock: FixedClock.on('2026-10-02') });
+const OCTOBER_2 = FixedClock.on('2026-10-02').instant;
+const clock = new FixedClock(OCTOBER_2);
+const api = useTestApp({ clock });
 const http = () => request(api.app.getHttpServer());
 let admin: string;
 const superadmin: Actor = { role: 'SUPERADMIN', userId: 'race-test' };
 
 beforeEach(async () => {
+  clock.instant = OCTOBER_2;
   await new PrismaRateSettingsRepository(ctx.database).save(
     RateSettings.startingOn(LocalDate.of(2026, 8, 1)),
   );
-  await givenAccounts(ctx.database, [501]);
+  await givenAccounts(ctx.database, [501, 502]);
   admin = await tokenFor(api.app, 'admin');
   await http()
     .put('/api/reporting-start')
@@ -46,6 +49,39 @@ const codeOf = (responses: request.Response[], status: number) =>
   problemDetailsSchema.parse(responses.find((r) => r.status === status)?.body).code;
 
 describe('concurrent requests', () => {
+  it('charges the fee a month opens with, even when a rate change races the opening', async () => {
+    // 1 November, before anyone opens it: 502 records a fee agreed for November itself.
+    clock.instant = FixedClock.on('2026-11-01').instant;
+    const [owner502, admin] = await Promise.all([
+      tokenFor(api.app, '502'),
+      tokenFor(api.app, 'admin'), // the earlier token expired meanwhile
+    ]);
+    const [change, opening] = await Promise.all([
+      http().post('/api/rates/changes').auth(owner502, { type: 'bearer' }).send({
+        rate: 'maintenanceFee',
+        from: '2026-11',
+        amount: 80000,
+        agreedOn: '2026-10-30',
+        agreement: 'Asamblea extraordinaria',
+      }),
+      http().post('/api/months/2026-11/open').auth(admin, { type: 'bearer' }),
+    ]);
+
+    expect(opening.status).toBe(200);
+    // Either the change came first and November charges it, or the opening did and the
+    // change is refused: never a change accepted for a month already charged without it.
+    expect([201, 409]).toContain(change.status);
+    if (change.status === 409) {
+      expect(problemDetailsSchema.parse(change.body).code).toBe('RATE_CHANGE_TOO_EARLY');
+    }
+    const fees = await ctx.database.client.charge.findMany({
+      where: { month: new Date('2026-11-01T00:00:00Z'), type: 'MAINTENANCE_FEE' },
+    });
+    expect(fees.length).toBeGreaterThan(0);
+    const expected = change.status === 201 ? 80000 : 70000;
+    expect(fees.every((fee) => fee.amount === expected)).toBe(true);
+  });
+
   it('pays a garbage week once when several confirmations race', async () => {
     const confirm = () =>
       http().post('/api/movements').auth(admin, { type: 'bearer' }).send({

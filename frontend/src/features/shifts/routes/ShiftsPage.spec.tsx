@@ -63,6 +63,61 @@ describe('shifts', () => {
     );
   });
 
+  it('lets the outgoing owner say who covers an inactive depto, with no penalty', async () => {
+    const api = fakeApi({
+      'POST /api/auth/refresh': sessionFor(owner501),
+      'GET /api/shifts/current': () => Response.json(currentShift()),
+      'GET /api/shifts/calendar': () =>
+        Response.json(
+          ['2026-10', '2026-11'].map((month) =>
+            shiftMonth(month, {
+              scheduledUnitActive: false,
+              responsibleUnits: [],
+              canDelegate: month === '2026-10',
+            }),
+          ),
+        ),
+      'POST /api/shifts/delegations': () =>
+        Response.json({ ...skip502, reason: 'INACTIVE_UNIT' }, { status: 201 }),
+    });
+    renderApp('/shifts');
+
+    const period = await screen.findByRole('region', { name: 'Turno oct–nov 2026' });
+    expect(
+      within(period).getByText(/lo asigna el depto saliente en su entrega/),
+    ).toBeInTheDocument();
+    await userEvent.click(within(period).getByRole('button', { name: 'Registrar entrega' }));
+    expect(await screen.findByText(/Depto 502 está inactivo/)).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText('Quién lo cubre'), 'Depto 501');
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    await vi.waitFor(() => expect(api.callsTo('POST /api/shifts/delegations')).toHaveLength(1));
+    expect(api.callsTo('POST /api/shifts/delegations')[0]?.body).toMatchObject({
+      reason: 'INACTIVE_UNIT',
+    });
+  });
+
+  it('lets the outgoing owner take back their handover', async () => {
+    const api = fakeApi({
+      'POST /api/auth/refresh': sessionFor(owner501),
+      'GET /api/shifts/current': () => Response.json(currentShift()),
+      'GET /api/shifts/calendar': () =>
+        Response.json([
+          shiftMonth('2026-10', { delegation: skip502, canCancel: true }),
+          shiftMonth('2026-11', { delegation: skip502, canCancel: true }),
+        ]),
+      [`POST /api/shifts/delegations/${skip502.id}/cancel`]: () => Response.json(skip502),
+    });
+    renderApp('/shifts');
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Cancelar' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Sí, cancelar' }));
+
+    await vi.waitFor(() =>
+      expect(api.callsTo(`POST /api/shifts/delegations/${skip502.id}/cancel`)).toHaveLength(1),
+    );
+  });
+
   it('asks who covers before saving', async () => {
     const api = fakeApi({
       'POST /api/auth/refresh': sessionFor(owner501),

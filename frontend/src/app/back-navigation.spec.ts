@@ -17,6 +17,7 @@ describe('parentOf', () => {
     expect(parentOf('/admin/history/', '2026-10')).toBe('/admin');
     expect(parentOf('/admin', '2026-10')).toBe('/more');
     expect(parentOf('/tools', '2026-10')).toBe('/more');
+    expect(parentOf('/parameters', '2026-10')).toBe('/more');
     expect(parentOf('/tools/cash', '2026-10')).toBe('/tools');
     expect(parentOf('/elsewhere', '2026-10')).toBe('/');
   });

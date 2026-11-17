@@ -3,6 +3,7 @@ import type {
   AuditValue,
   DelegationReason,
   FieldChange,
+  RateNameValue,
   Role,
 } from '@depadmin/shared';
 import {
@@ -15,6 +16,7 @@ import {
 } from '@/lib/format';
 import { ROLES } from '@/lib/user-label';
 import { CATEGORIES } from '../book/labels';
+import { RATES } from '../parameters/labels';
 import { REASONS } from '../shifts/labels';
 
 // Spanish text for the audit log. Codes come from the backend's use cases; an unknown one
@@ -43,6 +45,8 @@ const ACTIONS: Record<string, string> = {
   MONTH_RESTATED: 'Saldos del mes recalculados',
   MONTH_REOPENED: 'Mes reabierto',
   REPORTING_START_SET: 'Inicio de la contabilidad',
+  RATE_CHANGE_SCHEDULED: 'Cambio de tarifa',
+  RATE_CHANGE_WITHDRAWN: 'Cambio de tarifa quitado',
 };
 
 /** The kinds of entity, in the order the filter offers them. */
@@ -55,6 +59,7 @@ export const ENTITIES: Record<string, string> = {
   user: 'Usuario',
   reporting_start: 'Inicio',
   opening_balance: 'Saldo inicial del depto',
+  rate_change: 'Tarifa',
 };
 
 const FIELDS: Record<string, Record<string, string>> = {
@@ -93,6 +98,13 @@ const FIELDS: Record<string, Record<string, string>> = {
     closingBalance: 'Saldo final',
   },
   reporting_start: { month: 'Primer mes', openingBalance: 'Efectivo en caja' },
+  rate_change: {
+    rate: 'Tarifa',
+    effectiveFrom: 'Desde',
+    amount: 'Importe',
+    agreedOn: 'Fecha del acuerdo',
+    agreement: 'Acuerdo',
+  },
 };
 
 const MONTH_STATUS: Record<string, string> = { OPEN: 'Abierto', CLOSED: 'Cerrado' };
@@ -159,6 +171,18 @@ const VALUES: Record<string, Record<string, (value: string | number) => string>>
   },
   reporting_start: { month: (v) => formatMonth(String(v)), openingBalance: money },
   opening_balance: { debts: (v) => formatDebts(String(v)), credit: money },
+  rate_change: {
+    rate: (v) => RATES[v as RateNameValue]?.title ?? String(v),
+    effectiveFrom: (v) => formatMonth(String(v).slice(0, 7)),
+    amount: money,
+    agreedOn: (v) => formatFullDate(String(v)),
+  },
+};
+
+/** Entity labels that read better than their stored form. */
+const SUBJECTS: Record<string, (label: string) => string> = {
+  // A rate change is labelled by the month it applies from.
+  rate_change: (label) => `desde ${formatMonth(label)}`,
 };
 
 export interface ChangeLine {
@@ -190,7 +214,7 @@ export function describeEntry(entry: AuditLogEntry): EntryText {
   return {
     title: ACTIONS[entry.action] ?? entry.action,
     actor: actorOf(entry.actor),
-    subject: `${ENTITIES[entry.entity] ?? entry.entity} ${entry.entityLabel}`,
+    subject: `${ENTITIES[entry.entity] ?? entry.entity} ${(SUBJECTS[entry.entity] ?? String)(entry.entityLabel)}`,
     changes: entry.changes.map((change) => describeChange(entry.entity, change)),
   };
 }

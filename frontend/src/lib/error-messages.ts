@@ -30,7 +30,8 @@ const MESSAGES: Record<string, string> = {
   NOT_RESPONSIBLE: 'Ese turno no te corresponde.',
   OUTSIDE_WRITE_WINDOW: 'Ya pasó tu plazo para hacer esto; pídeselo al superadmin.',
   HANDOVER_INVALID:
-    'La entrega empieza en el primer mes del turno siguiente y es porque no lo toma.',
+    'La entrega empieza en el primer mes del turno siguiente, porque el depto no lo toma o está inactivo.',
+  SHIFT_ADMIN_ONLY: 'Solo el depto que lleva la administración este mes puede hacer esto.',
   DELEGATION_INVALID: 'Esa delegación no es válida para ese turno.',
   DELEGATIONS_OVERLAP: 'Ya hay una delegación en esos meses. Cancélala primero.',
   DELEGATE_INACTIVE: 'El depto que cubre está inactivo en esos meses.',
@@ -45,6 +46,15 @@ const MESSAGES: Record<string, string> = {
   UNIT_NOT_INACTIVE: 'El depto no está inactivo en ese mes.',
   RATES_NOT_CONFIGURED: 'Faltan las tarifas; el superadmin debe configurarlas.',
   RATE_NOT_DEFINED: 'No hay tarifa vigente para ese mes.',
+  RATE_INVALID: 'El importe debe ser mayor que cero.',
+  RATE_CHANGE_TOO_EARLY:
+    'Ese mes ya se abrió y cobró sus cuotas; el cambio aplica desde un mes que todavía no se abre.',
+  RATE_CHANGE_NOT_LATEST:
+    'Ya hay un cambio programado después de ese mes: quítalo primero o elige un mes posterior.',
+  RATE_CHANGE_NOT_FOUND: 'Ese cambio ya no existe.',
+  RATE_CHANGE_FIRST: 'El primer valor de una tarifa no se puede quitar.',
+  RATE_AGREEMENT_INVALID:
+    'Escribe qué se acordó y la fecha de la asamblea, que no puede ser futura.',
   UNIT_STATUS_MONTH_OPENED:
     'Ese mes ya se abrió y cobró sus cuotas; el cambio debe empezar el mes siguiente.',
   // Books
