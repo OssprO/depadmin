@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { errorReporter } from '@/lib/error-reporter';
 import { connectSession } from '@/lib/http';
 import { fakeApi, owner501, problem, sessionFor, superadmin, tenant302 } from '@/test/fake-api';
 import { renderApp } from '@/test/render-app';
@@ -17,6 +18,7 @@ describe('navigation and session', () => {
   afterEach(() => {
     connectSession(null);
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it('sends visitors to the login, then back to where they were going', async () => {
@@ -181,7 +183,8 @@ describe('navigation and session', () => {
     expect(screen.getByRole('navigation')).toBeInTheDocument();
   });
 
-  it('signs out and returns to the login', async () => {
+  it('signs out and returns to the login, without the screens breaking on the way', async () => {
+    const report = vi.spyOn(errorReporter, 'report');
     const api = fakeApi({
       'POST /api/auth/refresh': sessionFor(owner501),
       'POST /api/auth/logout': () => new Response(null, { status: 204 }),
@@ -191,7 +194,26 @@ describe('navigation and session', () => {
     await userEvent.click(await screen.findByRole('button', { name: /Cerrar sesión/ }));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
+    expect(await screen.findByRole('button', { name: 'Entrar' })).toBeInTheDocument();
+    // Signing out on purpose: the next person starts from the home, not from «Mi cuenta».
+    expect(router.state.location.search).toEqual({});
     expect(api.callsTo('POST /api/auth/logout')).toHaveLength(1);
+    expect(report).not.toHaveBeenCalled();
+  });
+
+  it('sends to the login a user whose session ends while on a screen, to come back after', async () => {
+    const report = vi.spyOn(errorReporter, 'report');
+    fakeApi({ 'POST /api/auth/refresh': sessionFor(owner501) });
+    const { router, session } = renderApp('/account');
+    expect(await screen.findByRole('heading', { name: 'Mi cuenta' })).toBeInTheDocument();
+
+    // The refresh cookie expired or was revoked: the next refresh answers 401.
+    fakeApi({ 'POST /api/auth/refresh': () => problem(401, 'SESSION_INVALID') });
+    await session.refresh();
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
+    expect(router.state.location.search).toEqual({ redirect: '/account' });
+    expect(report).not.toHaveBeenCalled();
   });
 
   it('offers a retry when the server cannot be reached on load', async () => {
