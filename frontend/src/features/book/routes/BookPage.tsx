@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { useLocalPreference } from '@/lib/use-local-preference';
 import { useWideScreen } from '@/lib/use-media-query';
 import { PaperCard } from '@/features/historical/components/PaperCard';
 import { addMonths, buildingToday, formatMonth, formatMonthName } from '@/lib/format';
@@ -11,6 +12,14 @@ import { monthQueryOptions } from '../api';
 import { MonthClosingCard } from '../components/MonthClosingCard';
 import { MonthSummary } from '../components/MonthSummary';
 import { MovementList } from '../components/MovementList';
+import { MovementToolbar } from '../components/MovementToolbar';
+import {
+  filterMovements,
+  hasFilters,
+  inOrder,
+  MOVEMENT_ORDERS,
+  type MovementFilters,
+} from '../movement-filters';
 import { CleaningCard } from '../components/CleaningCard';
 import { CleaningVisitsSheet } from '../components/CleaningVisitsSheet';
 import { MovementSheet, type MovementPreset } from '../components/MovementSheet';
@@ -29,12 +38,26 @@ type Editing =
  * screen, and read-only for everyone else. A month of the building's history shows its
  * paper sheet too, to check one against the other.
  */
-export function BookPage({ month }: { month: string }) {
+interface BookPageProps {
+  readonly month: string;
+  /** From the address, so they stay while moving between months. */
+  readonly filters?: MovementFilters;
+  readonly onFiltersChange?: (filters: MovementFilters) => void;
+}
+
+export function BookPage({
+  month,
+  filters = {},
+  onFiltersChange = () => undefined,
+}: BookPageProps) {
   const report = useQuery(monthQueryOptions(month));
+  // Remembered on this phone only: a preference, not data of the building.
+  const [order, setOrder] = useLocalPreference('depadmin.book.order', MOVEMENT_ORDERS, 'oldest');
   const [editing, setEditing] = useState<Editing | null>(null);
   const thisMonth = buildingToday().slice(0, 7);
   const data = report.data;
   const canWrite = data?.canWrite ?? false;
+  const shown = inOrder(filterMovements(data?.movements ?? [], filters), order);
   // On the phone the button floats within reach of the thumb; wider, it heads the rows.
   const wide = useWideScreen();
   const addButton = (
@@ -72,7 +95,9 @@ export function BookPage({ month }: { month: string }) {
           variant="ghost"
           size="icon"
           aria-label="Mes anterior"
-          render={<Link to="/book/$month" params={{ month: addMonths(month, -1) }} />}
+          render={
+            <Link to="/book/$month" params={{ month: addMonths(month, -1) }} search={filters} />
+          }
         >
           <CaretLeftIcon />
         </Button>
@@ -84,7 +109,9 @@ export function BookPage({ month }: { month: string }) {
             variant="ghost"
             size="icon"
             aria-label="Mes siguiente"
-            render={<Link to="/book/$month" params={{ month: addMonths(month, 1) }} />}
+            render={
+              <Link to="/book/$month" params={{ month: addMonths(month, 1) }} search={filters} />
+            }
           >
             <CaretRightIcon />
           </Button>
@@ -131,8 +158,19 @@ export function BookPage({ month }: { month: string }) {
             className="flex flex-col gap-4 lg:col-start-1 lg:row-span-3 lg:row-start-1"
           >
             {data.canWrite && wide && <div className="flex justify-end">{addButton}</div>}
+            {data.movements.length > 0 && (
+              <MovementToolbar
+                filters={filters}
+                onFiltersChange={onFiltersChange}
+                order={order}
+                onOrderChange={setOrder}
+                shown={shown.length}
+                total={data.movements.length}
+              />
+            )}
             <MovementList
-              movements={data.movements}
+              movements={shown}
+              empty={hasFilters(filters) ? 'Ningún movimiento coincide.' : undefined}
               // The history keeps no accounts: a payment is not described as an adelanto.
               showCoverage={!data.historical}
               onSelect={

@@ -5,7 +5,7 @@ import {
   type YearMonth,
 } from '../../../../shared-kernel/index.js';
 import type { PaymentCoverage } from '../../../billing/application/index.js';
-import type { OwedCharge, UnitReportLine } from '../../application/index.js';
+import type { OwedCharge, ReportDocument, UnitReportLine } from '../../application/index.js';
 
 // The report's text, in the building's own style (the "Balance Correspondencia 63" sheets):
 // uppercase observations such as "LIQUIDA FEBRERO Y MARZO | PAGA ABRIL" or "ADEUDA DE
@@ -230,4 +230,27 @@ export function currentFeeTone(line: UnitReportLine): 'owed' | 'paidBefore' | 'p
   if (current.outstanding.isPositive()) return 'owed';
   if (current.paidThisMonth.isZero() && current.paidBefore.isPositive()) return 'paidBefore';
   return 'plain';
+}
+
+/**
+ * Who administered the month, for the report's header: the depto with the shift and, if
+ * another covered it by a delegation, that one too; for a sheet of the history, its
+ * «Responsable» as the paper says. A closed month reads as done, an open one as ongoing.
+ * Its delegations freeze when it closes, so a closed month always names the same deptos.
+ */
+export function administeredBy({
+  administration,
+  responsible,
+  status,
+}: Pick<ReportDocument, 'administration' | 'responsible' | 'status'>): string | null {
+  if (!administration) return responsible?.toUpperCase() ?? null;
+  const { scheduledUnit, responsibleUnits } = administration;
+  const closed = status === 'CLOSED';
+  if (responsibleUnits.length === 0)
+    return `TURNO DE DEPTO ${scheduledUnit.value}, SIN RESPONSABLE`;
+  const covering = responsibleUnits.filter((unit) => unit !== scheduledUnit).map((u) => u.value);
+  if (covering.length === 0) {
+    return `${closed ? 'ADMINISTRÓ' : 'ADMINISTRA'} DEPTO ${scheduledUnit.value}`;
+  }
+  return `TURNO DE DEPTO ${scheduledUnit.value}, ${closed ? 'CUBRIÓ' : 'LO CUBRE'} DEPTO ${covering.join(' Y ')}`;
 }

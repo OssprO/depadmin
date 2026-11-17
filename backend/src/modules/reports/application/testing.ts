@@ -106,7 +106,8 @@ export function booksFixture(
   const units = new ListUnits(unitRepository);
   const rateSettings = initialRateSettings();
   const rates = new GetRates(rateSettings);
-  const calendars = new LoadShiftCalendar(new InMemoryShiftDelegationRepository(), units);
+  const delegations = new InMemoryShiftDelegationRepository();
+  const calendars = new LoadShiftCalendar(delegations, units);
   const cashbook = new ReadCashbook(movements, ledger);
   const accounts = new GetAccounts(new GetAccountStatements(charges, credits), cashbook, reports);
   const openingBalances = new ListOpeningBalances(charges, credits);
@@ -133,6 +134,7 @@ export function booksFixture(
     accounts,
     paper,
     movements,
+    delegations,
     setStart: new SetReportingStart(reports, unitOfWork, audit, openingBalances),
     startWithHistory: new StartBooksWithHistory(reports, unitOfWork, clock),
     earlierRates: new RecordEarlierRates(rateSettings, unitOfWork),

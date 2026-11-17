@@ -11,6 +11,7 @@ import {
   type RouterHistory,
 } from '@tanstack/react-router';
 import { auditFiltersFrom } from '@/features/audit/filters';
+import { movementFiltersFrom } from '@/features/book/movement-filters';
 import { LoginPage } from '@/features/auth/routes/LoginPage';
 import { HomePage } from '@/features/dashboard/routes/HomePage';
 import { HelpLayout } from '@/features/help/components/HelpLayout';
@@ -216,9 +217,19 @@ const bookRoute = createRoute({
     },
     stringify: ({ month }) => ({ month }),
   },
+  // The rows' filters (`?depto=301&tipo=UNIT_PAYMENT&q=agua`): they stay from month to month.
+  validateSearch: movementFiltersFrom,
   component: function BookRoute() {
     const { month } = bookRoute.useParams();
-    return <BookPage key={month} month={month} />;
+    const navigate = bookRoute.useNavigate();
+    return (
+      <BookPage
+        key={month}
+        month={month}
+        filters={bookRoute.useSearch()}
+        onFiltersChange={(search) => void navigate({ search, replace: true })}
+      />
+    );
   },
 });
 

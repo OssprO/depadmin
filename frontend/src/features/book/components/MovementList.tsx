@@ -29,12 +29,19 @@ interface MovementListProps {
   readonly onSelect?: ((movement: Movement) => void) | undefined;
   /** What each payment covered. Off for the history, which keeps no accounts. */
   readonly showCoverage?: boolean;
+  /** What to say when there is nothing to list (e.g. no row meets the filters). */
+  readonly empty?: string | undefined;
 }
 
 /** The month's rows, grouped by day, as the report will list them. */
-export function MovementList({ movements, onSelect, showCoverage = true }: MovementListProps) {
+export function MovementList({
+  movements,
+  onSelect,
+  showCoverage = true,
+  empty = 'Sin movimientos todavía.',
+}: MovementListProps) {
   if (movements.length === 0) {
-    return <p className="text-xs/relaxed text-muted-foreground">Sin movimientos todavía.</p>;
+    return <p className="text-xs/relaxed text-muted-foreground">{empty}</p>;
   }
   return byDay(movements).map((day) => (
     <Card key={day.date} size="sm">

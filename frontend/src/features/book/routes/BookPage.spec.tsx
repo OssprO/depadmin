@@ -91,7 +91,9 @@ describe('BookPage', () => {
     expect(within(payment).getByText('cubre sep y oct')).toBeInTheDocument();
     expect(within(payment).getByText('+ $1,400.00')).toBeInTheDocument();
     expect(
-      within(screen.getByText('Limpieza').closest('li')!).getByText('− $270.00'),
+      within(screen.getByText('Limpieza', { selector: 'li span' }).closest('li')!).getByText(
+        '− $270.00',
+      ),
     ).toBeInTheDocument();
   });
 
@@ -267,7 +269,10 @@ describe('BookPage', () => {
     const payment = (await screen.findByText('Pago Depto 401')).closest('li')!;
     expect(within(payment).getByText('LIQUIDA SEPTIEMBRE')).toBeInTheDocument();
     expect(payment).toHaveAttribute('data-direction', 'in');
-    expect(screen.getByText('Limpieza').closest('li')).toHaveAttribute('data-direction', 'out');
+    expect(screen.getByText('Limpieza', { selector: 'li span' }).closest('li')).toHaveAttribute(
+      'data-direction',
+      'out',
+    );
   });
 
   it('adapts the fields to the type and checks them before saving', async () => {

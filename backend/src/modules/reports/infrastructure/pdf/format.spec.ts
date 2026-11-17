@@ -9,6 +9,7 @@ import {
 import type { ChargeType } from '../../../billing/application/index.js';
 import type { OwedCharge, UnitReportLine } from '../../application/index.js';
 import {
+  administeredBy,
   currentFeeTone,
   dayMonth,
   money,
@@ -208,5 +209,34 @@ describe('report text', () => {
     expect(observationsCell({ ...fromPaper, notes: ['LIQUIDÓ'] }, m('2026-04'), fee)).toBe(
       'LIQUIDÓ',
     );
+  });
+
+  it('names who administered the month: the shift, whoever covered it, or the paper', () => {
+    const u = (n: number) => UnitNumber.of(n);
+    const shift = (scheduled: number, responsible: number[]) => ({
+      scheduledUnit: u(scheduled),
+      responsibleUnits: responsible.map(u),
+    });
+    const closed = (administration: ReturnType<typeof shift> | null, responsible = null) =>
+      administeredBy({ administration, responsible, status: 'CLOSED' });
+
+    expect(closed(shift(502, [502]))).toBe('ADMINISTRÓ DEPTO 502');
+    expect(closed(shift(401, [401, 402]))).toBe('TURNO DE DEPTO 401, CUBRIÓ DEPTO 402');
+    expect(closed(shift(401, []))).toBe('TURNO DE DEPTO 401, SIN RESPONSABLE');
+    expect(
+      administeredBy({ administration: shift(401, [401, 402]), responsible: null, status: 'OPEN' }),
+    ).toBe('TURNO DE DEPTO 401, LO CUBRE DEPTO 402');
+    expect(
+      administeredBy({ administration: shift(502, [502]), responsible: null, status: 'OPEN' }),
+    ).toBe('ADMINISTRA DEPTO 502');
+    // A sheet of the history says it itself, or says nothing.
+    expect(
+      administeredBy({
+        administration: null,
+        responsible: 'Responsable: depto 201',
+        status: 'CLOSED',
+      }),
+    ).toBe('RESPONSABLE: DEPTO 201');
+    expect(closed(null)).toBeNull();
   });
 });

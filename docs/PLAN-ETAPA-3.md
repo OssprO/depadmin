@@ -109,6 +109,8 @@ Hallazgo H1. El dominio ya lo permite (`RateSettings.change`, con fechas de vige
 
 ### Fase 22: Libro: orden, estado, búsqueda y responsable en el PDF
 
+**Hecha.** Al diseñarla se vio que el PDF ya nombraba al responsable desde la fase 9, pero al pie de página y en letra chica: ahora va en el encabezado, y la tarjeta «Resumen» del Libro dice lo mismo («Administra Depto 502», «Turno de Depto 401, lo cubre Depto 402»). Un mes cerrado no necesita guardarlo: sus delegaciones y el estado de sus deptos ya no cambian. Los filtros viven en la dirección de la página (`?depto=301&tipo=UNIT_PAYMENT&q=agua`), así que se quedan al cambiar de mes y «Atrás» los deshace. «Pendientes» no lleva el badge: sus tareas ya dicen «Cerrar octubre».
+
 Ideas del administrador más una de la auditoría (búsqueda).
 
 - **Orden de los movimientos:** un botón cambia entre «más antiguos primero» (como hoy) y «más recientes primero». Se recuerda en cada celular (preferencia local, sin servidor).
