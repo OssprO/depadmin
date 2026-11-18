@@ -3,6 +3,7 @@ import { withCode } from '../../../../test/support/domain-error.js';
 import { Money, type PaperLine, UnitNumber, YearMonth } from '../../../shared-kernel/index.js';
 import { d, expense, garbage, otherIncome, payment, pesos } from '../../cashbook/domain/testing.js';
 import { admin, owner } from '../../shifts/application/testing.js';
+import { delegation } from '../../shifts/domain/testing.js';
 import type { ReportDocument } from './report-document.js';
 import { booksFixture } from './testing.js';
 
@@ -632,6 +633,27 @@ describe('RenderMonthlyReport', () => {
     await fx.add.execute(admin, payment('2026-10-01', 402, 400));
     return fx;
   }
+
+  it('names both deptos when the month was covered by a delegation, in the PDF and the view', async () => {
+    const fx = booksFixture('2026-10-03');
+    await fx.setStart.execute(admin, { month: m('2026-09'), openingBalance: pesos(1000) });
+    // September is 501's; 502 covered it.
+    await fx.delegations.save(delegation('2026-09', 501, 502));
+    await fx.open.execute(admin, m('2026-09'));
+    await fx.close.execute(admin, m('2026-09'));
+
+    const [doc] = await fx.pdf.documents(m('2026-09'));
+    const view = await fx.view.execute(admin, m('2026-09'));
+
+    const both = {
+      scheduledUnit: UnitNumber.of(501),
+      responsibleUnits: [UnitNumber.of(501), UnitNumber.of(502)],
+    };
+    expect(doc?.administration).toEqual(both);
+    expect(view.administration).toEqual(both);
+    // The history and the months before the rotation have nobody the platform knows of.
+    expect((await fx.view.execute(admin, m('2026-07'))).administration).toBeNull();
+  });
 
   it('gathers the month’s figures, rows and accounts for the renderer', async () => {
     const fx = await september();

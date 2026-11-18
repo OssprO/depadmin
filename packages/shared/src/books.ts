@@ -169,6 +169,13 @@ export const monthlyReportSchema = z.object({
    * no fees, accounts or shift on the platform. Only the superadmin writes it.
    */
   historical: z.boolean(),
+  /**
+   * The depto whose shift it is and those that answer for it (two with a delegation; none
+   * while an inactive depto has no cover). Null for the history and before the rotation.
+   */
+  administration: z
+    .object({ scheduledUnit: unitNumberSchema, responsibleUnits: z.array(unitNumberSchema) })
+    .nullable(),
   /** Null until the month is opened. */
   balances: z.object({ opening: centavosSchema, closing: centavosSchema }).nullable(),
   totals: z.object({

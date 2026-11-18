@@ -54,6 +54,7 @@ export function octoberReport(overrides: Partial<MonthlyReport> = {}): MonthlyRe
     status: 'OPEN',
     reportingStarted: true,
     historical: false,
+    administration: { scheduledUnit: 502, responsibleUnits: [502] },
     balances: { opening: 500000, closing: 613000 },
     totals: {
       income: 140000,

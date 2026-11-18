@@ -62,6 +62,10 @@ export function toMonthlyReport(view: MonthlyReportView): MonthlyReport {
     status: view.status,
     reportingStarted: view.reportingStarted,
     historical: view.historical,
+    administration: view.administration && {
+      scheduledUnit: unit(view.administration.scheduledUnit),
+      responsibleUnits: view.administration.responsibleUnits.map(unit),
+    },
     balances: balances && {
       opening: centavos(balances.opening),
       closing: centavos(balances.closing),

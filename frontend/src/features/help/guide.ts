@@ -202,7 +202,10 @@ export const GUIDE: readonly GuideTopic[] = [
         ],
       },
     ],
-    tips: ['Cada cambio queda anotado en la «Bitácora», con quién lo hizo y cuándo.'],
+    tips: [
+      'Cada cambio queda anotado en la «Bitácora», con quién lo hizo y cuándo.',
+      'Para encontrar un movimiento, busca por texto o filtra por depto y tipo arriba de la lista; el filtro se queda al pasar de un mes a otro. «Más recientes primero» cambia el orden, y tu celular lo recuerda.',
+    ],
   },
   {
     slug: 'close-month',
