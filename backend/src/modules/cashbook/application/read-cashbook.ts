@@ -76,4 +76,15 @@ export class ReadCashbook {
   payments(unit?: UnitNumber): Promise<CashMovement[]> {
     return unit ? this.movements.findPaymentsOf(unit) : this.movements.findAllPayments();
   }
+
+  /** One row, removed or not; null if there is none. */
+  movement(id: string): Promise<CashMovement | null> {
+    return this.movements.findById(id);
+  }
+
+  /** The rows of every month from `from` to `to`, oldest first, without the removed ones. */
+  async between(from: YearMonth, to: YearMonth): Promise<CashMovement[]> {
+    const rows = await this.movements.findBetween(LocalDate.firstOf(from), LocalDate.lastOf(to));
+    return rows.filter((row) => !row.isRemoved).sort((a, b) => a.date.compareTo(b.date));
+  }
 }

@@ -23,6 +23,7 @@ export const paymentRow: Movement = {
     { month: '2026-09', type: 'MAINTENANCE_FEE', amount: 70000, settles: true },
     { month: '2026-10', type: 'MAINTENANCE_FEE', amount: 70000, settles: true },
   ],
+  receiptNumber: 1,
 };
 
 export const cleaningRow: Movement = {
@@ -34,6 +35,7 @@ export const cleaningRow: Movement = {
   description: null,
   week: null,
   coverage: [],
+  receiptNumber: null,
 };
 
 export const garbageRow: Movement = {
@@ -45,6 +47,7 @@ export const garbageRow: Movement = {
   description: null,
   week: '2026-09-28',
   coverage: [],
+  receiptNumber: null,
 };
 
 /** October 2026, open, with a payment and a cleaning visit. */

@@ -8,6 +8,7 @@ import type {
   UnitNumberValue,
 } from '@depadmin/shared';
 import type { Money, UnitNumber } from '../../../shared-kernel/index.js';
+import type { CashMovement } from '../../cashbook/application/index.js';
 import type { AccountStatement, OpeningBalance } from '../../billing/application/index.js';
 import type { MonthHistory, MonthlyReportView, ReportRow } from '../application/index.js';
 
@@ -22,9 +23,18 @@ export function toAccountSummary(statement: AccountStatement): AccountSummary {
   };
 }
 
-export function toAccountStatement(statement: AccountStatement): AccountStatementResponse {
+export function toAccountStatement(
+  statement: AccountStatement,
+  payments: readonly CashMovement[],
+): AccountStatementResponse {
   return {
     ...toAccountSummary(statement),
+    payments: payments.map((payment) => ({
+      id: payment.id,
+      date: String(payment.date),
+      amount: centavos(payment.amount),
+      receiptNumber: payment.receiptNumber,
+    })),
     lines: statement.lines.map((line) => ({
       month: String(line.charge.month),
       type: line.charge.type,
@@ -52,6 +62,7 @@ function toMovement({ movement, coverage }: ReportRow): Movement {
       amount: centavos(c.amount),
       settles: c.settles,
     })),
+    receiptNumber: movement.receiptNumber,
   };
 }
 

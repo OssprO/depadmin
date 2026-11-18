@@ -18,6 +18,7 @@ import { PrismaAuditTrail } from './infrastructure/prisma-audit-trail.js';
     { provide: AUDIT_LOG_READER, useClass: PrismaAuditLogReader },
     ListAuditLog,
   ],
-  exports: [AUDIT_TRAIL],
+  // ListAuditLog too: a receipt says who recorded the payment (reports).
+  exports: [AUDIT_TRAIL, ListAuditLog],
 })
 export class AuditModule {}

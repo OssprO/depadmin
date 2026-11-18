@@ -79,6 +79,8 @@ const MESSAGES: Record<string, string> = {
   PREVIOUS_MONTH_OPEN: 'Los meses se cierran en orden: cierra primero el anterior.',
   MONTH_NOT_CLOSED: 'Ese mes no está cerrado.',
   REPORT_NOT_FOUND: 'Ese mes no se ha abierto.',
+  RECEIPT_NOT_FOUND: 'Ese pago ya no existe, o no es un pago de depto con recibo.',
+  EXPORT_RANGE_INVALID: 'Elige de 1 a 120 meses, y que el último no sea anterior al primero.',
   MOVEMENT_NOT_FOUND: 'Ese movimiento ya no existe.',
   MOVEMENT_REMOVED: 'Ese movimiento ya se había borrado.',
   MOVEMENT_DUPLICATED: 'Ese movimiento ya estaba registrado.',

@@ -11,6 +11,7 @@ const payment = (coverage: Movement['coverage'], amount = 140000): Movement => (
   description: null,
   week: null,
   coverage,
+  receiptNumber: null,
 });
 
 const fee = (month: string, amount: number, settles = true) =>

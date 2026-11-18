@@ -37,6 +37,7 @@ import {
   type ReportStatus,
 } from '../domain/index.js';
 import { GetAccounts } from './accounts.js';
+import type { ReceiptDocument, StatementDocument } from './receipts.js';
 import { liveTotalsOf } from './live-totals.js';
 import { requireLedger } from './open-month.js';
 
@@ -163,6 +164,10 @@ export interface ReportDocument {
  */
 export interface ReportRenderer {
   render(documents: readonly ReportDocument[]): Promise<Uint8Array>;
+  /** A depto payment's receipt (`RenderAccountDocuments`), in the same style. */
+  renderReceipt(document: ReceiptDocument): Promise<Uint8Array>;
+  /** A depto's account statement. */
+  renderStatement(document: StatementDocument): Promise<Uint8Array>;
 }
 
 export const REPORT_RENDERER = Symbol('ReportRenderer');

@@ -45,8 +45,18 @@ export class InMemoryCashMovementRepository implements CashMovementRepository {
     return Promise.resolve(this.payments());
   }
 
+  private lastReceipt = 0;
+
+  /** Numbers the payments as the database's trigger does (which also skips the history). */
   save(movements: readonly CashMovement[]): Promise<void> {
-    for (const movement of movements) this.rows.set(movement.id, copy(movement));
+    for (const movement of movements) {
+      const stored = this.rows.get(movement.id)?.receiptNumber ?? null;
+      const receipt = stored ?? (movement.category === 'UNIT_PAYMENT' ? ++this.lastReceipt : null);
+      this.rows.set(
+        movement.id,
+        CashMovement.restore(movement.id, movement.details, movement.isRemoved, receipt),
+      );
+    }
     return Promise.resolve();
   }
 
@@ -67,4 +77,5 @@ const between = (date: LocalDate, first: LocalDate, last: LocalDate) =>
   !date.isBefore(first) && !date.isAfter(last);
 
 /** Stored copies, so a use case that forgets to save is caught. */
-const copy = (m: CashMovement) => CashMovement.restore(m.id, m.details, m.isRemoved);
+const copy = (m: CashMovement) =>
+  CashMovement.restore(m.id, m.details, m.isRemoved, m.receiptNumber);

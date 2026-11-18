@@ -182,6 +182,10 @@ export class ReportsController {
     @Param('unit', new ZodValidationPipe(z.coerce.number().pipe(unitNumberSchema)))
     unit: UnitNumberValue,
   ): Promise<AccountStatement> {
-    return toAccountStatement(await this.accounts.of(UnitNumber.of(unit)));
+    const [statement, payments] = await Promise.all([
+      this.accounts.of(UnitNumber.of(unit)),
+      this.accounts.paymentsOf(UnitNumber.of(unit)),
+    ]);
+    return toAccountStatement(statement, payments);
   }
 }

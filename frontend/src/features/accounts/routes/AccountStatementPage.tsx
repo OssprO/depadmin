@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatMoney, formatMonth } from '@/lib/format';
 import { accountQueryOptions } from '../api';
+import { PaymentsCard, StatementCard } from '../components/AccountDocuments';
 
 const TYPES = { MAINTENANCE_FEE: 'Cuota', SHIFT_SKIP_PENALTY: 'Multa por no tomar turno' } as const;
 const STATUS = {
@@ -78,6 +79,8 @@ export function AccountStatementPage({ unit }: { unit: number }) {
               )}
             </CardContent>
           </Card>
+          <PaymentsCard payments={data.payments} />
+          <StatementCard unit={unit} />
         </>
       )}
     </div>
