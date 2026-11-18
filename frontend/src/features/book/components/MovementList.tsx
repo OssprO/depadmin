@@ -2,6 +2,7 @@ import type { Movement } from '@depadmin/shared';
 import { ArrowDownLeftIcon, ArrowUpRightIcon, BroomIcon, TrashIcon } from '@phosphor-icons/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatLocalDate, formatMoney, formatWeek } from '@/lib/format';
+import { folioLabel } from '@/features/accounts/api';
 import { cn } from '@/lib/utils';
 import { describeCoverage, isIncome, movementTitle } from '../labels';
 
@@ -55,8 +56,14 @@ export function MovementList({
           {day.movements.map((movement) => {
             const Icon = ICONS[movement.category];
             const income = isIncome(movement.category);
+            const folio =
+              movement.receiptNumber === null
+                ? null
+                : `folio ${folioLabel(movement.receiptNumber)}`;
             const detail =
-              (showCoverage ? describeCoverage(movement) : null) ??
+              [showCoverage ? describeCoverage(movement) : null, folio]
+                .filter(Boolean)
+                .join(' · ') ||
               (movement.week && `semana ${formatWeek(movement.week)}`);
             // A payment's observations, which the report prints for its depto.
             const notes = movement.category === 'UNIT_PAYMENT' ? movement.description : null;

@@ -142,5 +142,6 @@ function toDomain(row: MovementRow): CashMovement {
       week: row.coversWeek && fromDbDate(row.coversWeek),
     },
     row.removedAt !== null,
+    row.receiptNumber,
   );
 }

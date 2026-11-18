@@ -10,6 +10,7 @@ import {
   type MonthlyReport,
   UNIT_NUMBERS,
 } from '@depadmin/shared';
+import { ReceiptActions } from '@/features/accounts/components/AccountDocuments';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { type ChangeEvent, useMemo, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
@@ -405,6 +406,10 @@ export function MovementSheet({
               <FieldError errors={[errors.description]} />
             </Field>
             <FormError message={error} />
+            {/* A recorded payment's receipt, from the same form that corrects it. */}
+            {movement?.receiptNumber != null && (
+              <ReceiptActions id={movement.id} folio={movement.receiptNumber} />
+            )}
             {saved && (
               <p role="status" className="text-muted-foreground">
                 {saved}

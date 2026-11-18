@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatMoney, formatMonth } from '@/lib/format';
 import { historyQueryOptions } from '../api';
+import { ExportCsvCard } from '../components/ExportCsvCard';
 
 /**
  * Every month since the books started, newest first. A closed month shows the figures frozen
@@ -76,6 +77,9 @@ export function HistoryPage() {
             </ul>
           </CardContent>
         </Card>
+      )}
+      {history.isSuccess && history.data.months.length > 0 && (
+        <ExportCsvCard months={history.data.months} />
       )}
     </div>
   );
