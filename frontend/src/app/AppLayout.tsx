@@ -8,6 +8,7 @@ import {
   ListBulletsIcon,
   QuestionIcon,
   ReceiptIcon,
+  SlidersHorizontalIcon,
   ToolboxIcon,
   UserCircleIcon,
   WrenchIcon,
@@ -153,6 +154,7 @@ function Shell({ user }: { user: CurrentUser }) {
             <SideItem to="/shifts" icon={<CalendarDotsIcon />} label="Turnos" />
             <SideItem to="/audit" icon={<ClockCounterClockwiseIcon />} label="Bitácora" />
             <SideItem to="/accounts" icon={<ReceiptIcon />} label="Estados de cuenta" />
+            <SideItem to="/parameters" icon={<SlidersHorizontalIcon />} label="Parámetros" />
             <SideItem to="/tools" icon={<ToolboxIcon />} label="Herramientas" />
             {user.role === 'SUPERADMIN' && (
               <SideItem to="/admin" icon={<WrenchIcon />} label="Administración" />

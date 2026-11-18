@@ -27,6 +27,31 @@ describe('PrismaRateSettingsRepository', () => {
     expect(loaded!.historyOf('garbageWeekly')).toHaveLength(1);
   });
 
+  it('keeps the agreement of a change and deletes the changes taken back', async () => {
+    const initial = RateSettings.startingOn(d('2026-08-01'));
+    const agreement = { on: d('2026-11-10'), summary: 'Asamblea de noviembre' };
+    const scheduled = initial.change('maintenanceFee', {
+      effectiveFrom: d('2027-01-01'),
+      amount: Money.ofPesos(800),
+      agreement,
+    });
+    await repository().save(scheduled);
+    expect((await repository().load())!.historyOf('maintenanceFee').at(-1)?.agreement).toEqual(
+      agreement,
+    );
+    expect((await repository().load())!.historyOf('cleaningPerVisit')[0]?.agreement).toBeNull();
+
+    await repository().save(scheduled.withdraw('maintenanceFee', d('2027-01-01')));
+    expect(await ctx.database.client.rateChange.count()).toBe(4);
+  });
+
+  it('refuses an agreement without its date', async () => {
+    await repository().save(RateSettings.startingOn(d('2026-08-01')));
+    await expect(
+      ctx.database.client.rateChange.updateMany({ data: { agreement: 'sin fecha' } }),
+    ).rejects.toThrow(/rate_change_agreement_complete/);
+  });
+
   it('appends new changes on later saves', async () => {
     const initial = RateSettings.startingOn(d('2026-08-01'));
     await repository().save(initial);

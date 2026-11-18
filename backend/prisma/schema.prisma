@@ -162,8 +162,12 @@ model ShiftDelegation {
 
 model RateChange {
   rate          RateName
-  effectiveFrom DateTime @map("effective_from") @db.Date
+  effectiveFrom DateTime  @map("effective_from") @db.Date
   amount        Int
+  /// The assembly (or, from phase 27, the vote) that agreed the change; null for the
+  /// initial values and the building's history.
+  agreedOn      DateTime? @map("agreed_on") @db.Date
+  agreement     String?
 
   @@id([rate, effectiveFrom])
   @@map("rate_change")

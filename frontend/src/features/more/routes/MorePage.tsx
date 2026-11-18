@@ -2,6 +2,7 @@ import {
   ListBulletsIcon,
   QuestionIcon,
   ReceiptIcon,
+  SlidersHorizontalIcon,
   ToolboxIcon,
   UserCircleIcon,
   WrenchIcon,
@@ -29,6 +30,12 @@ export function MorePage() {
           icon={<ReceiptIcon />}
           title="Estados de cuenta"
           description="Adeudos y adelantos de cada depto"
+        />
+        <MenuEntry
+          to="/parameters"
+          icon={<SlidersHorizontalIcon />}
+          title="Parámetros"
+          description="Cuota y tarifas que acordó el edificio"
         />
         <MenuEntry
           to="/tools"

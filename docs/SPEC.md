@@ -19,25 +19,28 @@ Aplicación web mobile-first para digitalizar y centralizar la administración d
 
 ## 2. Glosario
 
-| Término                | Significado                                                                         |
-| ---------------------- | ----------------------------------------------------------------------------------- |
-| Depto                  | Cada una de las 10 unidades: 101, 102, 201, 202, 301, 302, 401, 402, 501, 502       |
-| Dueño                  | Propietario responsable del pago de mantenimiento de su depto                       |
-| Cuota de mantenimiento | $700 MXN mensuales por depto                                                        |
-| Turno / Gobierno       | Periodo de 2 meses en que un depto es responsable de administrar los fondos comunes |
-| Superadmin             | Rol con permisos de escritura permanentes (el usuario que solicita este proyecto)   |
-| Adeudo                 | Meses de cuota no pagados, acumulables                                              |
-| Adelanto               | Pago de uno o más meses futuros por anticipado                                      |
+| Término                | Significado                                                                             |
+| ---------------------- | --------------------------------------------------------------------------------------- |
+| Depto                  | Cada una de las 10 unidades: 101, 102, 201, 202, 301, 302, 401, 402, 501, 502           |
+| Dueño                  | Propietario responsable del pago de mantenimiento de su depto                           |
+| Cuota de mantenimiento | $700 MXN mensuales por depto                                                            |
+| Turno / Gobierno       | Periodo de 2 meses en que un depto es responsable de administrar los fondos comunes     |
+| Administrador en turno | El dueño del depto que lleva el turno del mes en curso (o lo cubre por delegación)      |
+| Superadmin             | Auxiliar con acceso total para casos particulares (el usuario que solicita el proyecto) |
+| Adeudo                 | Meses de cuota no pagados, acumulables                                                  |
+| Adelanto               | Pago de uno o más meses futuros por anticipado                                          |
 
 ## 3. Roles y permisos
 
-| Rol        | Lectura                                                                                            | Escritura                                                |
-| ---------- | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| Dueño      | Todos los reportes, histórico completo, estado de cuenta de todos los deptos (transparencia total) | Solo en los meses de su turno (ver ventana de escritura) |
-| Superadmin | Todo                                                                                               | Siempre, sin restricción de turno                        |
+| Rol        | Lectura                                                                                            | Escritura                                                                                             |
+| ---------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Dueño      | Todos los reportes, histórico completo, estado de cuenta de todos los deptos (transparencia total) | Solo en los meses de su turno (ver ventana de escritura); en su turno, administra el edificio         |
+| Superadmin | Todo                                                                                               | Como auxiliar: en cualquier mes y momento, para casos particulares, siempre en la bitácora. No decide |
+
+**Quién gobierna** (ADR-0031): el **administrador en turno** tiene todos los permisos de administración, salvo las decisiones que requieren votación. Las decisiones del edificio (tarifas, y desde la fase 27 las reformas y las reglas de las votaciones) **se votan**: las propone el administrador en turno y las deciden los deptos. El **superadmin no gobierna**: es un auxiliar para soporte técnico y casos particulares (reabrir un mes, cuentas de usuario, configurar los libros, un periodo sin responsable), y todo lo que hace queda en la bitácora. No propone ni cambia nada del edificio por su cuenta.
 
 - **Ventana de escritura y entrega:** un dueño escribe en los meses de su turno (o de una delegación que recibe) desde el día 1 de cada mes y mientras conserve el turno, más un **periodo de gracia de 5 días naturales** al terminar. Ejemplo: si agosto y septiembre son del 501, el 501 puede corregir agosto durante septiembre, y ambos meses hasta el 5 de octubre. A partir del 6 de octubre solo el superadmin puede hacerlo. El depto que recibe el turno (502) no tiene acceso a los meses anteriores.
-- La gracia existe porque en esos días se hace la **entrega** al siguiente administrador (llaves, talonario y carpeta de recibos). En ese plazo, el administrador saliente revisa que todo cuadre, **cierra él mismo sus meses** y decide el siguiente turno: se lo entrega al depto que sigue, o ese depto no lo toma y lo cubre el saliente u otro depto que él asigne. En ese caso, el depto que no tomó el turno paga la multa por cada mes. El superadmin puede hacer cualquiera de estas acciones en cualquier momento, y solo él puede reabrir un mes cerrado.
+- La gracia existe porque en esos días se hace la **entrega** al siguiente administrador (llaves, talonario y carpeta de recibos). En ese plazo, el administrador saliente revisa que todo cuadre, **cierra él mismo sus meses** y decide el siguiente turno: se lo entrega al depto que sigue, o ese depto no lo toma (o está inactivo) y lo cubre el saliente u otro depto que él asigne. Si no lo tomó, paga la multa por cada mes; si está inactivo, no hay multa. En el mismo plazo puede cancelar esa entrega si se equivocó. El superadmin, como auxiliar, puede hacer cualquiera de estas acciones en cualquier momento, y solo él puede reabrir un mes cerrado.
 - Todo cambio a un registro (pago, gasto, ajuste manual, traspaso de turno) queda registrado en una **bitácora de auditoría** inmutable: usuario, fecha/hora, tabla/campo afectado, valor anterior, valor nuevo.
 - El traspaso de turno/delegación es **manual**: lo registra el administrador saliente durante la entrega, o el superadmin en cualquier momento. Durante el periodo delegado, **tanto el depto original como el depto delegado** tienen permiso de escritura (además del superadmin, que siempre lo tiene). Todo traspaso queda registrado en la bitácora.
 
@@ -46,6 +49,7 @@ Aplicación web mobile-first para digitalizar y centralizar la administración d
 ### 4.1 Cuota de mantenimiento
 
 - $700 MXN mensuales por depto, 10 deptos → $7,000 MXN de ingreso base esperado por mes si todos están al corriente.
+- La cuota y las demás tarifas (limpieza, basura, multa) cambian solo por acuerdo del edificio: el administrador en turno registra lo que se votó en asamblea, y aplica desde un mes que todavía no se abre (ADR-0031). Desde la fase 27 la votación será en la app.
 
 ### 4.2 Turnos de administración ("gobiernos")
 
@@ -62,7 +66,7 @@ Cada depto, cada mes, puede estar en una combinación de estos estados (no son e
 - **Adeudo**: debe uno o más meses anteriores (se registra el detalle: qué meses y monto total).
 - **Adelanto**: pagó por anticipado uno o más meses futuros.
 - **Pago parcial**: sí aplica. Se registra como un abono que reduce el saldo del adeudo sin marcarlo como liquidado — el sistema debe permitir montos que no cubran el adeudo completo. _(Valor por defecto, ajustable si en la práctica se necesita otro comportamiento.)_
-- **Depto inactivo**: si un depto llegara a quedarse sin dueño/responsable activo (ej. en disputa, en venta), el superadmin puede marcarlo como **inactivo** temporalmente. Un depto inactivo no genera cobros mientras dure ese estado. **El calendario de turnos no se recorre:** si a un depto inactivo le toca turno, el superadmin asigna qué depto lo cubre mediante una delegación (sin multa, porque no es una omisión). Mientras no la asigne, el periodo queda "sin responsable" y solo el superadmin puede escribir en él. _(Confirmado.)_
+- **Depto inactivo**: si un depto llegara a quedarse sin dueño/responsable activo (ej. en disputa, en venta), el superadmin puede marcarlo como **inactivo** temporalmente. Un depto inactivo no genera cobros mientras dure ese estado. **El calendario de turnos no se recorre:** si a un depto inactivo le toca turno, el administrador saliente asigna en su entrega qué depto lo cubre mediante una delegación (sin multa, porque no es una omisión), o el superadmin como auxiliar. Mientras nadie la asigne, el periodo queda "sin responsable" y solo el superadmin puede escribir en él. _(Confirmado; quién asigna, ADR-0031.)_
 
 ### 4.4 Egresos recurrentes
 
@@ -105,7 +109,7 @@ Incluye:
 - ✅ Widget visual tipo "blueprint" del edificio en el dashboard, con el depto en turno resaltado automáticamente (ver sección 4.5).
 - ✅ Registro de pagos, adeudos y adelantos por depto.
 - ✅ Registro de egresos por categoría (basura, limpieza, otros).
-- ✅ Roles: dueño (lectura total) / depto en turno (escritura limitada) / superadmin (escritura total).
+- ✅ Roles: dueño (lectura total) / depto en turno (escritura limitada; administra el edificio) / superadmin (auxiliar con escritura total).
 - ✅ Bitácora de auditoría de todos los cambios.
 - ✅ Autenticación por usuario/contraseña (uno por depto), sesión persistente en móvil.
 

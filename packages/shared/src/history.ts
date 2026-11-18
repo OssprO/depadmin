@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { centavosSchema, monthStatusSchema, movementRequestSchema } from './books.js';
+import { rateNameSchema } from './rates.js';
 import {
   localDateSchema,
   OWNER_NAME_MAX_LENGTH,
@@ -70,14 +71,6 @@ export type SheetRequest = z.infer<typeof sheetRequestSchema>;
 /** `POST /api/history/sheets`: a sheet found later. */
 export const addSheetRequestSchema = sheetRequestSchema.extend({ month: yearMonthSchema });
 export type AddSheetRequest = z.infer<typeof addSheetRequestSchema>;
-
-export const rateNameSchema = z.enum([
-  'maintenanceFee',
-  'cleaningPerVisit',
-  'garbageWeekly',
-  'shiftSkipPenalty',
-]);
-export type RateNameValue = z.infer<typeof rateNameSchema>;
 
 export const HISTORY_FILE_VERSION = 2;
 

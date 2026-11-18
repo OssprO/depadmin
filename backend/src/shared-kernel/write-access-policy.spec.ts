@@ -159,6 +159,22 @@ describe('WriteAccessPolicy', () => {
       expect(handOver(superadmin, '2027-01-01')).not.toThrow();
     });
 
+    it('leaves the decisions of the building to the owner holding the current month', () => {
+      const governs = (actor: Actor, today: string) =>
+        policy.governs({ actor, today: LocalDate.parse(today), responsibility: normal });
+      const assertGoverns = (actor: Actor, today: string) => () =>
+        policy.assertGoverns({ actor, today: LocalDate.parse(today), responsibility: normal });
+      expect(governs(owner(501), '2026-09-30')).toBe(true);
+      // In the handover days the outgoing depto closes its months, but no longer governs.
+      expect(governs(owner(501), '2026-10-02')).toBe(false);
+      expect(governs(owner(502), '2026-10-02')).toBe(true);
+      expect(assertGoverns(owner(502), '2026-10-02')).not.toThrow();
+      expect(assertGoverns(owner(501), '2026-10-02')).toThrow(withCode('SHIFT_ADMIN_ONLY'));
+      expect(assertGoverns(superadmin, '2026-10-02')).toThrow(withCode('SHIFT_ADMIN_ONLY'));
+      const tenant: Actor = { role: 'READER', userId: 'r', unit: UnitNumber.of(502) };
+      expect(assertGoverns(tenant, '2026-10-02')).toThrow(withCode('READ_ONLY'));
+    });
+
     it('reserves administration to the superadmin', () => {
       expect(() => policy.assertCanAdminister(owner(501))).toThrow(withCode('SUPERADMIN_ONLY'));
       expect(() => policy.assertCanAdminister(superadmin)).not.toThrow();

@@ -89,6 +89,14 @@ Hallazgos H4, H5 y H7. Casi todo es infraestructura y documentación, con poco c
 
 ### Fase 21: Tarifas y parámetros del edificio
 
+**Hecha (ADR-0031).** Al diseñarla salió un principio que nunca se había escrito: **el administrador en turno gobierna y el superadmin es un auxiliar**, y las decisiones del edificio se votan. Por eso cambió respecto de lo planeado:
+
+- **Las tarifas las cambia el administrador en turno, no el superadmin,** registrando el acuerdo de la asamblea (fecha y qué se acordó). Desde la fase 27 la votación será en la app.
+- **Todos leen las tarifas** en _Más → Parámetros_; solo el administrador en turno las cambia.
+- **Un cambio programado se puede quitar** mientras su mes no se abra.
+- **Endpoints:** `GET /api/rates`, `POST /api/rates/changes` y `DELETE /api/rates/changes/:rate/:from`, en lugar de `PUT /api/rates`.
+- **Delegaciones:** el administrador saliente, en su entrega, también asigna quién cubre a un depto inactivo y cancela su propia entrega.
+
 Hallazgo H1. El dominio ya lo permite (`RateSettings.change`, con fechas de vigencia que solo se agregan después de la última), pero no hay caso de uso, endpoint ni pantalla.
 
 - **_Administración → Tarifas_** (solo el superadmin): la cuota, la limpieza por visita, la basura por semana y la multa por saltar el turno, cada una con su historia de cambios.
@@ -226,7 +234,7 @@ Primera mitad de la idea de gobernanza: el texto vigente, publicado y con su his
 
 Segunda mitad, «tipo Git»: una reforma es una propuesta de versión nueva que se aprueba con votos.
 
-- **Proponer:** el superadmin o el administrador en turno (pregunta 27).
+- **Proponer:** el administrador en turno (pregunta 27, ADR-0031). El superadmin no propone.
   - Una reforma cambia un documento: el texto nuevo completo, su motivo y la versión de la que parte.
   - Mientras es borrador, quien la propuso la edita.
   - Al publicarla, se abre la votación, y los dueños reciben un aviso y un correo (fase 25).
@@ -239,7 +247,8 @@ Segunda mitad, «tipo Git»: una reforma es una propuesta de versión nueva que 
   - **Mayoría: 6 de 10 deptos a favor.** Cuentan los 10, también los inactivos: legalmente cada depto siempre tiene dueño, así que un depto que no vota cuenta como que no aprobó.
   - **Plazo: 15 días** desde que se publica.
   - Se aprueba en cuanto llega al sexto voto a favor. Se rechaza en cuanto ya no puede llegar (5 en contra), o al vencer el plazo sin la mayoría.
-  - La mayoría y el plazo son **parámetros** (fase 21), con fecha de vigencia y auditados. Una reforma usa los parámetros vigentes el día que se publicó.
+  - La mayoría y el plazo son **parámetros** (fase 21), con fecha de vigencia y auditados. Una reforma usa los parámetros vigentes el día que se publicó. **Cambiarlos también se vota** (pregunta 30), igual que una tarifa.
+- **Tarifas por votación:** el administrador en turno propone una tarifa nueva desde un mes; al aprobarse, la app la aplica con el mismo `ChangeRate` de la fase 21, con la votación como acuerdo. Queda por decidir qué pasa si la votación cierra cuando ese mes ya se abrió: aplicar desde el siguiente mes sin abrir, o que la propuesta venza.
 - **Como Git:**
   - La vista de la reforma compara el texto propuesto con el vigente.
   - Si otra reforma del mismo documento se aprueba antes, la pendiente queda **desactualizada**, porque parte de una versión que ya no es la vigente. Quien la propuso la actualiza sobre la nueva versión, y **sus votos se reinician** (se votó otro texto).
@@ -354,18 +363,18 @@ No es una fase, pero hay que hacerlo antes del cambio de turno a 401:
 
 Cada una tiene un valor por defecto para no bloquear el avance.
 
-| #   | Pregunta                                                                                                                               | Valor por defecto                                                                                                                      | Fase |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 19  | ¿Qué proveedor de correo?                                                                                                              | **Respondida:** uno transaccional, seguro y gratuito: Resend, con Brevo como alternativa (sección 4)                                   | 24   |
-| 20  | ¿Sigue la fase 17 (WhatsApp)?                                                                                                          | **Respondida:** no; se descarta por costo y mantenimiento, y el correo la reemplaza                                                    | 24   |
-| 21  | ¿Entra la fase 16 a esta etapa?                                                                                                        | **Respondida:** sí, junto con los comprobantes del libro, con mucho cuidado en cómo el VPS sirve los archivos                          | 16   |
-| 22  | ¿Las reformas incluyen votaciones? ¿Con qué mayoría y plazo?                                                                           | **Respondida:** sí; 6 de 10 deptos, cuentan los inactivos, 15 días de plazo, y todo como parámetro                                     | 27   |
-| 23  | ¿Los correos de los dueños están al día?                                                                                               | El superadmin los corrobora con su lista física; cada dueño confirma el suyo con un enlace                                             | 24   |
-| 24  | ¿A dónde van los respaldos fuera del VPS?                                                                                              | **Respondida:** a Backblaze B2, cifrados con `restic`. Google Drive quedó descartado: su autorización puede vencer a los 7 días        | 20   |
-| 25  | ¿Quién es el suplente del superadmin?                                                                                                  | **Respondida por ahora:** nadie todavía; `docs/OPERACION.md` dice qué necesitaría y se crea su acceso cuando se elija                  | 20   |
-| 26  | ¿El voto de una reforma es público (como una firma) o secreto? ¿El superadmin tiene también la cuenta de dueño de su depto para votar? | Público: cada depto ve cómo votó cada uno, como en una lista de firmas. El superadmin vota solo con la cuenta de dueño de su depto     | 27   |
-| 27  | ¿Quién propone reformas: el administrador del mes en curso, o también el saliente en su entrega?                                       | Solo el depto con el turno del mes en curso y el superadmin                                                                            | 27   |
-| 28  | ¿Se puede cambiar un voto antes de que cierre la votación?                                                                             | No: votar es firmar. Si el texto cambia (reforma desactualizada), se vota de nuevo                                                     | 27   |
-| 29  | ¿Los otros egresos llevan una etiqueta para el reporte anual (mantenimiento, reparaciones…)?                                           | Sí, opcional y de una lista corta que administra el superadmin                                                                         | 28   |
-| 30  | ¿Cambiar la mayoría o el plazo de las votaciones necesita una reforma?                                                                 | Por ahora no: lo cambia el superadmin, con fecha de vigencia y en la bitácora. Cuando el reglamento lo regule, se hará con una reforma | 27   |
-| 31  | ¿El reglamento se puede leer sin sesión, como la guía?                                                                                 | No: es del edificio, se lee con sesión                                                                                                 | 26   |
+| #   | Pregunta                                                                                                                               | Valor por defecto                                                                                                                  | Fase |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 19  | ¿Qué proveedor de correo?                                                                                                              | **Respondida:** uno transaccional, seguro y gratuito: Resend, con Brevo como alternativa (sección 4)                               | 24   |
+| 20  | ¿Sigue la fase 17 (WhatsApp)?                                                                                                          | **Respondida:** no; se descarta por costo y mantenimiento, y el correo la reemplaza                                                | 24   |
+| 21  | ¿Entra la fase 16 a esta etapa?                                                                                                        | **Respondida:** sí, junto con los comprobantes del libro, con mucho cuidado en cómo el VPS sirve los archivos                      | 16   |
+| 22  | ¿Las reformas incluyen votaciones? ¿Con qué mayoría y plazo?                                                                           | **Respondida:** sí; 6 de 10 deptos, cuentan los inactivos, 15 días de plazo, y todo como parámetro                                 | 27   |
+| 23  | ¿Los correos de los dueños están al día?                                                                                               | El superadmin los corrobora con su lista física; cada dueño confirma el suyo con un enlace                                         | 24   |
+| 24  | ¿A dónde van los respaldos fuera del VPS?                                                                                              | **Respondida:** a Backblaze B2, cifrados con `restic`. Google Drive quedó descartado: su autorización puede vencer a los 7 días    | 20   |
+| 25  | ¿Quién es el suplente del superadmin?                                                                                                  | **Respondida por ahora:** nadie todavía; `docs/OPERACION.md` dice qué necesitaría y se crea su acceso cuando se elija              | 20   |
+| 26  | ¿El voto de una reforma es público (como una firma) o secreto? ¿El superadmin tiene también la cuenta de dueño de su depto para votar? | Público: cada depto ve cómo votó cada uno, como en una lista de firmas. El superadmin vota solo con la cuenta de dueño de su depto | 27   |
+| 27  | ¿Quién propone reformas: el administrador del mes en curso, o también el saliente en su entrega?                                       | **Respondida:** solo el depto con el turno del mes en curso; el superadmin es auxiliar y no propone (ADR-0031)                     | 27   |
+| 28  | ¿Se puede cambiar un voto antes de que cierre la votación?                                                                             | No: votar es firmar. Si el texto cambia (reforma desactualizada), se vota de nuevo                                                 | 27   |
+| 29  | ¿Los otros egresos llevan una etiqueta para el reporte anual (mantenimiento, reparaciones…)?                                           | Sí, opcional y de una lista corta que administra el superadmin                                                                     | 28   |
+| 30  | ¿Cambiar la mayoría o el plazo de las votaciones necesita una reforma?                                                                 | **Respondida:** sí, se vota, como las tarifas: lo propone el administrador en turno (ADR-0031)                                     | 27   |
+| 31  | ¿El reglamento se puede leer sin sesión, como la guía?                                                                                 | No: es del edificio, se lee con sesión                                                                                             | 26   |

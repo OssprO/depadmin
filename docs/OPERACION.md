@@ -93,12 +93,12 @@ Solo si los datos se perdieron o se dañaron. Para comprobar que los respaldos s
 
 ## 6. Si el superadmin no está
 
-Hoy solo el superadmin reabre meses, restablece contraseñas, administra usuarios y despliega. **Todavía no hay suplente** (pregunta 25 del [plan de la Etapa 3](PLAN-ETAPA-3.md)).
+El edificio lo gobierna el administrador en turno; el superadmin es un auxiliar (ADR-0031). Aun así, hoy solo el superadmin reabre meses, restablece contraseñas, administra usuarios y despliega. **Todavía no hay suplente** (pregunta 25 del [plan de la Etapa 3](PLAN-ETAPA-3.md)).
 
 Mientras no lo haya:
 
 - **Los turnos siguen solos.** Cada depto escribe su mes y lo cierra en su entrega. El mes se abre solo el día 1.
-- **Lo que espera al superadmin:** reabrir un mes cerrado, restablecer una contraseña, asignar quién cubre un depto inactivo, y cualquier problema del VPS.
+- **Lo que espera al superadmin:** reabrir un mes cerrado, restablecer una contraseña, asignar quién cubre un depto inactivo si el saliente no lo hizo en su entrega, y cualquier problema del VPS.
 - **Lo que necesitaría un suplente:** una cuenta en la app con esos permisos, que todavía no existe, y para la infraestructura acceso al gestor de contraseñas con lo de la sección 1. Cuando se elija a alguien, se crea su acceso y se escribe aquí su nombre.
 
 ---

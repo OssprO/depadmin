@@ -47,7 +47,8 @@ export function CurrentShiftCard() {
         {current.delegation && <p>{describeDelegation(current.delegation)}.</p>}
         {current.responsibleUnits.length === 0 && (
           <p className="text-destructive">
-            Este mes no tiene responsable: el superadmin debe asignar quién cubre.
+            Este mes no tiene responsable: lo asigna el depto saliente en su entrega, o el
+            superadmin.
           </p>
         )}
         <p className="text-muted-foreground">

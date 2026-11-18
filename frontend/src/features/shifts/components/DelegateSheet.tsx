@@ -29,7 +29,8 @@ interface DelegateSheetProps {
   /** The months of one scheduled period that can be delegated now. */
   readonly months: readonly ShiftMonth[];
   /**
-   * `handover`: the outgoing owner records that the next depto skips its shift.
+   * `handover`: the outgoing owner records who covers the next shift, because its depto
+   * skips it (and pays the penalty) or is inactive.
    * `admin`: the superadmin delegates any of the months, for any reason.
    */
   readonly mode: 'handover' | 'admin';
@@ -54,6 +55,7 @@ export function DelegateSheet({ months, mode }: DelegateSheetProps) {
   });
   const { errors, isSubmitting } = form.formState;
   const handover = mode === 'handover';
+  const inactive = !first.scheduledUnitActive;
 
   const onSubmit = form.handleSubmit(async (body) => {
     setError(null);
@@ -83,18 +85,26 @@ export function DelegateSheet({ months, mode }: DelegateSheetProps) {
         <form onSubmit={(event) => void onSubmit(event)} noValidate>
           <SheetHeader>
             <SheetTitle>
-              {handover ? 'El turno no lo toma el siguiente' : 'Delegar el turno'}
+              {!handover
+                ? 'Delegar el turno'
+                : inactive
+                  ? 'Quién cubre al depto inactivo'
+                  : 'El turno no lo toma el siguiente'}
             </SheetTitle>
             <SheetDescription>
-              {handover
-                ? `Registra quién cubre a Depto ${scheduled} en ${formatMonthRange(first.period.start, first.period.end)}. Depto ${scheduled} paga la multa por cada mes que no toma.`
-                : `Turno de Depto ${scheduled}, ${formatMonthRange(first.period.start, first.period.end)}.`}
+              {!handover
+                ? `Turno de Depto ${scheduled}, ${formatMonthRange(first.period.start, first.period.end)}.`
+                : inactive
+                  ? `Depto ${scheduled} está inactivo: registra quién lo cubre en ${formatMonthRange(first.period.start, first.period.end)}. No hay multa.`
+                  : `Registra quién cubre a Depto ${scheduled} en ${formatMonthRange(first.period.start, first.period.end)}. Depto ${scheduled} paga la multa por cada mes que no toma.`}
             </SheetDescription>
           </SheetHeader>
           <FieldGroup className="px-4">
             {handover ? (
               <Field>
-                <FieldLabel htmlFor="delegation-to">Meses que no toma</FieldLabel>
+                <FieldLabel htmlFor="delegation-to">
+                  {inactive ? 'Meses que cubre' : 'Meses que no toma'}
+                </FieldLabel>
                 <NativeSelect id="delegation-to" className="w-full" {...form.register('to')}>
                   {months.map(({ month }) => (
                     <NativeSelectOption key={month} value={month}>

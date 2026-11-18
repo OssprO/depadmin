@@ -18,7 +18,10 @@ export const MAX_CALENDAR_MONTHS = 36;
 export interface CalendarMonth extends ShiftAssignment {
   /** Whether the actor can delegate this month now (the outgoing owner's handover, or the superadmin). */
   readonly canDelegate: boolean;
-  /** Whether the actor can cancel the month's delegation now (the superadmin, if none of its months is closed). */
+  /**
+   * Whether the actor can cancel the month's delegation now, if none of its months is
+   * closed: the outgoing administrator their handover, the superadmin any.
+   */
   readonly canCancel: boolean;
 }
 
@@ -80,11 +83,11 @@ export class GetShiftCalendar {
       const { month, delegation } = assignment;
       const canDelegate =
         !closed.has(String(month)) && this.canDelegate(actor, assignment, calendar);
-      // Mirrors CancelDelegation: the superadmin's, while none of its months is closed.
+      // Mirrors CancelDelegation, while none of its months is closed.
       const canCancel =
-        actor.role === 'SUPERADMIN' &&
         delegation !== null &&
-        !monthsOf(delegation).some((covered) => closed.has(String(covered)));
+        !monthsOf(delegation).some((covered) => closed.has(String(covered))) &&
+        this.canCancel(actor, delegation, calendar);
       return { ...assignment, canDelegate, canCancel };
     });
   }
@@ -110,17 +113,32 @@ export class GetShiftCalendar {
   /**
    * Mirrors the checks `DelegateShift` makes, so the screen offers the action only where it
    * would succeed: no active delegation yet, and for an owner, a handover of the period
-   * that follows theirs while they can still act on it. `withActions` also leaves out the
+   * that follows theirs while they can still act on it, whether its depto skips it or is
+   * inactive. `withActions` also leaves out the
    * closed months.
    */
   private canDelegate(actor: Actor, assignment: ShiftAssignment, calendar: ShiftCalendar): boolean {
     if (assignment.delegation || assignment.beforeRotation) return false;
     if (actor.role === 'SUPERADMIN') return true;
-    const { month, period, scheduledUnitActive } = assignment;
-    if (!month.equals(period.start) || !scheduledUnitActive) return false;
+    const { month, period } = assignment;
+    if (!month.equals(period.start)) return false;
+    return this.canHandOver(actor, month, calendar);
+  }
+
+  /** The superadmin any delegation; an owner the handover they can still record. */
+  private canCancel(actor: Actor, delegation: ShiftDelegation, calendar: ShiftCalendar): boolean {
+    if (actor.role === 'SUPERADMIN') return true;
+    const { from } = delegation.months;
+    if (delegation.reason === 'OTHER') return false;
+    if (!calendar.assignmentFor(from).period.start.equals(from)) return false;
+    return this.canHandOver(actor, from, calendar);
+  }
+
+  /** Whether the actor can still act on the month before `firstMonth` (their window). */
+  private canHandOver(actor: Actor, firstMonth: YearMonth, calendar: ShiftCalendar): boolean {
     return this.policy.decide({
       actor,
-      month: month.previous(),
+      month: firstMonth.previous(),
       today: this.clock.today(),
       responsibility: calendar,
     }).allowed;

@@ -78,6 +78,10 @@ const OpeningBalancesPage = lazyRouteComponent(
   () => import('@/features/admin/routes/OpeningBalancesPage'),
   'OpeningBalancesPage',
 );
+const ParametersPage = lazyRouteComponent(
+  () => import('@/features/parameters/routes/ParametersPage'),
+  'ParametersPage',
+);
 const ReportingStartPage = lazyRouteComponent(
   () => import('@/features/admin/routes/ReportingStartPage'),
   'ReportingStartPage',
@@ -259,6 +263,13 @@ const shiftsRoute = createRoute({
   component: ShiftsPage,
 });
 
+/** What the building agreed (its rates): everyone reads it, the shift administrator changes it. */
+const parametersRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/parameters',
+  component: ParametersPage,
+});
+
 /** Utilities for everyone, apart from the books. */
 const toolsRoute = createRoute({
   getParentRoute: () => appRoute,
@@ -357,6 +368,7 @@ const routeTree = rootRoute.addChildren([
     moreRoute,
     shiftsRoute,
     auditRoute,
+    parametersRoute,
     toolsRoute,
     cashCounterRoute,
     accountRoute,
