@@ -105,6 +105,8 @@ export const movementSchema = z.object({
   week: localDateSchema.nullable(),
   /** For a depto payment: the charges it covered, oldest first. */
   coverage: z.array(paymentCoverageSchema),
+  /** A live depto payment's folio, for its receipt; null for any other row. */
+  receiptNumber: z.number().int().positive().nullable(),
 });
 export type Movement = z.infer<typeof movementSchema>;
 
@@ -255,6 +257,15 @@ export type ReportingStartResponse = z.infer<typeof reportingStartResponseSchema
 export const chargeStatusSchema = z.enum(['PAID', 'PARTIAL', 'UNPAID']);
 
 export const accountStatementSchema = accountSummarySchema.extend({
+  /** Its live payments, oldest first, each with its receipt's folio. */
+  payments: z.array(
+    z.object({
+      id: z.uuid(),
+      date: localDateSchema,
+      amount: centavosSchema,
+      receiptNumber: z.number().int().positive().nullable(),
+    }),
+  ),
   lines: z.array(
     z.object({
       month: yearMonthSchema,
@@ -299,3 +310,16 @@ export const openingBalancesSchema = z.object({
   balances: z.array(openingBalanceSchema),
 });
 export type OpeningBalances = z.infer<typeof openingBalancesSchema>;
+
+/** `GET /api/accounts/:unit/statement.pdf`: today, or as it stood when a closed month ended. */
+export const statementQuerySchema = z.object({ through: yearMonthSchema.optional() });
+export type StatementQuery = z.infer<typeof statementQuerySchema>;
+
+/** `GET /api/movements.csv?from=2026-08&to=2026-10`: the rows of those months. */
+export const movementsExportQuerySchema = z
+  .object({ from: yearMonthSchema, to: yearMonthSchema })
+  .refine(({ from, to }) => from <= to, {
+    message: 'El mes final no puede ser anterior al inicial',
+    path: ['to'],
+  });
+export type MovementsExportQuery = z.infer<typeof movementsExportQuerySchema>;

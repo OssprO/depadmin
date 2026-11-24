@@ -88,7 +88,7 @@ describe('BookPage', () => {
     expect(screen.getByText('Abierto')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'sábado, 3 de octubre' })).toBeInTheDocument();
     const payment = screen.getByText('Pago Depto 401').closest('li')!;
-    expect(within(payment).getByText('cubre sep y oct')).toBeInTheDocument();
+    expect(within(payment).getByText('cubre sep y oct · folio 0001')).toBeInTheDocument();
     expect(within(payment).getByText('+ $1,400.00')).toBeInTheDocument();
     expect(
       within(screen.getByText('Limpieza', { selector: 'li span' }).closest('li')!).getByText(

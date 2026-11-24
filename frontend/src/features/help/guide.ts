@@ -168,6 +168,9 @@ export const GUIDE: readonly GuideTopic[] = [
         ],
       },
     ],
+    tips: [
+      'Abajo de tus cuotas están tus pagos, cada uno con su folio y su «Recibo» en PDF, y tu estado de cuenta en PDF, al día de hoy o al cierre de un mes. Los puedes compartir por WhatsApp.',
+    ],
   },
   {
     slug: 'shift',

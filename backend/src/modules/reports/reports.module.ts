@@ -6,6 +6,7 @@ import { SettingsModule } from '../settings/settings.module.js';
 import { ShiftsModule } from '../shifts/shifts.module.js';
 import {
   CloseMonth,
+  ExportMovements,
   GetAccounts,
   GetMonthHistory,
   GetMonthlyReport,
@@ -14,6 +15,7 @@ import {
   MonthOpening,
   OpenCurrentMonth,
   OpenMonth,
+  RenderAccountDocuments,
   RenderMonthlyReport,
   ReopenMonth,
   REPORT_RENDERER,
@@ -23,6 +25,7 @@ import {
   StartBooksWithHistory,
 } from './application/index.js';
 import { REPORT_REPOSITORY } from './domain/index.js';
+import { AccountDocumentsController } from './http/account-documents.controller.js';
 import { ReportsController } from './http/reports.controller.js';
 import { ReactPdfReportRenderer } from './infrastructure/pdf/react-pdf-report-renderer.js';
 import { PrismaReportRepository } from './infrastructure/prisma-report.repository.js';
@@ -36,7 +39,7 @@ import { OpenCurrentMonthJob } from './jobs/open-current-month.job.js';
 @Global()
 @Module({
   imports: [CashbookModule, BillingModule, ShiftsModule, SettingsModule],
-  controllers: [ReportsController],
+  controllers: [ReportsController, AccountDocumentsController],
   providers: [
     { provide: REPORT_REPOSITORY, useClass: PrismaReportRepository },
     { provide: REPORT_RENDERER, useClass: ReactPdfReportRenderer },
@@ -56,6 +59,8 @@ import { OpenCurrentMonthJob } from './jobs/open-current-month.job.js';
     GetAccounts,
     GetOpeningBalances,
     SetOpeningBalance,
+    RenderAccountDocuments,
+    ExportMovements,
     OpenCurrentMonthJob,
   ],
   exports: [MONTH_LEDGER, GetReportingStart, StartBooksWithHistory, GetMonthHistory],

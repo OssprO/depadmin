@@ -126,6 +126,8 @@ Ideas del administrador más una de la auditoría (búsqueda).
 
 ### Fase 23: Recibos de pago y estado de cuenta en PDF
 
+**Hecha (ADR-0032).** El folio es un consecutivo que pone la base de datos y nunca se reutiliza. El recibo se lee como estaba la cuenta al pagar, así que no cambia cuando se abren meses después; mientras su mes sigue abierto lo avisa. Quien registró el pago sale de la bitácora. El estado de cuenta se descarga al día de hoy o al cierre de un mes cerrado, y el CSV desde el Histórico.
+
 De la auditoría: hoy cada vecino ve su estado de cuenta, pero no tiene un papel que mostrar.
 
 - **Recibo de un pago:** desde un pago de depto del libro o desde el estado de cuenta. Dice el depto, la fecha, el importe, qué cargos cubrió (con la misma asignación de `allocatePayments`), las observaciones, quién lo registró y el saldo del depto después del pago. Lleva un folio estable.
