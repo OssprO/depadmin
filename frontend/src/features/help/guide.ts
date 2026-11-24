@@ -140,9 +140,9 @@ export const GUIDE: readonly GuideTopic[] = [
             alt: 'La lista de todos los meses, cada uno con su saldo.',
           },
           {
-            text: 'Toca «Descargar PDF» para guardar el reporte del mes, o «Compartir» para mandarlo por WhatsApp.',
+            text: 'Toca «Vista previa» para ver el reporte del mes antes de bajarlo, «Descargar PDF» para guardarlo, o «Compartir» para mandarlo por WhatsApp.',
             shot: 'report-pdf',
-            alt: 'Los botones Descargar PDF y Compartir.',
+            alt: 'Los botones Vista previa, Descargar PDF y Compartir.',
           },
         ],
       },
@@ -169,7 +169,7 @@ export const GUIDE: readonly GuideTopic[] = [
       },
     ],
     tips: [
-      'Abajo de tus cuotas están tus pagos, cada uno con su folio y su «Recibo» en PDF, y tu estado de cuenta en PDF, al día de hoy o al cierre de un mes. Los puedes compartir por WhatsApp.',
+      'Abajo de tus cuotas están tus pagos, cada uno con su folio y su «Recibo» en PDF, y tu estado de cuenta en PDF, al día de hoy o al cierre de un mes. Los puedes ver antes con «Vista previa» y compartir por WhatsApp.',
     ],
   },
   {

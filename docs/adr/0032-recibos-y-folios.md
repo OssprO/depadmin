@@ -22,6 +22,11 @@ Cada vecino ve su estado de cuenta en la app, pero no tiene un papel que mostrar
 - **Exportar a CSV** los movimientos de un rango de meses, desde el Histórico: UTF-8 con BOM, comas y punto decimal, como los abren Excel y Google Sheets en México.
 - **Todos pueden descargarlos:** cualquiera ve todas las cuentas y el libro (SPEC, sección 3).
 - **Un solo componente para descargar o compartir** (`FileActions`): el reporte, los recibos y los estados de cuenta abren WhatsApp en el celular, y el CSV solo se descarga.
+- **Vista previa antes de descargar** (agregada después de la fase): los PDF se ven primero en un panel, que trae sus propios «Descargar PDF» y «Compartir» con el mismo archivo, sin volver a pedirlo.
+  - **Los dibuja pdf.js** (`pdfjs-dist`) en canvas. Chrome en Android no muestra un PDF: lo descarga, así que abrirlo en otra pestaña no evitaría la descarga.
+  - Se carga solo con la primera vista previa, en su propio chunk (unos 130 KB con gzip, más su worker), así que la app no pesa más al abrir.
+  - Cabe en la CSP sin cambiarla: pdf.js 6 no usa `eval`, su worker es un archivo propio y se le apaga WebAssembly, que solo necesita para imágenes que nuestros PDF no tienen.
+  - **El worker es un `.mjs`,** que el nginx de la imagen `web` no conocía y servía como `octet-stream`; con `nosniff` el navegador lo rechaza. `infra/web/default.conf` ahora lo sirve como JavaScript (y, de paso, el manifiesto de la PWA con su tipo).
 - **El puerto `REPORT_RENDERER` dibuja también el recibo y el estado de cuenta,** en el estilo del reporte y con las fuentes estándar del PDF (solo WinAnsi).
 
 ## Consecuencias
