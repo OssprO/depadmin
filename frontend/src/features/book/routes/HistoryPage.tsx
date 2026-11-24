@@ -1,11 +1,13 @@
 import { CaretRightIcon } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
+import { MonthStatusBadge } from '@/components/MonthStatusBadge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatMoney, formatMonth } from '@/lib/format';
 import { historyQueryOptions } from '../api';
+import { ExportCsvCard } from '../components/ExportCsvCard';
 
 /**
  * Every month since the books started, newest first. A closed month shows the figures frozen
@@ -54,13 +56,7 @@ export function HistoryPage() {
                         <span className="font-medium first-letter:uppercase">
                           {formatMonth(entry.month)}
                         </span>
-                        {entry.canClose ? (
-                          <Badge>Por cerrar</Badge>
-                        ) : (
-                          <Badge variant={entry.status === 'OPEN' ? 'outline' : 'secondary'}>
-                            {entry.status === 'OPEN' ? 'Abierto' : 'Cerrado'}
-                          </Badge>
-                        )}
+                        <MonthStatusBadge status={entry.canClose ? 'TO_CLOSE' : entry.status} />
                         {/* Before the platform: the building's history, from its paper sheets. */}
                         {entry.historical && <Badge variant="outline">Historial</Badge>}
                       </span>
@@ -81,6 +77,9 @@ export function HistoryPage() {
             </ul>
           </CardContent>
         </Card>
+      )}
+      {history.isSuccess && history.data.months.length > 0 && (
+        <ExportCsvCard months={history.data.months} />
       )}
     </div>
   );

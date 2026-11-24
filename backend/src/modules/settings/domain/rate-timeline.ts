@@ -6,9 +6,34 @@ import {
   ValidationError,
 } from '../../../shared-kernel/index.js';
 
+/** The longest summary of the agreement behind a change. */
+export const RATE_AGREEMENT_MAX_LENGTH = 300;
+
+/**
+ * Where a change was decided: the building votes its rates (ADR-0031). Until the app holds
+ * the vote (phase 27), the shift administrator records the assembly that agreed it.
+ */
+export interface RateAgreement {
+  readonly on: LocalDate;
+  readonly summary: string;
+}
+
+export function rateAgreement(on: LocalDate, summary: string): RateAgreement {
+  const text = summary.trim();
+  if (text.length === 0 || text.length > RATE_AGREEMENT_MAX_LENGTH) {
+    throw new ValidationError(
+      'RATE_AGREEMENT_INVALID',
+      `Describe the agreement in 1 to ${RATE_AGREEMENT_MAX_LENGTH} characters`,
+    );
+  }
+  return { on, summary: text };
+}
+
 export interface RateChange {
   readonly effectiveFrom: LocalDate;
   readonly amount: Money;
+  /** Null for the values the platform started with and those of the building's history. */
+  readonly agreement?: RateAgreement | null;
 }
 
 /**
@@ -57,6 +82,24 @@ export class RateTimeline {
       );
     }
     return RateTimeline.of([...this.changes, change]);
+  }
+
+  /**
+   * Takes back a change that was scheduled by mistake. The first value stays: the months
+   * before any other change are charged with it.
+   */
+  withoutChange(effectiveFrom: LocalDate): RateTimeline {
+    const index = this.changes.findIndex((change) => change.effectiveFrom.equals(effectiveFrom));
+    if (index < 0) {
+      throw new NotFoundError('RATE_CHANGE_NOT_FOUND', `No change from ${effectiveFrom}`);
+    }
+    if (index === 0) {
+      throw new ConflictError(
+        'RATE_CHANGE_FIRST',
+        'The first value of a rate cannot be taken back',
+      );
+    }
+    return RateTimeline.of(this.changes.filter((_, i) => i !== index));
   }
 
   /**

@@ -84,6 +84,7 @@ describe('GetShiftCalendar', () => {
       (await fx.calendar.execute(actor, m('2026-11'), m('2026-12'))).map((a) => a.canCancel);
 
     expect(await cancellable(admin)).toEqual([true, false]);
+    // Not a handover (OTHER, from the middle of nobody's window): only the superadmin.
     expect(await cancellable(owner(502))).toEqual([false, false]);
 
     // October is outside the range asked for, and it still freezes the delegation.
@@ -91,6 +92,33 @@ describe('GetShiftCalendar', () => {
     expect(await cancellable(admin)).toEqual([false, false]);
     expect((await fx.calendar.current(admin)).current.canCancel).toBe(false);
     await expect(fx.cancel.execute(admin, id)).rejects.toThrow(withCode('DELEGATION_MONTH_CLOSED'));
+  });
+
+  it('offers the outgoing owner to cancel their own handover while they can record it', async () => {
+    const fx = shiftsFixture('2026-10-02');
+    await fx.delegate.execute(owner(501), {
+      from: m('2026-10'),
+      to: m('2026-11'),
+      delegateUnit: u(401),
+      reason: 'SKIPPED_SHIFT',
+    });
+    const cancellable = async (actor: typeof admin) =>
+      (await fx.calendar.execute(actor, m('2026-10'), m('2026-11'))).map((a) => a.canCancel);
+
+    expect(await cancellable(owner(501))).toEqual([true, true]);
+    expect(await cancellable(owner(401))).toEqual([false, false]);
+    fx.clock.advanceDays(4); // 6 October
+    expect(await cancellable(owner(501))).toEqual([false, false]);
+    expect(await cancellable(admin)).toEqual([true, true]);
+  });
+
+  it('offers the outgoing owner the handover of an inactive depto too', async () => {
+    const fx = shiftsFixture('2026-09-15', { 502: YearMonthRange.startingAt(m('2026-10')) });
+
+    expect(summary(await fx.calendar.execute(owner(501), m('2026-10'), m('2026-11')))).toEqual([
+      '2026-10 502 delegable',
+      '2026-11 502 -',
+    ]);
   });
 
   it('rejects reversed or very long ranges', async () => {
@@ -197,6 +225,31 @@ describe('DelegateShift', () => {
     expect(fx.audit.actions).toEqual(['SHIFT_DELEGATION_CREATED']);
   });
 
+  it('lets the outgoing owner cover an inactive depto at the handover (ADR-0031)', async () => {
+    const fx = shiftsFixture('2026-12-02', { 401: YearMonthRange.startingAt(m('2026-12')) });
+    const cover = {
+      from: m('2026-12'),
+      to: m('2027-01'),
+      delegateUnit: u(402),
+      reason: 'INACTIVE_UNIT' as const,
+    };
+
+    await expect(fx.delegate.execute(owner(401), cover)).rejects.toThrow(
+      withCode('NOT_RESPONSIBLE'),
+    );
+    await fx.delegate.execute(owner(502), cover);
+
+    expect(fx.charges.summary()).toEqual([]);
+    expect(fx.audit.entries.map((e) => [e.actor, e.change.action])).toEqual([
+      [owner(502), 'SHIFT_DELEGATION_CREATED'],
+    ]);
+    // After the grace days it is the superadmin's again.
+    const late = shiftsFixture('2026-12-06', { 401: YearMonthRange.startingAt(m('2026-12')) });
+    await expect(late.delegate.execute(owner(502), cover)).rejects.toThrow(
+      withCode('OUTSIDE_WRITE_WINDOW'),
+    );
+  });
+
   it('rejects overlaps and reversed ranges without recording anything', async () => {
     const fx = shiftsFixture('2026-10-02');
     await fx.delegate.execute(owner(501), skip);
@@ -276,7 +329,29 @@ describe('CancelDelegation', () => {
     expect(months[0]?.delegation).toBeNull();
   });
 
-  it('is for the superadmin, on an existing active delegation', async () => {
+  it('lets the outgoing owner take back their handover during the grace days', async () => {
+    const fx = shiftsFixture('2026-10-02');
+    const { id } = await fx.delegate.execute(owner(501), {
+      from: m('2026-10'),
+      to: m('2026-11'),
+      delegateUnit: u(401),
+      reason: 'SKIPPED_SHIFT',
+    });
+
+    await expect(fx.cancel.execute(owner(401), id)).rejects.toThrow(withCode('NOT_RESPONSIBLE'));
+    fx.clock.advanceDays(4); // 6 October
+    await expect(fx.cancel.execute(owner(501), id)).rejects.toThrow(
+      withCode('OUTSIDE_WRITE_WINDOW'),
+    );
+    fx.clock.advanceDays(-1); // 5 October
+    const cancelled = await fx.cancel.execute(owner(501), id);
+
+    expect(cancelled.isActive).toBe(false);
+    expect(fx.charges.summary()).toEqual([]);
+    expect(fx.audit.entries.at(-3)?.actor).toEqual(owner(501));
+  });
+
+  it('leaves to the superadmin a delegation that is not a handover', async () => {
     const fx = shiftsFixture('2026-10-02');
     const { id } = await fx.delegate.execute(admin, {
       from: m('2026-11'),
@@ -285,7 +360,7 @@ describe('CancelDelegation', () => {
       reason: 'OTHER',
     });
 
-    await expect(fx.cancel.execute(owner(501), id)).rejects.toThrow(withCode('SUPERADMIN_ONLY'));
+    await expect(fx.cancel.execute(owner(501), id)).rejects.toThrow(withCode('HANDOVER_INVALID'));
     await expect(fx.cancel.execute(admin, 'nope')).rejects.toThrow(
       withCode('DELEGATION_NOT_FOUND'),
     );

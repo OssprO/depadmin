@@ -28,6 +28,7 @@ describe('accounts', () => {
           unit: 102,
           outstanding: 105000,
           credit: 0,
+          payments: [],
           lines: [
             {
               month: '2026-09',

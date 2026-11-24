@@ -162,8 +162,12 @@ model ShiftDelegation {
 
 model RateChange {
   rate          RateName
-  effectiveFrom DateTime @map("effective_from") @db.Date
+  effectiveFrom DateTime  @map("effective_from") @db.Date
   amount        Int
+  /// The assembly (or, from phase 27, the vote) that agreed the change; null for the
+  /// initial values and the building's history.
+  agreedOn      DateTime? @map("agreed_on") @db.Date
+  agreement     String?
 
   @@id([rate, effectiveFrom])
   @@map("rate_change")
@@ -189,6 +193,8 @@ model CashMovement {
   unitNumber  Int?             @map("unit_number")
   /// Garbage rows only: the Monday of the week the row pays for.
   coversWeek  DateTime?        @map("covers_week") @db.Date
+  /// A live depto payment's folio, set by the trigger `cash_movement_receipt_number`.
+  receiptNumber Int?         @unique @map("receipt_number")
   removedAt   DateTime?        @map("removed_at") @db.Timestamptz
   createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz
   updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz

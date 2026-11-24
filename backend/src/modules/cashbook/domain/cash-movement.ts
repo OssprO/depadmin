@@ -20,14 +20,25 @@ export class CashMovement {
     readonly id: string,
     private current: MovementDetails,
     private removed: boolean,
+    /**
+     * A live depto payment's folio: consecutive for the building and never reused, given by
+     * the database when the payment is stored. Null for any other row, for a payment not
+     * stored yet, and for the payments of the building's history.
+     */
+    readonly receiptNumber: number | null,
   ) {}
 
   static record(id: string, details: MovementDetails): CashMovement {
-    return new CashMovement(id, validateMovement(details), false);
+    return new CashMovement(id, validateMovement(details), false, null);
   }
 
-  static restore(id: string, details: MovementDetails, removed: boolean): CashMovement {
-    return new CashMovement(id, validateMovement(details), removed);
+  static restore(
+    id: string,
+    details: MovementDetails,
+    removed: boolean,
+    receiptNumber: number | null = null,
+  ): CashMovement {
+    return new CashMovement(id, validateMovement(details), removed, receiptNumber);
   }
 
   get details(): MovementDetails {

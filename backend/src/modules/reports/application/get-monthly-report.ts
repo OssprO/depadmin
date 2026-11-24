@@ -6,6 +6,7 @@ import {
   DomainError,
   type Money,
   type MonthStatus,
+  type UnitNumber,
   WriteAccessPolicy,
   type YearMonth,
 } from '../../../shared-kernel/index.js';
@@ -44,6 +45,15 @@ export interface MonthlyReportView {
    * no fees, accounts or shift on the platform, and only the superadmin writes it.
    */
   readonly historical: boolean;
+  /**
+   * The depto whose shift it is and those that answer for it (with a delegation, two). Null
+   * for the history and before the rotation, when the platform does not know; the paper
+   * card shows the sheet's «Responsable» then.
+   */
+  readonly administration: {
+    readonly scheduledUnit: UnitNumber;
+    readonly responsibleUnits: readonly UnitNumber[];
+  } | null;
   /** Null until the month is opened. */
   readonly balances: { readonly opening: Money; readonly closing: Money } | null;
   readonly totals: CashbookTotals;
@@ -108,6 +118,8 @@ export class GetMonthlyReport {
       balances = { opening: openingBalance, closing: closingBalance };
     }
     const access = { actor, month, today, responsibility: calendar };
+    const historical = ledger?.isHistory(month) ?? false;
+    const assignment = calendar.assignmentFor(month);
 
     const coverage = (movement: CashMovement) => {
       const unit = movement.details.unit;
@@ -119,7 +131,14 @@ export class GetMonthlyReport {
       month,
       status,
       reportingStarted: ledger !== null,
-      historical: ledger?.isHistory(month) ?? false,
+      historical,
+      administration:
+        historical || assignment.beforeRotation
+          ? null
+          : {
+              scheduledUnit: assignment.scheduledUnit,
+              responsibleUnits: assignment.responsibleUnits,
+            },
       balances,
       totals: cashbook.totals(),
       rows: cashbook.movements.map((movement) => ({ movement, coverage: coverage(movement) })),

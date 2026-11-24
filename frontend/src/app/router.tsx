@@ -11,6 +11,7 @@ import {
   type RouterHistory,
 } from '@tanstack/react-router';
 import { auditFiltersFrom } from '@/features/audit/filters';
+import { movementFiltersFrom } from '@/features/book/movement-filters';
 import { LoginPage } from '@/features/auth/routes/LoginPage';
 import { HomePage } from '@/features/dashboard/routes/HomePage';
 import { HelpLayout } from '@/features/help/components/HelpLayout';
@@ -77,6 +78,10 @@ const MorePage = lazyRouteComponent(() => import('@/features/more/routes/MorePag
 const OpeningBalancesPage = lazyRouteComponent(
   () => import('@/features/admin/routes/OpeningBalancesPage'),
   'OpeningBalancesPage',
+);
+const ParametersPage = lazyRouteComponent(
+  () => import('@/features/parameters/routes/ParametersPage'),
+  'ParametersPage',
 );
 const ReportingStartPage = lazyRouteComponent(
   () => import('@/features/admin/routes/ReportingStartPage'),
@@ -212,9 +217,19 @@ const bookRoute = createRoute({
     },
     stringify: ({ month }) => ({ month }),
   },
+  // The rows' filters (`?depto=301&tipo=UNIT_PAYMENT&q=agua`): they stay from month to month.
+  validateSearch: movementFiltersFrom,
   component: function BookRoute() {
     const { month } = bookRoute.useParams();
-    return <BookPage key={month} month={month} />;
+    const navigate = bookRoute.useNavigate();
+    return (
+      <BookPage
+        key={month}
+        month={month}
+        filters={bookRoute.useSearch()}
+        onFiltersChange={(search) => void navigate({ search, replace: true })}
+      />
+    );
   },
 });
 
@@ -257,6 +272,13 @@ const shiftsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/shifts',
   component: ShiftsPage,
+});
+
+/** What the building agreed (its rates): everyone reads it, the shift administrator changes it. */
+const parametersRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/parameters',
+  component: ParametersPage,
 });
 
 /** Utilities for everyone, apart from the books. */
@@ -357,6 +379,7 @@ const routeTree = rootRoute.addChildren([
     moreRoute,
     shiftsRoute,
     auditRoute,
+    parametersRoute,
     toolsRoute,
     cashCounterRoute,
     accountRoute,

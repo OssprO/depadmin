@@ -1,8 +1,10 @@
 import { ArrowClockwiseIcon } from '@phosphor-icons/react';
 import { type ErrorComponentProps, Link, useRouter } from '@tanstack/react-router';
+import { useEffect } from 'react';
 import { Brand } from '@/components/Brand';
 import { Button } from '@/components/ui/button';
 import { errorMessage } from '@/lib/error-messages';
+import { errorReporter } from '@/lib/error-reporter';
 
 function Screen({ children }: { children: React.ReactNode }) {
   return (
@@ -16,6 +18,7 @@ function Screen({ children }: { children: React.ReactNode }) {
 /** A route failed to load, e.g. the server could not be reached while resuming the session. */
 export function RouteError({ error }: ErrorComponentProps) {
   const router = useRouter();
+  useEffect(() => errorReporter.report('render', error), [error]);
   return (
     <Screen>
       <p>{errorMessage(error)}</p>

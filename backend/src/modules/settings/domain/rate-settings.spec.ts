@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { withCode } from '../../../../test/support/domain-error.js';
 import { LocalDate, Money } from '../../../shared-kernel/index.js';
 import { RateSettings } from './rate-settings.js';
-import { RateTimeline } from './rate-timeline.js';
+import { RateTimeline, rateAgreement } from './rate-timeline.js';
 
 const d = (text: string) => LocalDate.parse(text);
 const pesos = (amount: number) => Money.ofPesos(amount);
@@ -29,6 +29,31 @@ describe('RateTimeline', () => {
     expect(fee.history).toHaveLength(2); // immutable
     expect(() => fee.withChange({ effectiveFrom: d('2027-01-01'), amount: pesos(1) })).toThrow(
       withCode('RATE_CHANGE_NOT_LATEST'),
+    );
+  });
+
+  it('takes back a scheduled change, but never the first value', () => {
+    const scheduled = fee.withChange({ effectiveFrom: d('2028-01-01'), amount: pesos(900) });
+    const back = scheduled.withoutChange(d('2028-01-01'));
+    expect(back.amountOn(d('2028-06-01')).equals(pesos(800))).toBe(true);
+    // Any later change, not only the latest one.
+    expect(scheduled.withoutChange(d('2027-01-01')).history).toHaveLength(2);
+    expect(() => fee.withoutChange(d('2026-01-01'))).toThrow(withCode('RATE_CHANGE_FIRST'));
+    expect(() => fee.withoutChange(d('2026-02-01'))).toThrow(withCode('RATE_CHANGE_NOT_FOUND'));
+  });
+
+  it('keeps the agreement a change came from', () => {
+    const agreed = rateAgreement(d('2026-11-10'), '  Asamblea de noviembre  ');
+    expect(agreed.summary).toBe('Asamblea de noviembre');
+    const later = fee.withChange({
+      effectiveFrom: d('2028-01-01'),
+      amount: pesos(900),
+      agreement: agreed,
+    });
+    expect(later.history.at(-1)?.agreement).toEqual(agreed);
+    expect(() => rateAgreement(d('2026-11-10'), '   ')).toThrow(withCode('RATE_AGREEMENT_INVALID'));
+    expect(() => rateAgreement(d('2026-11-10'), 'x'.repeat(301))).toThrow(
+      withCode('RATE_AGREEMENT_INVALID'),
     );
   });
 
@@ -77,6 +102,15 @@ describe('RateSettings', () => {
     expect(updated.ratesOn(d('2027-01-01')).cleaningPerVisit.equals(pesos(300))).toBe(true);
     expect(updated.ratesOn(d('2027-01-01')).maintenanceFee.equals(pesos(700))).toBe(true);
     expect(settings.ratesOn(d('2027-01-01')).cleaningPerVisit.equals(pesos(270))).toBe(true);
+  });
+
+  it('takes back a scheduled change of one rate', () => {
+    const scheduled = settings.change('maintenanceFee', {
+      effectiveFrom: d('2027-01-01'),
+      amount: pesos(800),
+    });
+    const back = scheduled.withdraw('maintenanceFee', d('2027-01-01'));
+    expect(back.ratesOn(d('2027-01-01')).maintenanceFee.equals(pesos(700))).toBe(true);
   });
 
   it('accepts overrides and restores from stored history', () => {

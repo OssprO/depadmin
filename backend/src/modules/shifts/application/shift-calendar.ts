@@ -1,5 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { ShiftResponsibility, UnitNumber, YearMonth } from '../../../shared-kernel/index.js';
+import type {
+  ShiftResponsibility,
+  ShiftRoster,
+  UnitNumber,
+  YearMonth,
+} from '../../../shared-kernel/index.js';
 import { ListUnits, UnitStatuses } from '../../units/application/index.js';
 import {
   SHIFT_DELEGATION_REPOSITORY,
@@ -34,8 +39,9 @@ export class ShiftCalendar implements ShiftResponsibility {
   }
 }
 
+/** Also the `SHIFT_ROSTER` port, for the modules below this one. */
 @Injectable()
-export class LoadShiftCalendar {
+export class LoadShiftCalendar implements ShiftRoster {
   private readonly scheduler = new ShiftScheduler(new ShiftRotation());
 
   constructor(
@@ -50,5 +56,9 @@ export class LoadShiftCalendar {
       this.units.execute(),
     ]);
     return new ShiftCalendar(this.scheduler, delegations, new UnitStatuses(units));
+  }
+
+  responsibilityFor(month: YearMonth): Promise<ShiftResponsibility> {
+    return this.execute(month);
   }
 }

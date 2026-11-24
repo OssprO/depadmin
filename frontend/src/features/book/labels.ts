@@ -1,6 +1,7 @@
 import {
   CATEGORY_RULES,
   type Movement,
+  type MonthlyReport,
   type MovementCategory,
   type PaymentCoverage,
 } from '@depadmin/shared';
@@ -48,4 +49,22 @@ export function describeCoverage(movement: Movement): string | null {
     covered < movement.amount && 'adelanto',
   ].filter((part): part is string => typeof part === 'string');
   return list(parts);
+}
+
+/**
+ * Who administers the month, as the report's header says it: «Administra Depto 502», or
+ * «Turno de Depto 401, lo cubre Depto 402» with a delegation; in the past once it closed.
+ */
+export function describeAdministration({
+  administration,
+  status,
+}: Pick<MonthlyReport, 'administration' | 'status'>): string | null {
+  if (!administration) return null;
+  const { scheduledUnit, responsibleUnits } = administration;
+  const closed = status === 'CLOSED';
+  if (responsibleUnits.length === 0) return `Turno de Depto ${scheduledUnit}, sin responsable`;
+  const covering = responsibleUnits.filter((unit) => unit !== scheduledUnit);
+  if (covering.length === 0)
+    return `${closed ? 'Administró' : 'Administra'} Depto ${scheduledUnit}`;
+  return `Turno de Depto ${scheduledUnit}, ${closed ? 'cubrió' : 'lo cubre'} Depto ${covering.join(' y ')}`;
 }

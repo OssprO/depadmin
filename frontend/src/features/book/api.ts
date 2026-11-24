@@ -46,6 +46,14 @@ export function useOpenMonth() {
 }
 
 /** The month's report as a PDF file, ready to download or share. */
+/** The rows of the months from `from` to `to`, as a CSV for a spreadsheet. */
+export async function fetchMovementsCsv(from: string, to: string): Promise<File> {
+  const response = await apiFetch(`/movements.csv?from=${from}&to=${to}`);
+  return new File([await response.blob()], `movimientos-${from}-a-${to}.csv`, {
+    type: 'text/csv',
+  });
+}
+
 export async function fetchReportPdf(month: string): Promise<File> {
   const response = await apiFetch(`/months/${month}/report.pdf`);
   return new File([await response.blob()], `reporte-${month}.pdf`, { type: 'application/pdf' });

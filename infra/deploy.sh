@@ -27,7 +27,7 @@ fi
 
 # A copy from just before the migrations, the one to restore if this version must go back.
 if docker compose ps --status running --services | grep -qx db; then
-  ./backup.sh
+  ./backup.sh local
 fi
 
 set_tag "$tag"

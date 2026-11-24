@@ -29,3 +29,10 @@ overrides:
   fast-uri: ^3.1.9
   # Event-loop denial of service on crafted source maps.
   source-map-js: ^1.2.2
+  # ReDoS in Schema.TemplateLiteral's compiled regex (effect, through Prisma's config).
+  # Prisma 7.10.1 pins 3.20.0; remove this once a Prisma release asks for 3.22.1 or later.
+  effect: ^3.22.1
+  # Vite's bundler: the Linux binary of 1.2.18 dies with an illegal instruction on CPUs
+  # without AVX2, such as the admin's laptop; 1.2.19 runs there. Remove this once Vite
+  # asks for a newer rolldown (a Vite update whose CI fails here is this pin).
+  rolldown: ~1.2.19

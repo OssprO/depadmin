@@ -170,6 +170,12 @@ describe('ShiftScheduler', () => {
       expect(() => scheduler.assertIsHandover(delegation('2026-10', 502, 401))).not.toThrow();
     });
 
+    it('accepts covering an inactive depto at the handover too', () => {
+      expect(() =>
+        scheduler.assertIsHandover(delegation('2026-10..2026-11', 502, 501, 'INACTIVE_UNIT')),
+      ).not.toThrow();
+    });
+
     it('rejects handovers in the middle of a period or with another reason', () => {
       expect(() => scheduler.assertIsHandover(delegation('2026-11', 502, 501))).toThrow(
         withCode('HANDOVER_INVALID'),

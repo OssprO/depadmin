@@ -1,9 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
 import { BUILDING_TIME_ZONE } from '../../../platform/clock/system-clock.js';
-import type { Env } from '../../../platform/config/env.js';
-import { runJob } from '../../../platform/jobs/run-job.js';
+import { JobRunner } from '../../../platform/jobs/job-runner.js';
 import { OpenCurrentMonth } from '../application/index.js';
 
 /**
@@ -14,22 +12,24 @@ import { OpenCurrentMonth } from '../application/index.js';
 @Injectable()
 export class OpenCurrentMonthJob {
   private readonly logger = new Logger(OpenCurrentMonthJob.name);
-  private readonly enabled: boolean;
 
   constructor(
     private readonly openCurrentMonth: OpenCurrentMonth,
-    config: ConfigService<Env, true>,
-  ) {
-    this.enabled = config.get('JOBS_ENABLED', { infer: true });
-  }
+    private readonly jobs: JobRunner,
+  ) {}
 
   @Cron('5 0 * * *', { name: 'open-current-month', timeZone: BUILDING_TIME_ZONE })
   run(): Promise<void> {
-    return runJob(this.logger, this.enabled, 'Could not open the current month', async () => {
-      const opened = await this.openCurrentMonth.execute();
-      return opened.length > 0
-        ? `Opened ${opened.map((report) => String(report.month)).join(', ')}`
-        : null;
-    });
+    return this.jobs.run(
+      'open-current-month',
+      this.logger,
+      'Could not open the current month',
+      async () => {
+        const opened = await this.openCurrentMonth.execute();
+        return opened.length > 0
+          ? `Opened ${opened.map((report) => String(report.month)).join(', ')}`
+          : null;
+      },
+    );
   }
 }

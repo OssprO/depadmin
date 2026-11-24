@@ -3,7 +3,7 @@
 import { FakeUnitOfWork, RecordingAuditTrail } from '../../../../test/support/audit-trail.js';
 import { FixedClock } from '../../../../test/support/clock.js';
 import { FakePaperRecord } from '../../../../test/support/paper-record.js';
-import type { YearMonthRange } from '../../../shared-kernel/index.js';
+import { Instant, type YearMonthRange } from '../../../shared-kernel/index.js';
 import {
   ChargeMaintenanceFees,
   GetAccountStatements,
@@ -20,6 +20,7 @@ import {
   ImportMovements,
   ReadCashbook,
 } from '../../cashbook/application/index.js';
+import { ListAuditLog } from '../../audit/application/index.js';
 import { InMemoryCashMovementRepository } from '../../cashbook/application/testing.js';
 import { GetRates, RecordEarlierRates } from '../../settings/application/index.js';
 import { initialRateSettings } from '../../settings/application/testing.js';
@@ -40,6 +41,11 @@ import { GetMonthHistory } from './month-history.js';
 import { MonthOpening, OpenCurrentMonth, OpenMonth } from './open-month.js';
 import { GetOpeningBalances, SetOpeningBalance } from './opening-balances.js';
 import { ReopenMonth } from './reopen-month.js';
+import {
+  RenderAccountDocuments,
+  type ReceiptDocument,
+  type StatementDocument,
+} from './receipts.js';
 import {
   RenderMonthlyReport,
   type ReportDocument,
@@ -81,10 +87,22 @@ export class InMemoryReportRepository implements ReportRepository {
 /** Keeps the documents it is asked to render; the bytes are just the month. */
 export class RecordingReportRenderer implements ReportRenderer {
   readonly documents: ReportDocument[] = [];
+  readonly receipts: ReceiptDocument[] = [];
+  readonly statements: StatementDocument[] = [];
 
   render(documents: readonly ReportDocument[]): Promise<Uint8Array> {
     this.documents.push(...documents);
     return Promise.resolve(new TextEncoder().encode(String(documents[0]?.month)));
+  }
+
+  renderReceipt(document: ReceiptDocument): Promise<Uint8Array> {
+    this.receipts.push(document);
+    return Promise.resolve(new TextEncoder().encode(`receipt ${document.folio}`));
+  }
+
+  renderStatement(document: StatementDocument): Promise<Uint8Array> {
+    this.statements.push(document);
+    return Promise.resolve(new TextEncoder().encode(`statement ${document.unit.value}`));
   }
 }
 
@@ -106,7 +124,8 @@ export function booksFixture(
   const units = new ListUnits(unitRepository);
   const rateSettings = initialRateSettings();
   const rates = new GetRates(rateSettings);
-  const calendars = new LoadShiftCalendar(new InMemoryShiftDelegationRepository(), units);
+  const delegations = new InMemoryShiftDelegationRepository();
+  const calendars = new LoadShiftCalendar(delegations, units);
   const cashbook = new ReadCashbook(movements, ledger);
   const accounts = new GetAccounts(new GetAccountStatements(charges, credits), cashbook, reports);
   const openingBalances = new ListOpeningBalances(charges, credits);
@@ -133,6 +152,7 @@ export function booksFixture(
     accounts,
     paper,
     movements,
+    delegations,
     setStart: new SetReportingStart(reports, unitOfWork, audit, openingBalances),
     startWithHistory: new StartBooksWithHistory(reports, unitOfWork, clock),
     earlierRates: new RecordEarlierRates(rateSettings, unitOfWork),
@@ -160,5 +180,41 @@ export function booksFixture(
     ),
     add: new AddMovement(movements, unitOfWork, audit, access),
     view: new GetMonthlyReport(reports, clock, cashbook, accounts, calendars, rates),
+    accountDocuments: new RenderAccountDocuments(
+      reports,
+      renderer,
+      clock,
+      cashbook,
+      accounts,
+      new ListAuditLog(recordedLog(audit)),
+    ),
+  };
+}
+
+type AuditLogReader = ConstructorParameters<typeof ListAuditLog>[0];
+
+/**
+ * The log as `ListAuditLog` reads it, from what the specs' audit trail recorded (newest
+ * first, filtered by entity and id). Enough for a receipt to find who added its payment.
+ */
+function recordedLog(audit: RecordingAuditTrail): AuditLogReader {
+  return {
+    page: ({ entity, entityId }) => {
+      const entries = audit.entries
+        .map(({ actor, change }, index) => ({
+          id: String(index + 1),
+          occurredAt: Instant.ofEpochMillis(index),
+          actor:
+            actor.role === 'OWNER'
+              ? { role: 'OWNER' as const, unit: actor.unit }
+              : actor.role === 'READER'
+                ? { role: 'READER' as const, unit: actor.unit }
+                : { role: actor.role },
+          ...change,
+        }))
+        .filter((e) => (!entity || e.entity === entity) && (!entityId || e.entityId === entityId))
+        .reverse();
+      return Promise.resolve({ entries, nextCursor: null });
+    },
   };
 }

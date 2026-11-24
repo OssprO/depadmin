@@ -3,6 +3,7 @@ import type { ComponentProps, ReactNode } from 'react';
 import type { Money } from '../../../../shared-kernel/index.js';
 import type { ReportDocument, UnitReportLine } from '../../application/index.js';
 import {
+  administeredBy,
   currentFeeTone,
   dayMonth,
   money,
@@ -41,6 +42,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Helvetica-Bold',
     fontSize: 8.5,
   },
+  administrator: { marginTop: 3, fontFamily: 'Helvetica-Bold', fontSize: 8.5 },
   draft: {
     marginTop: 8,
     padding: 4,
@@ -355,17 +357,6 @@ function closingLabel({ status, days, month }: ReportDocument): string {
   return status === 'CLOSED' ? 'SALDO AL FIN DE MES' : 'SALDO AL DÍA';
 }
 
-/** Who administered the month, as far as the platform knows (not before the rotation). */
-function administeredBy({ administration, responsible }: ReportDocument): string | null {
-  if (!administration) return responsible;
-  const { scheduledUnit, responsibleUnits } = administration;
-  if (responsibleUnits.length === 0)
-    return `Turno de Depto ${scheduledUnit.value}, sin responsable`;
-  const covering = responsibleUnits.filter((unit) => unit !== scheduledUnit);
-  if (covering.length === 0) return `Administró Depto ${scheduledUnit.value}`;
-  return `Turno de Depto ${scheduledUnit.value}, cubrió Depto ${covering.map((u) => u.value).join(' y ')}`;
-}
-
 /** The month, and the days of its sheet when it had more than one ("FEBRERO 2023, DEL 11 AL 28"). */
 function pageTitle({ month, days }: ReportDocument): string {
   const title = monthTitle(month);
@@ -373,10 +364,7 @@ function pageTitle({ month, days }: ReportDocument): string {
 }
 
 function ReportPage({ report }: { report: ReportDocument }) {
-  const footer = [
-    administeredBy(report),
-    `Generado el ${timestamp(report.generatedAt)} con DepAdmin`,
-  ].filter(Boolean);
+  const administrator = administeredBy(report);
   return (
     <Page size="LETTER" style={styles.page}>
       <Text style={styles.building}>EDIFICIO CORRESPONDENCIA 63</Text>
@@ -384,6 +372,7 @@ function ReportPage({ report }: { report: ReportDocument }) {
         <Text>{pageTitle(report)}</Text>
         <Text>SALDO A INICIO DE MES {money(report.openingBalance)}</Text>
       </View>
+      {administrator && <Text style={styles.administrator}>{administrator}</Text>}
       {report.status === 'OPEN' && (
         <Text style={styles.draft}>
           BORRADOR: EL MES SIGUE ABIERTO Y ESTAS CIFRAS TODAVÍA PUEDEN CAMBIAR
@@ -392,7 +381,7 @@ function ReportPage({ report }: { report: ReportDocument }) {
       <Income report={report} />
       <Expenses report={report} />
       <View style={styles.footer} fixed>
-        <Text>{footer.join(' · ')}</Text>
+        <Text>Generado el {timestamp(report.generatedAt)} con DepAdmin</Text>
         <Text render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`} />
       </View>
     </Page>

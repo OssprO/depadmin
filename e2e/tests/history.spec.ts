@@ -135,7 +135,7 @@ test('the superadmin starts the books with the history and checks a month agains
   await page.getByRole('button', { name: 'Agregar', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await expectAccessible(page, 'agregar al historial');
-  await page.getByText('Otro egreso').click();
+  await page.getByRole('dialog').getByText('Otro egreso').click();
   await page.getByLabel('Importe ($)').fill('26');
   await page.getByLabel('Descripción').fill('FABULOSO 1LT');
   await page.getByRole('button', { name: 'Guardar', exact: true }).click();

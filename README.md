@@ -6,6 +6,7 @@ Administración de las cuotas de mantenimiento del **Edificio Correspondencia 63
 - Plan de trabajo y arquitectura: [`docs/PLAN-ETAPA-1.md`](docs/PLAN-ETAPA-1.md); las etapas siguientes en [`docs/PLAN-ETAPA-2.md`](docs/PLAN-ETAPA-2.md) y [`docs/PLAN-ETAPA-3.md`](docs/PLAN-ETAPA-3.md)
 - Decisiones técnicas: [`docs/adr/`](docs/adr/README.md)
 - Despliegue en el VPS, paso a paso: [`docs/DESPLIEGUE.md`](docs/DESPLIEGUE.md)
+- Qué hacer cuando algo falla (avisos, la app no abre, restaurar un respaldo): [`docs/OPERACION.md`](docs/OPERACION.md)
 
 ## Requisitos
 

@@ -8,26 +8,29 @@ import {
   ListBulletsIcon,
   QuestionIcon,
   ReceiptIcon,
+  SlidersHorizontalIcon,
   ToolboxIcon,
   UserCircleIcon,
   WrenchIcon,
 } from '@phosphor-icons/react';
+import type { CurrentUser } from '@depadmin/shared';
 import {
   Link,
   type LinkProps,
   Outlet,
   useCanGoBack,
+  useLocation,
   useNavigate,
   useRouter,
   useRouterState,
 } from '@tanstack/react-router';
-import type { ReactNode } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { Brand } from '@/components/Brand';
 import { Button } from '@/components/ui/button';
 import { SystemStatus } from '@/features/system-status/SystemStatus';
 import { buildingToday } from '@/lib/format';
 import { useWideScreen } from '@/lib/use-media-query';
-import { useCurrentUser } from '@/lib/use-session';
+import { useSessionState } from '@/lib/use-session';
 import { cn } from '@/lib/utils';
 import { parentOf } from './back-navigation';
 
@@ -102,11 +105,36 @@ function SideItem({ to, icon, label, sections = [] }: NavItemProps) {
 }
 
 /**
- * The signed-in shell. On the phone, content on top and thumb-reachable navigation at the
- * bottom; from a tablet up (`md`), a fixed side menu with every section and wider content.
+ * The signed-in shell, while there is a session. When it ends (the user signs out, or the
+ * refresh token expires or is revoked) the screens below stop rendering at once, since they
+ * read the user, and the login takes over: after an expiry it brings the user back here.
  */
 export function AppLayout() {
-  const user = useCurrentUser();
+  const session = useSessionState();
+  if (session.status === 'authenticated') return <Shell user={session.user} />;
+  return <SessionEnded signedOut={session.status === 'anonymous' && !!session.signedOut} />;
+}
+
+/**
+ * Goes to the login once. After signing out the next person starts from the home; after
+ * an expiry the user comes back to where they were. (`<Navigate>` would navigate again on
+ * every render while the login loads, since its `search` is a new object each time.)
+ */
+function SessionEnded({ signedOut }: { signedOut: boolean }) {
+  const navigate = useNavigate();
+  const { href } = useLocation();
+  const [search] = useState(() => (signedOut ? {} : { redirect: href }));
+  useEffect(() => {
+    void navigate({ to: '/login', search, replace: true });
+  }, [navigate, search]);
+  return null;
+}
+
+/**
+ * On the phone, content on top and thumb-reachable navigation at the bottom; from a tablet
+ * up (`md`), a fixed side menu with every section and wider content.
+ */
+function Shell({ user }: { user: CurrentUser }) {
   // A user with a temporary password can only change it; there is nowhere else to go.
   const showNav = !user.mustChangePassword;
   // One menu at a time, so there is a single main navigation for assistive technology.
@@ -126,6 +154,7 @@ export function AppLayout() {
             <SideItem to="/shifts" icon={<CalendarDotsIcon />} label="Turnos" />
             <SideItem to="/audit" icon={<ClockCounterClockwiseIcon />} label="Bitácora" />
             <SideItem to="/accounts" icon={<ReceiptIcon />} label="Estados de cuenta" />
+            <SideItem to="/parameters" icon={<SlidersHorizontalIcon />} label="Parámetros" />
             <SideItem to="/tools" icon={<ToolboxIcon />} label="Herramientas" />
             {user.role === 'SUPERADMIN' && (
               <SideItem to="/admin" icon={<WrenchIcon />} label="Administración" />

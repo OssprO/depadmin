@@ -1,6 +1,6 @@
 import type { Movement } from '@depadmin/shared';
 import { describe, expect, it } from 'vitest';
-import { describeCoverage, movementTitle } from './labels';
+import { describeAdministration, describeCoverage, movementTitle } from './labels';
 
 const payment = (coverage: Movement['coverage'], amount = 140000): Movement => ({
   id: '0b9d8f5e-7c2a-4f4e-9d6b-3f1e2a7c5b10',
@@ -11,6 +11,7 @@ const payment = (coverage: Movement['coverage'], amount = 140000): Movement => (
   description: null,
   week: null,
   coverage,
+  receiptNumber: null,
 });
 
 const fee = (month: string, amount: number, settles = true) =>
@@ -48,5 +49,25 @@ describe('movement labels', () => {
       ),
     ).toBe('cubre dic 2025 y multa de oct');
     expect(describeCoverage({ ...payment([]), category: 'CLEANING' })).toBeNull();
+  });
+});
+
+describe('describeAdministration', () => {
+  const shift = (scheduledUnit: 401 | 502, responsibleUnits: (401 | 402 | 502)[]) => ({
+    scheduledUnit,
+    responsibleUnits,
+  });
+
+  it('names the depto, and the one covering it, in the present while the month is open', () => {
+    expect(describeAdministration({ administration: shift(502, [502]), status: 'OPEN' })).toBe(
+      'Administra Depto 502',
+    );
+    expect(
+      describeAdministration({ administration: shift(401, [401, 402]), status: 'CLOSED' }),
+    ).toBe('Turno de Depto 401, cubrió Depto 402');
+    expect(describeAdministration({ administration: shift(401, []), status: 'OPEN' })).toBe(
+      'Turno de Depto 401, sin responsable',
+    );
+    expect(describeAdministration({ administration: null, status: 'CLOSED' })).toBeNull();
   });
 });

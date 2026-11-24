@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { YearMonth } from '../../../../shared-kernel/index.js';
+import { UnitNumber, YearMonth } from '../../../../shared-kernel/index.js';
 import { expense, payment, pesos } from '../../../cashbook/domain/testing.js';
 import { admin } from '../../../shifts/application/testing.js';
 import { booksFixture } from '../../application/testing.js';
@@ -48,6 +48,26 @@ describe('ReactPdfReportRenderer', () => {
     const pdf = await renderer.render(await fx.pdf.documents(m('2026-07')));
 
     expect(pages(pdf)).toBe(2);
+  }, 20_000);
+
+  it('renders a payment’s receipt and an account statement, one page each', async () => {
+    const fx = booksFixture('2026-10-03');
+    await fx.setStart.execute(admin, { month: m('2026-09'), openingBalance: pesos(1000) });
+    await fx.open.execute(admin, m('2026-10'));
+    const { id } = await fx.add.execute(admin, {
+      ...payment('2026-10-03', 401, 2100),
+      description: 'Pagó por transferencia',
+    });
+
+    const receipt = await renderer.renderReceipt(await fx.accountDocuments.receiptOf(id));
+    const statement = await renderer.renderStatement(
+      await fx.accountDocuments.statementOf(UnitNumber.of(401)),
+    );
+
+    for (const pdf of [receipt, statement]) {
+      expect(new TextDecoder().decode(pdf.slice(0, 5))).toBe('%PDF-');
+      expect(pages(pdf)).toBe(1);
+    }
   }, 20_000);
 
   it('continues on more pages when the month has many rows', async () => {

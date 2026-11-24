@@ -9,9 +9,12 @@ import { ReportsModule } from './modules/reports/reports.module.js';
 import { SettingsModule } from './modules/settings/settings.module.js';
 import { ShiftsModule } from './modules/shifts/shifts.module.js';
 import { UnitsModule } from './modules/units/units.module.js';
+import { ClientErrorsModule } from './platform/client-errors/client-errors.module.js';
 import { ClockModule } from './platform/clock/clock.module.js';
 import { ConfigModule } from './platform/config/config.module.js';
 import { HealthModule } from './platform/health/health.module.js';
+import { ThrottlingModule } from './platform/http/throttling.module.js';
+import { JobsModule } from './platform/jobs/jobs.module.js';
 import { LoggerModule } from './platform/logger/logger.module.js';
 import { PrismaModule } from './platform/prisma/prisma.module.js';
 
@@ -23,7 +26,10 @@ import { PrismaModule } from './platform/prisma/prisma.module.js';
     PrismaModule,
     // Runs the modules' @Cron jobs (each in its module's jobs/ folder).
     ScheduleModule.forRoot(),
+    JobsModule,
+    ThrottlingModule,
     HealthModule,
+    ClientErrorsModule,
     AuditModule,
     IdentityModule,
     UnitsModule,

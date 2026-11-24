@@ -2,6 +2,7 @@ import type { HistorySummary } from '@depadmin/shared';
 import { CaretRightIcon } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
+import { MonthStatusBadge } from '@/components/MonthStatusBadge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -81,7 +82,7 @@ function MonthList({ history }: { history: HistorySummary }) {
                         {formatMonthName(month.month)}
                       </span>
                       <GapBadge gap={month.ownGap} sheets={month.sheets} />
-                      {month.status === 'CLOSED' && <Badge variant="secondary">Cerrado</Badge>}
+                      {month.status === 'CLOSED' && <MonthStatusBadge status="CLOSED" />}
                       {month.alerts > 0 && (
                         <Badge variant="outline">
                           {month.alerts} {month.alerts === 1 ? 'alerta' : 'alertas'}

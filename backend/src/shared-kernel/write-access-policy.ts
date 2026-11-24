@@ -18,6 +18,25 @@ export interface ShiftResponsibility {
   isResponsible(unit: UnitNumber, month: YearMonth): boolean;
 }
 
+/**
+ * Port: who answers for the months from `month` on (holders and delegations). The shifts
+ * module provides it globally, so a module below it (settings) can ask without importing
+ * it. The result also answers the months that follow, to follow a write window.
+ */
+export interface ShiftRoster {
+  responsibilityFor(month: YearMonth): Promise<ShiftResponsibility>;
+}
+
+export const SHIFT_ROSTER = Symbol('ShiftRoster');
+
+/** Who is asking to decide for the building, and when. */
+export interface GovernRequest {
+  readonly actor: Actor;
+  readonly today: LocalDate;
+  /** Must answer for `today`'s month. */
+  readonly responsibility: ShiftResponsibility;
+}
+
 export interface MonthAccessRequest {
   readonly actor: Actor;
   readonly month: YearMonth;
@@ -38,7 +57,8 @@ export interface WriteWindow {
 
 /**
  * Who can write, close and hand over a month:
- * - The superadmin, always (reopening a closed month is theirs alone).
+ * - The superadmin, always, as an auxiliary for special cases (ADR-0031); reopening a
+ *   closed month is theirs alone.
  * - A read-only user, never, whatever the shift.
  * - An owner whose depto is responsible for the month, from its first day until
  *   `WRITE_GRACE_DAYS` days after their responsibility ends. While 501 holds August and
@@ -105,7 +125,32 @@ export class WriteAccessPolicy {
     this.assertAccess({ ...rest, month: firstMonth.previous() }, 'hand over after');
   }
 
-  /** Reopening months, settings, unit status and other delegations: superadmin only. */
+  /**
+   * Whether the actor is the shift administrator: the owner of a depto that answers for the
+   * current month, by its shift or a delegation (ADR-0031). The building's decisions
+   * (rates, and the proposals that go to a vote) are theirs; the superadmin is an auxiliary
+   * and does not take them.
+   */
+  governs({ actor, today, responsibility }: GovernRequest): boolean {
+    return actor.role === 'OWNER' && responsibility.isResponsible(actor.unit, today.yearMonth);
+  }
+
+  assertGoverns(request: GovernRequest): void {
+    if (request.actor.role === 'READER') {
+      throw new ForbiddenError('READ_ONLY', `User ${request.actor.userId} can only read`);
+    }
+    if (!this.governs(request)) {
+      throw new ForbiddenError(
+        'SHIFT_ADMIN_ONLY',
+        `User ${request.actor.userId} does not hold the shift of ${request.today.yearMonth}`,
+      );
+    }
+  }
+
+  /**
+   * The auxiliary's tasks: reopening months, accounts, unit status, setting up the books.
+   * Superadmin only.
+   */
   assertCanAdminister(actor: Actor): void {
     if (actor.role !== 'SUPERADMIN') {
       throw new ForbiddenError('SUPERADMIN_ONLY', `User ${actor.userId} is not the superadmin`);

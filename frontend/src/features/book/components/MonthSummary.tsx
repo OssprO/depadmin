@@ -1,15 +1,22 @@
 import type { MonthlyReport } from '@depadmin/shared';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { MonthStatusBadge } from '@/components/MonthStatusBadge';
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
-
-const STATUS = { OPEN: 'Abierto', CLOSED: 'Cerrado', NOT_OPENED: 'Sin abrir' } as const;
+import { describeAdministration } from '../labels';
 
 /** The report in four figures, always in view above the list. */
 export function MonthSummary({ report }: { report: MonthlyReport }) {
   const { balances, totals } = report;
   if (!balances) return null;
+  const administeredBy = describeAdministration(report);
   const line = (label: string, amount: string, strong = false, accent?: 'income' | 'expense') => (
     <div
       className={cn(
@@ -28,10 +35,9 @@ export function MonthSummary({ report }: { report: MonthlyReport }) {
     <Card size="sm">
       <CardHeader>
         <CardTitle>Resumen</CardTitle>
+        {administeredBy && <CardDescription>{administeredBy}</CardDescription>}
         <CardAction>
-          <Badge variant={report.status === 'OPEN' ? 'default' : 'secondary'}>
-            {STATUS[report.status]}
-          </Badge>
+          <MonthStatusBadge status={report.status} />
         </CardAction>
       </CardHeader>
       <CardContent>

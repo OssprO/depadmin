@@ -168,6 +168,9 @@ export const GUIDE: readonly GuideTopic[] = [
         ],
       },
     ],
+    tips: [
+      'Abajo de tus cuotas están tus pagos, cada uno con su folio y su «Recibo» en PDF, y tu estado de cuenta en PDF, al día de hoy o al cierre de un mes. Los puedes compartir por WhatsApp.',
+    ],
   },
   {
     slug: 'shift',
@@ -202,7 +205,10 @@ export const GUIDE: readonly GuideTopic[] = [
         ],
       },
     ],
-    tips: ['Cada cambio queda anotado en la «Bitácora», con quién lo hizo y cuándo.'],
+    tips: [
+      'Cada cambio queda anotado en la «Bitácora», con quién lo hizo y cuándo.',
+      'Para encontrar un movimiento, busca por texto o filtra por depto y tipo arriba de la lista; el filtro se queda al pasar de un mes a otro. «Más recientes primero» cambia el orden, y tu celular lo recuerda.',
+    ],
   },
   {
     slug: 'close-month',
@@ -227,7 +233,7 @@ export const GUIDE: readonly GuideTopic[] = [
             alt: 'La pregunta para confirmar el cierre, con el saldo final.',
           },
           {
-            text: 'Si el depto que sigue no va a tomar el turno, entra a «Turnos» y toca «Registrar entrega» para anotar quién lo cubre. Hazlo también dentro de esos 5 días.',
+            text: 'Si el depto que sigue no va a tomar el turno, o está inactivo, entra a «Turnos» y toca «Registrar entrega» para anotar quién lo cubre. Hazlo también dentro de esos 5 días; si te equivocas, en esos días puedes cancelarla.',
           },
         ],
       },
@@ -235,6 +241,7 @@ export const GUIDE: readonly GuideTopic[] = [
     tips: [
       'Un mes cerrado ya no se puede cambiar. Si hay que corregir algo, pídele al administrador que lo reabra.',
       'El depto que no toma su turno paga una multa por cada mes.',
+      'Si la asamblea acuerda cambiar la cuota o una tarifa, quien lleva la administración del mes lo registra en «Más» → «Parámetros», desde un mes que todavía no empieza.',
     ],
   },
 ];

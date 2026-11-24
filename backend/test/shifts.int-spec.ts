@@ -88,17 +88,19 @@ describe('shifts API', () => {
       [502, 50000],
     ]);
 
-    // Only the superadmin cancels.
+    // The outgoing owner takes back their own handover while in their window (ADR-0031);
+    // the next depto cannot.
+    const owner502 = await tokenFor(api.app, '502');
     expectProblem(
       await http()
         .post(`/api/shifts/delegations/${delegation.id}/cancel`)
-        .auth(owner501, { type: 'bearer' }),
+        .auth(owner502, { type: 'bearer' }),
       403,
-      'SUPERADMIN_ONLY',
+      'NOT_RESPONSIBLE',
     );
     await http()
       .post(`/api/shifts/delegations/${delegation.id}/cancel`)
-      .auth(admin, { type: 'bearer' })
+      .auth(owner501, { type: 'bearer' })
       .expect(200);
     expect(await penalties()).toEqual([]);
 
@@ -111,7 +113,7 @@ describe('shifts API', () => {
       ).body,
     );
     expect(log.entries.map((e) => [e.action, e.actor.unit])).toEqual([
-      ['SHIFT_DELEGATION_CANCELLED', null],
+      ['SHIFT_DELEGATION_CANCELLED', 501],
       ['SHIFT_DELEGATION_CREATED', 501],
     ]);
   });

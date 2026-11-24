@@ -2,6 +2,7 @@ import type { Movement } from '@depadmin/shared';
 import { ArrowDownLeftIcon, ArrowUpRightIcon, BroomIcon, TrashIcon } from '@phosphor-icons/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatLocalDate, formatMoney, formatWeek } from '@/lib/format';
+import { folioLabel } from '@/features/accounts/api';
 import { cn } from '@/lib/utils';
 import { describeCoverage, isIncome, movementTitle } from '../labels';
 
@@ -29,12 +30,19 @@ interface MovementListProps {
   readonly onSelect?: ((movement: Movement) => void) | undefined;
   /** What each payment covered. Off for the history, which keeps no accounts. */
   readonly showCoverage?: boolean;
+  /** What to say when there is nothing to list (e.g. no row meets the filters). */
+  readonly empty?: string | undefined;
 }
 
 /** The month's rows, grouped by day, as the report will list them. */
-export function MovementList({ movements, onSelect, showCoverage = true }: MovementListProps) {
+export function MovementList({
+  movements,
+  onSelect,
+  showCoverage = true,
+  empty = 'Sin movimientos todavía.',
+}: MovementListProps) {
   if (movements.length === 0) {
-    return <p className="text-xs/relaxed text-muted-foreground">Sin movimientos todavía.</p>;
+    return <p className="text-xs/relaxed text-muted-foreground">{empty}</p>;
   }
   return byDay(movements).map((day) => (
     <Card key={day.date} size="sm">
@@ -48,8 +56,14 @@ export function MovementList({ movements, onSelect, showCoverage = true }: Movem
           {day.movements.map((movement) => {
             const Icon = ICONS[movement.category];
             const income = isIncome(movement.category);
+            const folio =
+              movement.receiptNumber === null
+                ? null
+                : `folio ${folioLabel(movement.receiptNumber)}`;
             const detail =
-              (showCoverage ? describeCoverage(movement) : null) ??
+              [showCoverage ? describeCoverage(movement) : null, folio]
+                .filter(Boolean)
+                .join(' · ') ||
               (movement.week && `semana ${formatWeek(movement.week)}`);
             // A payment's observations, which the report prints for its depto.
             const notes = movement.category === 'UNIT_PAYMENT' ? movement.description : null;

@@ -92,7 +92,9 @@ export function shiftsFixture(today: string, inactive: Record<number, YearMonthR
       delegations,
       unitOfWork,
       audit,
+      clock,
       months,
+      calendars,
       new WithdrawShiftSkipPenalties(charges, unitOfWork, audit),
     ),
   };

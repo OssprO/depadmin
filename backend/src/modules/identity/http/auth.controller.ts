@@ -37,7 +37,7 @@ export class AuthController {
   @Post('login')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
-  // At most LOGIN_ATTEMPTS_PER_MINUTE attempts per IP and username (identity.module.ts).
+  // At most LOGIN_ATTEMPTS_PER_MINUTE attempts per IP and username (throttling.module.ts).
   @UseGuards(LoginThrottlerGuard)
   async login(
     @Body(new ZodValidationPipe(loginRequestSchema)) body: LoginRequest,
