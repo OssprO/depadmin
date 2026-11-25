@@ -4,7 +4,7 @@
 #                        repository on the VPS, copies it to Backblaze B2, keeps 14 daily,
 #                        8 weekly and 12 monthly copies in both and tells healthchecks.io
 #   ./backup.sh local    from deploy.sh, before the migrations: only the repository on the VPS
-#   ./backup.sh init     once: creates both repositories
+#   ./backup.sh init     once: creates both repositories (again: only the missing one)
 #   ./backup.sh list     the copies in both repositories
 # The dumps hold everything (names, payments, password hashes): restic encrypts them with
 # RESTIC_PASSWORD, which must also be kept off the VPS, or no backup can be restored.
@@ -46,10 +46,35 @@ if [[ "$mode" != local && -z "$remote" ]]; then
   exit 1
 fi
 
+# Whether a repository is there: restic exits with 10 when there is none. Any other failure
+# (a wrong key or password, an unknown host) stops the script with restic's own message.
+repository_exists() {
+  local status=0 error
+  error="$(restic "$@" cat config 2>&1 >/dev/null)" || status=$?
+  case "$status" in
+    0) return 0 ;;
+    10) return 1 ;;
+    *)
+      echo "$error" >&2
+      exit "$status"
+      ;;
+  esac
+}
+
 case "$mode" in
   init)
-    restic init
-    restic -r "$remote" init --from-repo /backups/restic --copy-chunker-params
+    # Creates whichever is missing, so it can run again after a try that stopped halfway
+    # (the VPS's created, then B2 refused a mistyped key).
+    if repository_exists; then
+      echo "The repository on the VPS already exists."
+    else
+      restic init
+    fi
+    if repository_exists -r "$remote"; then
+      echo "The repository in B2 already exists."
+    else
+      restic -r "$remote" init --from-repo /backups/restic --copy-chunker-params
+    fi
     exit 0
     ;;
   list)
