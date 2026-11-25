@@ -318,11 +318,13 @@ Mientras `restic` no esté configurado, `backup.sh` saca un respaldo sin cifrar,
 
 ### 9.1 Backblaze B2 (en tu navegador, una vez)
 
-1. Crea una cuenta en [backblaze.com](https://www.backblaze.com/sign-up/cloud-storage) (B2 Cloud Storage). Los primeros 10 GB son gratis.
+1. Crea una cuenta en [backblaze.com](https://www.backblaze.com/sign-up/cloud-storage) (B2 Cloud Storage). Los primeros 10 GB son gratis; la base cifrada pesa unos 140 KB. Activa la verificación en dos pasos en **My Settings**.
+   - En **Caps & Alerts**, pon **$0** en todos los topes diarios: si algún día se pasara de lo gratis, B2 deja de aceptar en lugar de cobrar, y avisa.
 2. En **Buckets → Create a Bucket**, crea uno **privado** con un nombre único, por ejemplo `depadmin-respaldos-` y unas letras al azar. Deja _Object Lock_ apagado; el cifrado de B2 es opcional, porque `restic` ya cifra.
 3. En ese bucket, **Lifecycle Settings → Keep only the last version of the file.** `restic` borra las copias viejas escondiéndolas, y sin esta regla seguirían ocupando espacio.
 4. Anota su **Endpoint**, por ejemplo `s3.us-west-004.backblazeb2.com`.
-5. En **Application Keys → Add a New Application Key**, crea una llave llamada `depadmin-restic`, solo para ese bucket, de lectura y escritura. Copia el `keyID` y el `applicationKey`: este último se muestra una sola vez.
+5. En **Application Keys → Add a New Application Key**, crea una llave llamada `depadmin-restic`, solo para ese bucket, de lectura y escritura. Copia el `keyID` y el `applicationKey` a tu gestor de contraseñas: el segundo se muestra una sola vez.
+   - Revisa que se copiaron completos: el `keyID` tiene 25 caracteres y el `applicationKey` 31, y empieza con `K00`. Una llave cortada hace fallar `init` con «Signature validation failed» ([`OPERACION.md`](OPERACION.md), sección 2).
 
 ### 9.2 healthchecks.io y UptimeRobot (en tu navegador, una vez)
 
@@ -353,7 +355,7 @@ grep '^RESTIC_PASSWORD=' .env
 
 ```bash
 cd /opt/depadmin
-./backup.sh init            # crea el repositorio del VPS y el de B2; una sola vez
+./backup.sh init            # crea el repositorio del VPS y el de B2; si falla, se repite
 ./backup.sh                 # el respaldo de cada noche, ahora a mano
 ./backup.sh list            # las copias que hay en cada uno
 ./restore-test.sh           # restaura la última copia de B2 en una base aparte
@@ -361,6 +363,8 @@ docker compose up -d api    # la API toma HEALTHCHECKS_PING_URL
 ```
 
 `restore-test.sh` termina con `restore-test: OK (movimientos …, usuarios …, bitácora …)`. La base de la app no se toca.
+
+**Si `init` falla a medias** (crea el repositorio del VPS y B2 lo rechaza), corrige el `.env` y vuelve a correrlo: crea solo el que falta. Mientras tanto los despliegues siguen, porque solo usan el del VPS. Para encontrar la causa, sigue «Las llaves de B2» en [`OPERACION.md`](OPERACION.md).
 
 ### 9.5 Cada noche, a las 3:30 (como deploy)
 

@@ -95,7 +95,21 @@ test('keeps last month’s books, closes them, downloads the PDF and shows the h
   await expect(page.getByRole('button', { name: 'Reabrir el mes' })).toBeVisible();
   await expect(page.getByRole('button', { name: /Agregar/ })).toHaveCount(0);
 
-  // Its report as a PDF, built from the frozen month.
+  // Its report as a PDF, built from the frozen month: pdf.js draws it first, on the phone.
+  await page.getByRole('button', { name: 'Vista previa' }).click();
+  const preview = page.getByRole('dialog');
+  const firstPage = preview.getByRole('img', { name: /^Página 1 de \d+$/ });
+  await expect(firstPage).toBeVisible();
+  // Drawn, not blank: some of its pixels are text.
+  expect(
+    await firstPage.evaluate((canvas: HTMLCanvasElement) => {
+      const { data } = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height);
+      return data.some((value, index) => index % 4 !== 3 && value < 128);
+    }),
+  ).toBe(true);
+  await page.keyboard.press('Escape');
+  await expect(preview).toBeHidden();
+
   const downloading = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Descargar PDF' }).click();
   const download = await downloading;

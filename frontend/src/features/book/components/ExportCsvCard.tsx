@@ -43,6 +43,7 @@ export function ExportCsvCard({ months }: { months: MonthHistory['months'] }) {
           title="Movimientos"
           label="Descargar CSV"
           shareable={false}
+          previewable={false}
         />
       </CardContent>
     </Card>
