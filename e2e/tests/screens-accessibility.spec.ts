@@ -1,19 +1,9 @@
-import { AxeBuilder } from '@axe-core/playwright';
 import { expect, type Page, test } from '@playwright/test';
 import { SUPERADMIN } from '../support/accounts.js';
+import { expectAccessible } from '../support/accessibility.js';
 
 // Every main screen against the WCAG 2.1 A and AA rules that axe can check automatically
 // (contrast, names, landmarks, ARIA). It runs after books.spec, so the screens have data.
-
-async function expectAccessible(page: Page, screen: string) {
-  const { violations } = await new AxeBuilder({ page })
-    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-    .analyze();
-  const found = violations.map(
-    (v) => `${screen}: ${v.id} (${v.impact}) ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`,
-  );
-  expect(found).toEqual([]);
-}
 
 test('every main screen meets WCAG 2.1 AA as far as axe can tell', async ({ page }) => {
   // Two passes (light and dark) over a dozen screens.

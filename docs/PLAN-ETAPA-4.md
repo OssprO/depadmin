@@ -30,7 +30,7 @@ El modo de trabajo no cambia: **una fase por PR**, con las decisiones registrada
 | 31   | Recibos de pago con el diseño de los recibos reales                             | Administrador | 🔴 Alta   | M    | 23 (hecha), muestra del recibo real                       |
 | 35   | Delegación temporal de la administración, que acepta otro dueño                 | Administrador | 🔴 Alta   | L    | 24 (correo); 25 (avisos), si ya está                      |
 | 32   | Firma digital de los recibos (hash + firma del servidor + verificación)         | Administrador | 🔴 Alta   | L    | 31                                                        |
-| 37   | Cuenta con sesión siempre a la vista (se adelanta)                              | Administrador | 🟠 Media  | S    | Ninguna                                                   |
+| 37   | Cuenta con sesión siempre a la vista (hecha)                                    | Administrador | 🟠 Media  | S    | Ninguna                                                   |
 | 33   | Sesiones activas: ver y cerrar las propias                                      | Administrador | 🟠 Media  | M    | Ninguna                                                   |
 | 34   | Agenda de contactos por depto y servicios comunes                               | Administrador | 🟠 Media  | M    | Ninguna (incluye un cambio de lectura en la autorización) |
 | 38   | Contador de efectivo: cuenta del administrador, total de caja y estado guardado | Administrador | 🟠 Media  | M    | Ninguna (el contador empieza a usar la API)               |
@@ -227,6 +227,19 @@ Al recolector se le paga el sábado en la mañana. Hoy la app pide confirmar el 
 ### Fase 37: Cuenta con sesión, siempre a la vista
 
 🟠 **Media · Peso S** · Se adelanta como arreglo, en su propio PR (pregunta 6).
+
+**Hecha.** Como se planeó, con estos detalles:
+
+- **El círculo del dueño lleva borde,** porque su relleno gris claro casi no se distingue del fondo del menú lateral.
+- **El del lector tiene un borde punteado,** así se distingue del dueño también por la forma.
+- **El texto del menú lateral va en dos renglones:** la cuenta («Depto 501», «admin») y su rol («Dueño», «Superadmin»).
+- **Con una contraseña temporal,** el círculo se ve pero no es un enlace, porque la única pantalla posible es cambiarla.
+- **El título de la pestaña vuelve al de siempre** al cerrar sesión.
+- **axe revisa el círculo de cada rol en claro y oscuro:**
+  - el del superadmin, en todas las pantallas;
+  - el del dueño, en `session.spec`;
+  - el del lector, en `users.spec`.
+- **La guía** suma un consejo en «Entrar por primera vez».
 
 El administrador es el depto 501 y también tiene la cuenta del superadmin. Necesita saber en todo momento con cuál entró: lo que hace como superadmin queda en la bitácora a nombre del superadmin y no de 501, y algunas acciones solo funcionan con una de las dos (las tarifas, por ejemplo, solo las cambia el administrador en turno).
 

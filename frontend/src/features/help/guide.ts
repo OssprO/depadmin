@@ -65,6 +65,7 @@ export const GUIDE: readonly GuideTopic[] = [
       },
     ],
     tips: [
+      'Arriba a la derecha, el círculo con el número de tu depto dice con qué cuenta entraste (en la tableta y la computadora está en el menú de la izquierda). Tócalo para ir a «Mi cuenta».',
       `Usa una contraseña de al menos ${PASSWORD_MIN_LENGTH} letras o números que puedas recordar, como una frase corta.`,
       '¿Olvidaste tu contraseña? Si tienes un correo confirmado, recupérala tú: ve «Si olvidaste tu contraseña». Si no, pídele al administrador una temporal. Con ella entras y eliges una nueva, igual que la primera vez.',
     ],

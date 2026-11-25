@@ -1,5 +1,6 @@
 import { expect, type Page, test } from '@playwright/test';
 import { SUPERADMIN } from '../support/accounts.js';
+import { expectAccountBadgeAccessible } from '../support/accessibility.js';
 
 async function signIn(page: Page, username: string, password: string) {
   await page.getByLabel('Usuario').fill(username);
@@ -64,6 +65,13 @@ test('gives an owner access with a temporary password they must replace', async 
   await page.getByRole('button', { name: 'Guardar contraseña' }).click();
 
   await expect(page.getByRole('heading', { name: 'Hola, Depto 501' })).toBeVisible();
+  await expect(
+    page
+      .getByRole('link', { name: 'Cuenta: Depto 501, dueño' })
+      .locator('[data-slot="account-circle"]'),
+  ).toHaveText('501');
+  await expect(page).toHaveTitle('DepAdmin · 501');
+  await expectAccountBadgeAccessible(page, 'dueño');
   // Owners have no admin tools.
   await page.getByRole('link', { name: 'Más' }).click();
   await expect(page.getByRole('link', { name: /Estados de cuenta/ })).toBeVisible();
