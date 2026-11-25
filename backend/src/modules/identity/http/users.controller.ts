@@ -1,5 +1,7 @@
 import { Body, Controller, Get, Header, HttpCode, Inject, Param, Post, Put } from '@nestjs/common';
 import {
+  type UserEmailRequest,
+  userEmailRequestSchema,
   type CreateReaderRequest,
   createReaderRequestSchema,
   type CreateReaderResponse,
@@ -19,6 +21,7 @@ import {
   UnitNumber,
 } from '../../../shared-kernel/index.js';
 import {
+  ChangeEmail,
   ChangeUserAccess,
   CreateReader,
   DisableUser,
@@ -48,6 +51,7 @@ export class UsersController {
     private readonly changeAccess: ChangeUserAccess,
     private readonly disableUser: DisableUser,
     private readonly enableUser: EnableUser,
+    private readonly changeEmail: ChangeEmail,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
@@ -78,6 +82,17 @@ export class UsersController {
     @Body(new ZodValidationPipe(userAccessRequestSchema)) body: UserAccessRequest,
   ): Promise<UserSummary> {
     const user = await this.changeAccess.execute(actor, id, toAccess(body));
+    return toUserSummary(user, this.clock.today());
+  }
+
+  /** The superadmin captures an email (a confirmation link goes to it) or removes it (null). */
+  @Put(':id/email')
+  async email(
+    @CurrentActor() actor: Actor,
+    @Param('id', idParam) id: string,
+    @Body(new ZodValidationPipe(userEmailRequestSchema)) body: UserEmailRequest,
+  ): Promise<UserSummary> {
+    const user = await this.changeEmail.execute(actor, id, body.email);
     return toUserSummary(user, this.clock.today());
   }
 

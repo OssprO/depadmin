@@ -1,4 +1,4 @@
-import type { CurrentUser, SessionResponse, UserSummary } from '@depadmin/shared';
+import type { AccountEmail, CurrentUser, SessionResponse, UserSummary } from '@depadmin/shared';
 import type { LocalDate } from '../../../shared-kernel/index.js';
 import type { IssuedSession } from '../application/index.js';
 import type { User } from '../domain/index.js';
@@ -17,6 +17,7 @@ export function toCurrentUser(user: User): CurrentUser {
 export function toUserSummary(user: User, today: LocalDate): UserSummary {
   return {
     ...toCurrentUser(user),
+    ...toAccountEmail(user),
     hasPassword: user.canSignIn,
     expiresOn: user.expiresOn && String(user.expiresOn),
     disabled: user.disabled,
@@ -31,4 +32,8 @@ export function toSessionResponse(session: IssuedSession): SessionResponse {
     expiresInSeconds: session.accessToken.expiresInSeconds,
     user: toCurrentUser(session.user),
   };
+}
+
+export function toAccountEmail(user: User): AccountEmail {
+  return { email: user.email, pendingEmail: user.pendingEmail };
 }

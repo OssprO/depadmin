@@ -1,15 +1,21 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import {
+  ChangeEmail,
   ChangePassword,
   ChangeUserAccess,
+  CheckRecoveryLink,
+  ConfirmEmail,
   CreateReader,
   DisableUser,
   EnableUser,
   GetCurrentUser,
   ListUsers,
+  PasswordRecoveryAvailability,
   PurgeExpiredSessions,
+  RecoverPassword,
   RefreshSession,
+  RequestPasswordRecovery,
   ResetPassword,
   SessionIssuer,
   SignIn,
@@ -21,7 +27,9 @@ import {
   REFRESH_TOKEN_REPOSITORY,
   SECRET_GENERATOR,
   USER_REPOSITORY,
+  USER_TOKEN_REPOSITORY,
 } from './domain/index.js';
+import { AccountController } from './http/account.controller.js';
 import { AccessTokenGuard } from './http/access-token.guard.js';
 import { AuthController } from './http/auth.controller.js';
 import { UsersController } from './http/users.controller.js';
@@ -30,13 +38,15 @@ import { CryptoSecretGenerator } from './infrastructure/crypto-secret-generator.
 import { JoseAccessTokenService } from './infrastructure/jose-access-token-service.js';
 import { PrismaRefreshTokenRepository } from './infrastructure/prisma-refresh-token.repository.js';
 import { PrismaUserRepository } from './infrastructure/prisma-user.repository.js';
+import { PrismaUserTokenRepository } from './infrastructure/prisma-user-token.repository.js';
 import { PurgeExpiredSessionsJob } from './jobs/purge-expired-sessions.job.js';
 
 @Module({
-  controllers: [AuthController, UsersController],
+  controllers: [AuthController, AccountController, UsersController],
   providers: [
     { provide: USER_REPOSITORY, useClass: PrismaUserRepository },
     { provide: REFRESH_TOKEN_REPOSITORY, useClass: PrismaRefreshTokenRepository },
+    { provide: USER_TOKEN_REPOSITORY, useClass: PrismaUserTokenRepository },
     { provide: PASSWORD_HASHER, useClass: Argon2PasswordHasher },
     { provide: SECRET_GENERATOR, useClass: CryptoSecretGenerator },
     { provide: ACCESS_TOKEN_SERVICE, useClass: JoseAccessTokenService },
@@ -54,6 +64,12 @@ import { PurgeExpiredSessionsJob } from './jobs/purge-expired-sessions.job.js';
     ChangeUserAccess,
     DisableUser,
     EnableUser,
+    ChangeEmail,
+    ConfirmEmail,
+    PasswordRecoveryAvailability,
+    RequestPasswordRecovery,
+    CheckRecoveryLink,
+    RecoverPassword,
     PurgeExpiredSessions,
     PurgeExpiredSessionsJob,
   ],

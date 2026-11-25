@@ -24,10 +24,18 @@ class ResettableThrottlerStorage implements ThrottlerStorage {
 /**
  * The whole API, configured as in production, on the integration database. Pair it with
  * `useTestDatabase()`, which empties the tables before each test. Pass a clock (e.g. a
- * `FixedClock`) to pin "today" for rules that depend on the date, and `env` for
- * configuration a spec needs (the configuration is read once per file).
+ * `FixedClock`) to pin "today" for rules that depend on the date, `env` for configuration a
+ * spec needs (the configuration is read once per file), and `providers` to replace adapters
+ * that reach outside (the email sender).
  */
-export function useTestApp(options: { clock?: Clock; env?: Record<string, string> } = {}): {
+export function useTestApp(
+  options: {
+    clock?: Clock;
+    env?: Record<string, string>;
+    /** Providers to replace, e.g. the email sender with a fake. */
+    providers?: { provide: unknown; useValue: unknown }[];
+  } = {},
+): {
   readonly app: NestExpressApplication;
   database: PrismaDatabase;
 } {
@@ -47,6 +55,9 @@ export function useTestApp(options: { clock?: Clock; env?: Record<string, string
       .overrideProvider(ThrottlerStorage)
       .useValue(throttler);
     if (options.clock) builder.overrideProvider(CLOCK).useValue(options.clock);
+    for (const { provide, useValue } of options.providers ?? []) {
+      builder.overrideProvider(provide).useValue(useValue);
+    }
     const moduleRef = await builder.compile();
     context.app = configureApp(
       moduleRef.createNestApplication<NestExpressApplication>({ logger: false }),

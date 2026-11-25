@@ -1,5 +1,6 @@
 import { type LoginRequest, loginRequestSchema } from '@depadmin/shared';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useQuery } from '@tanstack/react-query';
 import { getRouteApi, Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -12,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { errorMessage } from '@/lib/error-messages';
 import { safeRedirect } from '@/lib/safe-redirect';
 import { useSessionStore } from '@/lib/use-session';
+import { recoveryAvailabilityQueryOptions } from '../api';
 
 const route = getRouteApi('/login');
 
@@ -19,6 +21,9 @@ export function LoginPage() {
   const { redirect } = route.useSearch();
   const navigate = useNavigate();
   const session = useSessionStore();
+  // Offered only once the app can send the link; until then, the superadmin gives one.
+  const recovery = useQuery(recoveryAvailabilityQueryOptions);
+  const canRecover = recovery.data?.available === true;
   const [error, setError] = useState<string | null>(null);
   const form = useForm<LoginRequest>({
     resolver: zodResolver(loginRequestSchema),
@@ -80,12 +85,20 @@ export function LoginPage() {
               <Button type="submit" size="lg" disabled={isSubmitting}>
                 {isSubmitting ? 'Entrando…' : 'Entrar'}
               </Button>
+              {canRecover && (
+                <Link
+                  to="/forgot-password"
+                  className="self-center text-sm font-medium underline underline-offset-4"
+                >
+                  ¿Olvidaste tu contraseña?
+                </Link>
+              )}
             </FieldGroup>
           </form>
         </CardContent>
       </Card>
       <div className="flex flex-col items-center gap-2 text-center text-xs text-muted-foreground">
-        <p>¿Olvidaste tu contraseña? Pídele al administrador una temporal.</p>
+        {!canRecover && <p>¿Olvidaste tu contraseña? Pídele al superadmin una temporal.</p>}
         <p>
           ¿Es tu primera vez?{' '}
           <Link to="/help" className="font-medium text-foreground underline underline-offset-4">

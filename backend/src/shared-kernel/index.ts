@@ -7,6 +7,7 @@ export * from './local-date.js';
 export * from './money.js';
 export * from './movement.js';
 export * from './month-ledger.js';
+export * from './outbox.js';
 export * from './paper-record.js';
 export * from './unit-number.js';
 export * from './unit-of-work.js';

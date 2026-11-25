@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { withCode } from '../../../../test/support/domain-error.js';
 import { LocalDate, UnitNumber } from '../../../shared-kernel/index.js';
-import { normalizeUsername, User, type UserProps } from './user.js';
+import { normalizeEmail, normalizeUsername, User, type UserProps } from './user.js';
 
 const owner: UserProps = {
   id: 'u-501',
@@ -12,6 +12,8 @@ const owner: UserProps = {
   mustChangePassword: false,
   expiresOn: null,
   disabled: false,
+  email: null,
+  pendingEmail: null,
 };
 
 describe('User', () => {
@@ -130,6 +132,63 @@ describe('User', () => {
       expect(() =>
         User.restore({ ...owner, role: 'SUPERADMIN', unit: null, disabled: true }),
       ).toThrow(withCode('USER_UNIT_INVALID'));
+    });
+  });
+
+  describe('email', () => {
+    it('keeps a new address waiting, and the confirmed one working, until it is confirmed', () => {
+      const user = User.restore({ ...owner, email: 'antes@ejemplo.mx' });
+
+      expect(user.requestEmail(' Nueva@Ejemplo.MX ')).toBe('nueva@ejemplo.mx');
+      expect(user).toMatchObject({ email: 'antes@ejemplo.mx', pendingEmail: 'nueva@ejemplo.mx' });
+
+      expect(user.confirmEmail('nueva@ejemplo.mx')).toBe('antes@ejemplo.mx');
+      expect(user).toMatchObject({ email: 'nueva@ejemplo.mx', pendingEmail: null });
+    });
+
+    it('lets the superadmin and readers have one too', () => {
+      const admin = User.createSuperadmin('u-admin', 'admin', 'hash');
+      admin.requestEmail('soporte@ejemplo.mx');
+      expect(admin.confirmEmail('soporte@ejemplo.mx')).toBeNull();
+      expect(admin.email).toBe('soporte@ejemplo.mx');
+    });
+
+    it('refuses what is not an address, and the address already confirmed', () => {
+      const user = User.restore({ ...owner, email: 'vecina@ejemplo.mx' });
+      for (const address of [
+        'vecina',
+        'vecina@ejemplo',
+        'a b@ejemplo.mx',
+        `${'x'.repeat(250)}@e.mx`,
+      ]) {
+        expect(() => user.requestEmail(address), address).toThrow(withCode('EMAIL_INVALID'));
+      }
+      expect(() => user.requestEmail('VECINA@ejemplo.mx')).toThrow(
+        withCode('EMAIL_ALREADY_CONFIRMED'),
+      );
+    });
+
+    it('confirms only the address waiting: a link for an earlier capture no longer counts', () => {
+      const user = User.restore({ ...owner });
+      user.requestEmail('primera@ejemplo.mx');
+      user.requestEmail('segunda@ejemplo.mx');
+
+      expect(() => user.confirmEmail('primera@ejemplo.mx')).toThrow(withCode('EMAIL_LINK_INVALID'));
+      expect(user.email).toBeNull();
+    });
+
+    it('removes both addresses, and says when there was none', () => {
+      const user = User.restore({ ...owner, email: 'a@ejemplo.mx', pendingEmail: 'b@ejemplo.mx' });
+      user.removeEmail();
+      expect(user).toMatchObject({ email: null, pendingEmail: null });
+      expect(() => user.removeEmail()).toThrow(withCode('EMAIL_NONE'));
+    });
+
+    it('normalizes what it restores', () => {
+      expect(normalizeEmail(' Vecina@Ejemplo.MX')).toBe('vecina@ejemplo.mx');
+      expect(User.restore({ ...owner, pendingEmail: 'B@Ejemplo.mx' }).pendingEmail).toBe(
+        'b@ejemplo.mx',
+      );
     });
   });
 });

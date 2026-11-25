@@ -66,7 +66,7 @@ export const GUIDE: readonly GuideTopic[] = [
     ],
     tips: [
       `Usa una contraseña de al menos ${PASSWORD_MIN_LENGTH} letras o números que puedas recordar, como una frase corta.`,
-      '¿Olvidaste tu contraseña? Pídele al administrador una temporal. Con ella entras y eliges una nueva, igual que la primera vez.',
+      '¿Olvidaste tu contraseña? Si tienes un correo confirmado, recupérala tú: ve «Si olvidaste tu contraseña». Si no, pídele al administrador una temporal. Con ella entras y eliges una nueva, igual que la primera vez.',
     ],
   },
   {
@@ -79,7 +79,7 @@ export const GUIDE: readonly GuideTopic[] = [
           {
             text: 'Toca «Más», abajo a la derecha, y luego «Mi cuenta».',
             shot: 'my-account',
-            alt: 'La pantalla «Mi cuenta», con los botones Cambiar contraseña y Cerrar sesión.',
+            alt: 'La pantalla «Mi cuenta», con tu correo y los botones Cambiar contraseña y Cerrar sesión.',
           },
           {
             text: 'Toca «Cambiar contraseña». Escribe tu contraseña actual y la nueva dos veces, y toca «Guardar contraseña».',
@@ -89,7 +89,68 @@ export const GUIDE: readonly GuideTopic[] = [
         ],
       },
     ],
-    tips: ['Al cambiarla se cierra tu sesión en tus otros dispositivos.'],
+    tips: [
+      'Al cambiarla se cierra tu sesión en tus otros dispositivos.',
+      'Si tienes un correo confirmado, te llega un aviso cada vez que tu contraseña cambia.',
+    ],
+  },
+  {
+    slug: 'email',
+    title: 'Agregar tu correo',
+    summary: 'Para recuperar tu contraseña tú solo, si la olvidas',
+    intro:
+      'La app solo te escribe lo necesario: el enlace para confirmar tu correo, el de recuperar tu contraseña y un aviso cuando tu contraseña cambia.',
+    sections: [
+      {
+        steps: [
+          {
+            text: 'En «Mi cuenta», toca «Agregar correo». Escribe tu correo y toca «Guardar y enviar el enlace».',
+            shot: 'email-add',
+            alt: 'El formulario para agregar tu correo.',
+          },
+          {
+            text: 'Te llega un correo, «Confirma tu correo en DepAdmin». Ábrelo en tu celular y toca «Confirmar mi correo». Si la app te pide entrar, entra con tu cuenta.',
+          },
+          {
+            text: 'Listo: en «Mi cuenta» tu correo aparece como «Confirmado».',
+            shot: 'email-confirmed',
+            alt: 'Tu correo en «Mi cuenta», marcado como confirmado.',
+          },
+        ],
+      },
+    ],
+    tips: [
+      'Si no ves el correo, revisa la carpeta de spam. El enlace vence en 60 días; si venció, toca «Reenviar el enlace».',
+      'Para cambiarlo, toca «Cambiar correo». El anterior sigue sirviendo hasta que confirmes el nuevo.',
+    ],
+  },
+  {
+    slug: 'forgot-password',
+    title: 'Si olvidaste tu contraseña',
+    summary: 'Un enlace a tu correo para elegir una nueva',
+    sections: [
+      {
+        steps: [
+          {
+            text: 'En la pantalla para iniciar sesión, toca «¿Olvidaste tu contraseña?». Escribe tu usuario y toca «Enviar enlace».',
+            shot: 'forgot-password',
+            alt: 'La pantalla «Recuperar tu contraseña», con tu usuario escrito.',
+          },
+          {
+            text: 'Te llega un correo, «Recupera tu contraseña de DepAdmin». Toca «Elegir una contraseña nueva». El enlace vence en 1 hora y sirve una sola vez.',
+          },
+          {
+            text: 'Escribe tu contraseña nueva dos veces y toca «Guardar contraseña». Luego toca «Iniciar sesión» y entra con ella.',
+            shot: 'reset-password',
+            alt: 'La pantalla «Nueva contraseña», con la contraseña nueva dos veces.',
+          },
+        ],
+      },
+    ],
+    tips: [
+      'Solo funciona si tienes un correo confirmado (ve «Agregar tu correo»). Si no, pídele al administrador una contraseña temporal.',
+      'Al cambiarla se cierran tus sesiones en todos tus dispositivos, y te llega un aviso por correo.',
+    ],
   },
   {
     slug: 'install',

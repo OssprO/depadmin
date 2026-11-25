@@ -44,6 +44,8 @@ export class PrismaUserRepository implements UserRepository {
       mustChangePassword: user.mustChangePassword,
       expiresOn: user.expiresOn && toDbDate(user.expiresOn),
       disabled: user.disabled,
+      email: user.email,
+      pendingEmail: user.pendingEmail,
     };
     return translateViolations(
       async () => {
@@ -72,5 +74,7 @@ function toDomain(row: UserRow): User {
     mustChangePassword: row.mustChangePassword,
     expiresOn: row.expiresOn && fromDbDate(row.expiresOn),
     disabled: row.disabled,
+    email: row.email,
+    pendingEmail: row.pendingEmail,
   });
 }

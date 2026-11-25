@@ -29,6 +29,7 @@ describe('passwords and accounts', () => {
       fx.unitOfWork,
       fx.audit,
       fx.clock,
+      fx.outbox,
       fx.sessions,
     );
     reset = new ResetPassword(
@@ -39,6 +40,7 @@ describe('passwords and accounts', () => {
       fx.unitOfWork,
       fx.audit,
       fx.clock,
+      fx.outbox,
     );
     await givenSuperadmin(fx.users);
     await givenOwner(fx.users, UnitNumber.of(501), 'old password');

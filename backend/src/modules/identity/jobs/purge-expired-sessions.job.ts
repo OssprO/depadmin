@@ -4,7 +4,7 @@ import { BUILDING_TIME_ZONE } from '../../../platform/clock/system-clock.js';
 import { JobRunner } from '../../../platform/jobs/job-runner.js';
 import { PurgeExpiredSessions } from '../application/index.js';
 
-/** Every night, the expired refresh tokens go. */
+/** Every night, the expired refresh tokens and email links go. */
 @Injectable()
 export class PurgeExpiredSessionsJob {
   private readonly logger = new Logger(PurgeExpiredSessionsJob.name);
@@ -21,8 +21,10 @@ export class PurgeExpiredSessionsJob {
       this.logger,
       'Could not purge expired sessions',
       async () => {
-        const deleted = await this.purge.execute();
-        return deleted > 0 ? `Deleted ${deleted} expired refresh tokens` : null;
+        const { refreshTokens, links } = await this.purge.execute();
+        return refreshTokens + links > 0
+          ? `Deleted ${refreshTokens} expired refresh tokens and ${links} expired email links`
+          : null;
       },
     );
   }

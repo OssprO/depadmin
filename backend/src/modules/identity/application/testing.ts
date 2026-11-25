@@ -1,6 +1,7 @@
 // In-memory adapters for the identity use case specs. Excluded from the build.
 import { FakeUnitOfWork, RecordingAuditTrail } from '../../../../test/support/audit-trail.js';
 import { FixedClock } from '../../../../test/support/clock.js';
+import { RecordingOutbox } from '../../../../test/support/outbox.js';
 import {
   type Actor,
   type Instant,
@@ -17,6 +18,9 @@ import {
   type SecretGenerator,
   User,
   type UserRepository,
+  UserToken,
+  type UserTokenPurpose,
+  type UserTokenRepository,
 } from '../domain/index.js';
 import { SessionIssuer } from './session-issuer.js';
 
@@ -46,6 +50,7 @@ export class InMemoryUserRepository implements UserRepository {
     if (!user) return null;
     const { id, username, role, unit, passwordHash, mustChangePassword, expiresOn, disabled } =
       user;
+    const { email, pendingEmail } = user;
     return User.restore({
       id,
       username,
@@ -55,6 +60,8 @@ export class InMemoryUserRepository implements UserRepository {
       mustChangePassword,
       expiresOn,
       disabled,
+      email,
+      pendingEmail,
     });
   }
 }
@@ -139,6 +146,15 @@ export class FakeSecrets implements SecretGenerator {
   temporaryPassword(): string {
     return `temporary-${++this.count}`;
   }
+
+  linkToken(): { token: string; tokenHash: string } {
+    const token = `link-${++this.count}`;
+    return { token, tokenHash: this.hashLinkToken(token) };
+  }
+
+  hashLinkToken(token: string): string {
+    return `sha:${token}`;
+  }
 }
 
 export const fakeAccessTokens: AccessTokenService = {
@@ -147,7 +163,10 @@ export const fakeAccessTokens: AccessTokenService = {
   verify: () => Promise.resolve(null),
 };
 
-export const immediateUnitOfWork: UnitOfWork = { run: (work) => work() };
+export const immediateUnitOfWork: UnitOfWork = {
+  run: (work) => work(),
+  afterCommit: (effect) => effect(),
+};
 
 /** Everything a use case spec needs, wired like the Nest module does. */
 export function identityFixture() {
@@ -158,7 +177,9 @@ export function identityFixture() {
   const sessions = new SessionIssuer(fakeAccessTokens, secrets, refreshTokens, clock);
   const unitOfWork = new FakeUnitOfWork();
   const audit = new RecordingAuditTrail(unitOfWork);
-  return { users, refreshTokens, secrets, clock, sessions, unitOfWork, audit };
+  const links = new InMemoryUserTokenRepository();
+  const outbox = new RecordingOutbox(unitOfWork);
+  return { users, refreshTokens, secrets, clock, sessions, unitOfWork, audit, links, outbox };
 }
 
 export async function givenOwner(
@@ -176,4 +197,57 @@ export async function givenSuperadmin(users: InMemoryUserRepository): Promise<Us
   const user = User.createSuperadmin('u-admin', 'admin', await fakeHasher.hash('admin-password'));
   await users.save(user);
   return user;
+}
+
+export class InMemoryUserTokenRepository implements UserTokenRepository {
+  readonly rows = new Map<string, UserToken>();
+
+  findByHash(tokenHash: string): Promise<UserToken | null> {
+    return Promise.resolve([...this.rows.values()].find((t) => t.tokenHash === tokenHash) ?? null);
+  }
+
+  add(token: UserToken): Promise<void> {
+    this.rows.set(token.id, token);
+    return Promise.resolve();
+  }
+
+  use(token: UserToken, at: Instant): Promise<boolean> {
+    const stored = this.rows.get(token.id);
+    if (stored?.stateAt(at) !== 'ACTIVE') return Promise.resolve(false);
+    this.rows.set(token.id, UserToken.restore({ ...tokenPropsOf(stored), usedAt: at }));
+    return Promise.resolve(true);
+  }
+
+  revokeActive(userId: string, purpose: UserTokenPurpose, at: Instant): Promise<void> {
+    for (const token of this.rows.values()) {
+      if (token.userId === userId && token.worksFor(purpose, at)) {
+        this.rows.set(token.id, UserToken.restore({ ...tokenPropsOf(token), revokedAt: at }));
+      }
+    }
+    return Promise.resolve();
+  }
+
+  countIssuedSince(userId: string, purpose: UserTokenPurpose, since: Instant): Promise<number> {
+    return Promise.resolve(
+      [...this.rows.values()].filter(
+        (t) => t.userId === userId && t.purpose === purpose && t.createdAt.isAfter(since),
+      ).length,
+    );
+  }
+
+  deleteExpired(at: Instant): Promise<number> {
+    const expired = [...this.rows.values()].filter((t) => t.expiresAt.isBefore(at));
+    for (const token of expired) this.rows.delete(token.id);
+    return Promise.resolve(expired.length);
+  }
+
+  /** The links sent to `userId` for `purpose`, oldest first. */
+  of(userId: string, purpose: UserTokenPurpose): UserToken[] {
+    return [...this.rows.values()].filter((t) => t.userId === userId && t.purpose === purpose);
+  }
+}
+
+function tokenPropsOf(token: UserToken) {
+  const { id, userId, purpose, tokenHash, email, expiresAt, usedAt, revokedAt, createdAt } = token;
+  return { id, userId, purpose, tokenHash, email, expiresAt, usedAt, revokedAt, createdAt };
 }

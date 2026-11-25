@@ -1,10 +1,19 @@
 import { Body, Controller, Get, Header, HttpCode, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import {
   type ChangePasswordRequest,
   changePasswordRequestSchema,
+  type CompleteRecoveryRequest,
+  completeRecoveryRequestSchema,
   type CurrentUser,
+  type EmailLinkRequest,
+  emailLinkRequestSchema,
   type LoginRequest,
   loginRequestSchema,
+  type PasswordRecoveryAvailability,
+  type PasswordRecoveryRequest,
+  passwordRecoveryRequestSchema,
+  type RecoveryLinkResponse,
   type SessionResponse,
 } from '@depadmin/shared';
 import type { Request, Response } from 'express';
@@ -13,15 +22,26 @@ import { ZodValidationPipe } from '../../../platform/http/zod-validation.pipe.js
 import { type Actor, UnauthenticatedError } from '../../../shared-kernel/index.js';
 import {
   ChangePassword,
+  CheckRecoveryLink,
   GetCurrentUser,
   type IssuedSession,
+  PasswordRecoveryAvailability as RecoveryAvailability,
+  RecoverPassword,
   RefreshSession,
+  RequestPasswordRecovery,
   SignIn,
   SignOut,
 } from '../application/index.js';
 import { LoginThrottlerGuard } from './login-throttler.guard.js';
 import { toCurrentUser, toSessionResponse } from './presenters.js';
 import { clearRefreshCookie, readRefreshCookie, setRefreshCookie } from './refresh-cookie.js';
+
+/**
+ * Recovery requests from one IP an hour (ADR-0033). Each depto has its own internet, so this
+ * is one household's; the 3 an hour per username are counted by the use case, silently.
+ */
+export const PASSWORD_RECOVERIES_PER_HOUR = 5;
+const HOUR_MS = 60 * 60 * 1000;
 
 @Controller('auth')
 export class AuthController {
@@ -31,6 +51,10 @@ export class AuthController {
     private readonly signOut: SignOut,
     private readonly changePassword: ChangePassword,
     private readonly currentUser: GetCurrentUser,
+    private readonly recoveryAvailability: RecoveryAvailability,
+    private readonly requestRecovery: RequestPasswordRecovery,
+    private readonly checkRecoveryLink: CheckRecoveryLink,
+    private readonly recoverPassword: RecoverPassword,
   ) {}
 
   @Public()
@@ -91,6 +115,48 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ): Promise<SessionResponse> {
     return respond(response, await this.changePassword.execute(actor, body));
+  }
+
+  /** Whether the login offers «¿Olvidaste tu contraseña?»: only with a provider to send it. */
+  @Public()
+  @Get('password-recovery')
+  recoveryAvailable(): PasswordRecoveryAvailability {
+    return { available: this.recoveryAvailability.execute() };
+  }
+
+  /** Always 202 and nothing else, whether a link went out or not. */
+  @Public()
+  @Post('password-recovery')
+  @HttpCode(202)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: PASSWORD_RECOVERIES_PER_HOUR, ttl: HOUR_MS } })
+  async recover(
+    @Body(new ZodValidationPipe(passwordRecoveryRequestSchema)) body: PasswordRecoveryRequest,
+  ): Promise<void> {
+    await this.requestRecovery.execute(body.username);
+  }
+
+  /** POST, not GET: the link's secret never goes in an address the logs keep. */
+  @Public()
+  @Post('password-recovery/check')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @UseGuards(ThrottlerGuard)
+  check(
+    @Body(new ZodValidationPipe(emailLinkRequestSchema)) body: EmailLinkRequest,
+  ): Promise<RecoveryLinkResponse> {
+    return this.checkRecoveryLink.execute(body.token);
+  }
+
+  /** Every session of the account ends; the app then goes to the login. */
+  @Public()
+  @Post('password-recovery/complete')
+  @HttpCode(204)
+  @UseGuards(ThrottlerGuard)
+  async complete(
+    @Body(new ZodValidationPipe(completeRecoveryRequestSchema)) body: CompleteRecoveryRequest,
+  ): Promise<void> {
+    await this.recoverPassword.execute(body.token, body.newPassword);
   }
 }
 

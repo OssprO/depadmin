@@ -6,6 +6,12 @@
  */
 export interface UnitOfWork {
   run<T>(work: () => Promise<T>): Promise<T>;
+  /**
+   * Runs `effect` once the current unit of work commits, or right away outside one: for what
+   * must not happen if the work is rolled back or retried, such as waking the email courier.
+   * It must not throw, and nobody waits for it.
+   */
+  afterCommit(effect: () => void): void;
 }
 
 export const UNIT_OF_WORK = Symbol('UnitOfWork');

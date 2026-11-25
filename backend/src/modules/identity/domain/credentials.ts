@@ -16,6 +16,10 @@ export interface SecretGenerator {
   hashRefreshToken(token: string): string;
   /** Easy to dictate or copy from a chat, but long enough to resist guessing. */
   temporaryPassword(): string;
+  /** The secret of a link sent by email, and the hash under which it is stored. */
+  linkToken(): { token: string; tokenHash: string };
+  /** The hash of a link's secret presented by a client, to look it up. */
+  hashLinkToken(token: string): string;
 }
 
 export const SECRET_GENERATOR = Symbol('SecretGenerator');
