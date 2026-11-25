@@ -247,6 +247,8 @@ test('takes the screenshots, step by step', async ({ page, request }) => {
   await phone.goto('/account');
   await phone.getByRole('button', { name: 'Cerrar sesión' }).click();
   await phone.getByRole('link', { name: '¿Olvidaste tu contraseña?' }).click();
+  // The screen loads apart: until it shows, «Usuario» is still the login's field.
+  await expect(phone.getByRole('heading', { name: 'Recuperar tu contraseña' })).toBeVisible();
   await phone.getByLabel('Usuario').fill(OWNER.username);
   await shoot(phone.locator('main [data-slot="card"]'), 'forgot-password');
   await phone.getByRole('button', { name: 'Enviar enlace' }).click();
