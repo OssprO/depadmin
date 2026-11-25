@@ -1,26 +1,43 @@
+import type { MonthlyReport } from '@depadmin/shared';
 import { CaretRightIcon, LockKeyIcon, TrashIcon } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { historyQueryOptions, monthQueryOptions } from '@/features/book/api';
-import { buildingToday, formatMonth } from '@/lib/format';
+import { addMonths, buildingToday, formatMonth } from '@/lib/format';
+
+/** The weeks of a month the caller should confirm: none unless they can write it. */
+function pendingGarbage(report: MonthlyReport | undefined): number {
+  if (!report?.canWrite) return 0;
+  return report.garbageWeeks.filter((week) => week.status === 'PENDING').length;
+}
+
+function confirmGarbage(weeks: number): string {
+  return weeks === 1 ? 'Confirmar 1 semana de basura' : `Confirmar ${weeks} semanas de basura`;
+}
 
 /**
  * What the caller should do in the books now: close the months that are over (the outgoing
- * owner in the handover, or the superadmin) and confirm the pending garbage weeks. Nothing
- * shows when there is nothing to do.
+ * owner in the handover, or the superadmin) and confirm the pending garbage weeks, of this
+ * month and of the one before while it is open. Nothing shows when there is nothing to do.
  */
 export function PendingTasksCard() {
   const thisMonth = buildingToday().slice(0, 7);
+  const lastMonth = addMonths(thisMonth, -1);
   const history = useQuery(historyQueryOptions);
   const current = useQuery(monthQueryOptions(thisMonth));
+  // A week is asked for from the Sunday after its Saturday (phase 36), so when the month ends
+  // on a Saturday its last week shows up on the 1st, in the month before.
+  const lastMonthOpen =
+    history.data?.months.some((entry) => entry.month === lastMonth && entry.status === 'OPEN') ??
+    false;
+  const previous = useQuery({ ...monthQueryOptions(lastMonth), enabled: lastMonthOpen });
 
   const toClose = history.data?.months.filter((entry) => entry.canClose).reverse() ?? [];
-  const garbage = current.data?.canWrite
-    ? current.data.garbageWeeks.filter((week) => week.status === 'PENDING').length
-    : 0;
-  if (toClose.length === 0 && garbage === 0) return null;
+  const earlierGarbage = lastMonthOpen ? pendingGarbage(previous.data) : 0;
+  const garbage = pendingGarbage(current.data);
+  if (toClose.length === 0 && earlierGarbage === 0 && garbage === 0) return null;
 
   return (
     <Card size="sm" role="region" aria-labelledby="pending-tasks">
@@ -36,11 +53,14 @@ export function PendingTasksCard() {
               Cerrar {formatMonth(entry.month)}
             </Task>
           ))}
+          {earlierGarbage > 0 && (
+            <Task month={lastMonth} icon={<TrashIcon />}>
+              {confirmGarbage(earlierGarbage)} de {formatMonth(lastMonth)}
+            </Task>
+          )}
           {garbage > 0 && (
             <Task month={thisMonth} icon={<TrashIcon />}>
-              {garbage === 1
-                ? 'Confirmar 1 semana de basura'
-                : `Confirmar ${garbage} semanas de basura`}
+              {confirmGarbage(garbage)}
             </Task>
           )}
         </ul>

@@ -140,10 +140,11 @@ export const garbageWeekSchema = z.object({
   week: localDateSchema,
   /** Saturday, the suggested payday; it decides which month lists the week. */
   payday: localDateSchema,
+  /** Pending from the Sunday after its payday, in the building's day; upcoming before. */
   status: garbageWeekStatusSchema,
   /** The row that pays for it, which may be dated in another month. */
   paidBy: z.object({ id: z.uuid(), date: localDateSchema }).nullable(),
-  /** The date a one-tap confirmation records. */
+  /** The date a new row proposes: the payday, or today before it. Pending weeks: the payday. */
   suggestedDate: localDateSchema,
 });
 export type GarbageWeek = z.infer<typeof garbageWeekSchema>;

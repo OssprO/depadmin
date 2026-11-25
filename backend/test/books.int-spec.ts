@@ -213,15 +213,16 @@ describe('books API', () => {
     );
   });
 
-  it('confirms a pending garbage week and marks several cleaning visits', async () => {
+  it('records a garbage week before its Saturday and marks several cleaning visits', async () => {
     await startBooks();
     await http().post('/api/months/2026-10/open').auth(admin, { type: 'bearer' }).expect(200);
 
+    // Friday the 2nd: the week is not asked for until Sunday, but the form can record it today.
     const [first] = (await month(owner502, '2026-10')).garbageWeeks;
     expect(first).toEqual({
       week: '2026-09-28',
       payday: '2026-10-03',
-      status: 'PENDING',
+      status: 'UPCOMING',
       paidBy: null,
       suggestedDate: '2026-10-02',
     });

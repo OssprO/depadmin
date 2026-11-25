@@ -26,7 +26,7 @@ El modo de trabajo no cambia: **una fase por PR**, con las decisiones registrada
 
 | Fase | Qué                                                                             | Origen        | Prioridad | Peso | Depende de                                                |
 | ---- | ------------------------------------------------------------------------------- | ------------- | --------- | ---- | --------------------------------------------------------- |
-| 36   | Aviso de basura desde el domingo siguiente al pago (se adelanta)                | Administrador | 🔴 Alta   | S    | Ninguna (corrige algo que ya existe)                      |
+| 36   | Aviso de basura desde el domingo siguiente al pago (hecha)                      | Administrador | 🔴 Alta   | S    | Ninguna (corrige algo que ya existe)                      |
 | 31   | Recibos de pago con el diseño de los recibos reales                             | Administrador | 🔴 Alta   | M    | 23 (hecha), muestra del recibo real                       |
 | 35   | Delegación temporal de la administración, que acepta otro dueño                 | Administrador | 🔴 Alta   | L    | 24 (correo); 25 (avisos), si ya está                      |
 | 32   | Firma digital de los recibos (hash + firma del servidor + verificación)         | Administrador | 🔴 Alta   | L    | 31                                                        |
@@ -196,6 +196,8 @@ Por eso es una entidad nueva en `shifts`, con fechas (`LocalDate`) en lugar de m
 ### Fase 36: Aviso de basura desde el domingo
 
 🔴 **Alta · Peso S** · Corrige algo que ya existe.
+
+**Hecha.** Como se planeó. «Confirmar» no necesitó cambios: una semana pendiente ya pasó su sábado, así que la fecha que propone siempre es el sábado. En _Pendientes_, la semana del mes anterior dice de qué mes es («Confirmar 1 semana de basura de octubre 2026») y lleva a su Libro. La prueba de la medianoche usa el reloj real del edificio fijo en un instante: a las 23:59 del sábado 31 de octubre (ya domingo en UTC) la semana sigue próxima, y a las 00:00 del domingo queda pendiente. «Ver turnos anteriores» llega hasta 24 meses atrás, lo que deja el límite de 36 meses de la API menos los 12 que se ven hacia adelante.
 
 Al recolector se le paga el sábado en la mañana. Hoy la app pide confirmar el pago desde el **lunes** de esa semana: `garbageSchedule` marca una semana como pendiente (`PENDING`) en cuanto empieza, y antes como próxima (`UPCOMING`). Así «Basura por confirmar», en el Libro, y «Confirmar 1 semana de basura», en _Pendientes_, aparecen cinco días antes del pago, y un «Confirmar» a media semana registra un pago que todavía no ocurre, con la fecha de ese día.
 

@@ -1,6 +1,6 @@
 # ADR-0017: Egresos recurrentes asistidos (basura y limpieza)
 
-**Estado:** Aceptado · **Fecha:** 2026-10-14 · **Corregido:** 2026-10-14 (la basura se paga el sábado, no el domingo)
+**Estado:** Aceptado · **Fecha:** 2026-10-14 · **Corregido:** 2026-10-14 (la basura se paga el sábado, no el domingo) y 2026-11-25 (fase 36: una semana queda pendiente desde el domingo siguiente a su pago, no desde su lunes)
 
 ## Contexto
 
@@ -20,9 +20,11 @@ La basura ($150 por semana, siempre) y la limpieza (una tarifa por visita, pagad
   - En la base, una restricción de exclusión sobre `covers_week` entre renglones vivos (`removed_at IS NULL`). Es de exclusión y no un índice único parcial, porque el diff de Prisma intentaría borrar el índice.
   - Borrar el renglón libera la semana.
 - **Los pendientes son sugerencias calculadas, no renglones:**
-  - `garbageSchedule` marca cada semana del mes como pagada (con el renglón que la paga, esté en el mes que esté), pendiente (ya empezó) o próxima.
+  - `garbageSchedule` marca cada semana del mes como pagada (con el renglón que la paga, esté en el mes que esté), pendiente o próxima.
+  - **Una semana queda pendiente desde el domingo que sigue a su sábado de pago,** con el día del edificio; antes es próxima. Hasta la fase 36 era pendiente desde su lunes, y la app pedía confirmar un pago cinco días antes de hacerlo. El administrador registra el gasto el mismo sábado con «Agregar»; el aviso del domingo es el recordatorio para cuando se le olvidó.
   - Los pendientes no se guardan ni cuentan en los totales. Confirmar uno con un toque crea el renglón real con `POST /api/movements`, sin un endpoint aparte.
-  - La fecha que se sugiere al confirmar es el sábado, o hoy si el sábado aún no llega. El usuario puede ajustarla en la hoja antes de guardar.
+  - Cada semana propone una fecha: el sábado, o hoy si el sábado aún no llega. Una semana pendiente ya pasó su sábado, así que «Confirmar» la registra el sábado; «hoy» queda para el formulario. El usuario puede ajustarla en la hoja antes de guardar.
+  - Cuando el mes termina en sábado, su última semana queda pendiente el día 1 del siguiente, todavía en su mes: _Pendientes_, en Inicio, también cuenta las semanas del mes anterior mientras siga abierto y quien la ve pueda escribirlo.
 - **Limpieza: un atajo que crea un renglón por visita** (`RecordCleaningVisits`, `POST /api/movements/cleaning-visits`):
   - Se marcan varios días en un minicalendario y se guardan todos o ninguno, en una transacción, con una entrada de bitácora por renglón.
   - Si las fechas caen en dos meses, cada mes pasa por sus propias verificaciones (ventana y mes abierto).
@@ -34,6 +36,6 @@ La basura ($150 por semana, siempre) y la limpieza (una tarifa por visita, pagad
 ## Consecuencias
 
 - La migración `garbage_week` rellena la semana de los renglones de basura existentes con la semana de su fecha.
-- Al cerrar un mes (fase 9), la vista ya sabe qué semanas quedan pendientes para advertirlo.
+- Al cerrar un mes (fase 9), la vista ya sabe qué semanas quedan pendientes para advertirlo. Un mes se cierra desde el día 1 del siguiente, cuando todas sus semanas ya llegaron a su domingo, así que la advertencia queda completa.
 - El día de pago de la basura (sábado, `GARBAGE_PAYDAY`) es una constante del dominio. Si se quisiera configurar, sería una tarifa más con vigencia en `settings`.
 - Dos confirmaciones simultáneas de la misma semana chocan en la restricción de exclusión y hoy responden 500. Se convierte en 409 junto con el caso de las delegaciones (fase 11).

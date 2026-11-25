@@ -1,8 +1,9 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MAX_CALENDAR_MONTHS } from '@depadmin/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { connectSession } from '@/lib/http';
-import { fakeApi, owner501, sessionFor, superadmin } from '@/test/fake-api';
+import { fakeApi, owner501, problem, sessionFor, superadmin } from '@/test/fake-api';
 import { renderApp } from '@/test/render-app';
 import { currentShift, shiftMonth, skip502 } from '@/test/shifts';
 
@@ -24,6 +25,43 @@ describe('shifts', () => {
     expect(screen.getByRole('listitem', { name: 'Depto 502, En turno' })).toBeInTheDocument();
     expect(screen.getByText(/Sigue: Depto 401/)).toBeInTheDocument();
     expect(screen.getByText(/Si Depto 502 no toma el turno/)).toBeInTheDocument();
+  });
+
+  it('goes back to earlier shifts only as far as the API answers', async () => {
+    const months = (search: URLSearchParams) => {
+      const index = (month: string | null) => {
+        const [year = 0, number = 0] = (month ?? '').split('-').map(Number);
+        return year * 12 + number;
+      };
+      return index(search.get('to')) - index(search.get('from')) + 1;
+    };
+    const api = fakeApi({
+      'POST /api/auth/refresh': sessionFor(owner501),
+      'GET /api/shifts/current': () => Response.json(currentShift()),
+      // Like the API: a longer range is refused, and the calendar would fail.
+      'GET /api/shifts/calendar': ({ search }) =>
+        months(search) > MAX_CALENDAR_MONTHS
+          ? problem(422, 'CALENDAR_RANGE_INVALID')
+          : Response.json(['2026-10', '2026-11'].map((month) => shiftMonth(month))),
+    });
+    renderApp('/shifts');
+
+    await screen.findByRole('region', { name: 'Turno oct–nov 2026' });
+    for (let tap = 0; tap < 5; tap++) {
+      const earlier = screen.queryByRole('button', { name: 'Ver turnos anteriores' });
+      if (!earlier) break;
+      const asked = api.callsTo('GET /api/shifts/calendar').length;
+      await userEvent.click(earlier);
+      await vi.waitFor(() =>
+        expect(api.callsTo('GET /api/shifts/calendar').length).toBeGreaterThan(asked),
+      );
+      await screen.findByRole('region', { name: 'Turno oct–nov 2026' });
+    }
+
+    const ranges = api.callsTo('GET /api/shifts/calendar').map(({ search }) => months(search));
+    expect(ranges).toEqual([12, 24, MAX_CALENDAR_MONTHS]);
+    expect(screen.queryByRole('button', { name: 'Ver turnos anteriores' })).not.toBeInTheDocument();
+    expect(screen.queryByText('No se pudo cargar el calendario.')).not.toBeInTheDocument();
   });
 
   it('lets the outgoing owner record that the next depto skips its shift', async () => {

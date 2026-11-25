@@ -81,7 +81,8 @@ export function octoberReport(overrides: Partial<MonthlyReport> = {}): MonthlyRe
     garbageWeeks: [
       ['2026-09-28', 'PENDING', '2026-10-03'],
       ['2026-10-05', 'PENDING', '2026-10-10'],
-      ['2026-10-12', 'PENDING', '2026-10-14'],
+      // Wednesday the 14th: a week is pending only from the Sunday after its payday.
+      ['2026-10-12', 'UPCOMING', '2026-10-14'],
       ['2026-10-19', 'UPCOMING', '2026-10-14'],
       ['2026-10-26', 'UPCOMING', '2026-10-14'],
     ].map(([week = '', status, suggestedDate = '']) => ({
