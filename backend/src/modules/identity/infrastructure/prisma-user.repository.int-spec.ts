@@ -29,6 +29,23 @@ describe('PrismaUserRepository', () => {
     expect(await repository().findById(crypto.randomUUID())).toBeNull();
   });
 
+  it('keeps the confirmed email and the one waiting, which the database wants lowercase', async () => {
+    const user = owner(501);
+    user.requestEmail('antes@ejemplo.mx');
+    user.confirmEmail('antes@ejemplo.mx');
+    user.requestEmail('Nueva@Ejemplo.MX');
+    await repository().save(user);
+
+    expect(await repository().findById(user.id)).toMatchObject({
+      email: 'antes@ejemplo.mx',
+      pendingEmail: 'nueva@ejemplo.mx',
+    });
+    await expect(
+      ctx.database.client
+        .$executeRaw`UPDATE app_user SET email = 'Mayus@ejemplo.mx' WHERE id = ${user.id}::uuid`,
+    ).rejects.toThrow(/app_user_email_normalized/);
+  });
+
   it('updates an existing user on save', async () => {
     const user = owner(501);
     await repository().save(user);

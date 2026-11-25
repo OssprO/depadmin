@@ -53,6 +53,18 @@ const AuditLogPage = lazyRouteComponent(
   'AuditLogPage',
 );
 const BookPage = lazyRouteComponent(() => import('@/features/book/routes/BookPage'), 'BookPage');
+const ConfirmEmailPage = lazyRouteComponent(
+  () => import('@/features/account/routes/ConfirmEmailPage'),
+  'ConfirmEmailPage',
+);
+const ForgotPasswordPage = lazyRouteComponent(
+  () => import('@/features/auth/routes/ForgotPasswordPage'),
+  'ForgotPasswordPage',
+);
+const ResetPasswordPage = lazyRouteComponent(
+  () => import('@/features/auth/routes/ResetPasswordPage'),
+  'ResetPasswordPage',
+);
 const ChangePasswordPage = lazyRouteComponent(
   () => import('@/features/auth/routes/ChangePasswordPage'),
   'ChangePasswordPage',
@@ -129,6 +141,19 @@ const loginRoute = createRoute({
   component: LoginPage,
 });
 
+/** «¿Olvidaste tu contraseña?» and where its email leads: public, for whoever cannot sign in. */
+const forgotPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/forgot-password',
+  component: ForgotPasswordPage,
+});
+
+const resetPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/reset-password',
+  component: ResetPasswordPage,
+});
+
 /** The user guide: public, so it also helps whoever cannot sign in. */
 const helpRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -190,6 +215,13 @@ const accountRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/account',
   component: AccountPage,
+});
+
+/** Where the confirmation email leads; the login brings the user back here, link included. */
+const confirmEmailRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/account/email/confirm',
+  component: ConfirmEmailPage,
 });
 
 const changePasswordRoute = createRoute({
@@ -368,6 +400,8 @@ const historicalMonthRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
+  forgotPasswordRoute,
+  resetPasswordRoute,
   helpRoute.addChildren([helpIndexRoute, helpPrintRoute, helpTopicRoute]),
   appRoute.addChildren([
     homeRoute,
@@ -383,6 +417,7 @@ const routeTree = rootRoute.addChildren([
     toolsRoute,
     cashCounterRoute,
     accountRoute,
+    confirmEmailRoute,
     changePasswordRoute,
     adminRoute.addChildren([
       adminIndexRoute,

@@ -19,6 +19,15 @@ export class CryptoSecretGenerator implements SecretGenerator {
     return createHash('sha256').update(token).digest('hex');
   }
 
+  /** Like a refresh token: 256 random bits, URL-safe, stored as its SHA-256. */
+  linkToken(): { token: string; tokenHash: string } {
+    return this.refreshToken();
+  }
+
+  hashLinkToken(token: string): string {
+    return this.hashRefreshToken(token);
+  }
+
   /** Like "k7m2-qx9p-…": 16 characters from 31, about 79 random bits. */
   temporaryPassword(): string {
     return Array.from({ length: GROUPS }, () =>

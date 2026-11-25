@@ -36,5 +36,6 @@ Cada ADR documenta una decisión: el contexto, lo que se decidió y sus consecue
 | [0030](0030-operacion.md)                           | Respaldos cifrados fuera del VPS, avisos de fallas y errores del navegador          | Aceptado             |
 | [0031](0031-gobierno-y-tarifas.md)                  | El administrador en turno gobierna, el superadmin es auxiliar; tarifas desde la app | Aceptado             |
 | [0032](0032-recibos-y-folios.md)                    | Recibos con folio, estado de cuenta en PDF y exportación a CSV                      | Aceptado             |
+| [0033](0033-correo-y-recuperacion.md)               | Correo propio, bandeja de salida y recuperación de contraseña                       | Aceptado             |
 
 Plantilla: copia cualquier ADR y conserva las secciones _Contexto_, _Decisión_ y _Consecuencias_.

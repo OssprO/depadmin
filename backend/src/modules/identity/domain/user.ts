@@ -9,9 +9,22 @@ import {
 
 const USERNAME_PATTERN = /^[a-z0-9._-]{3,32}$/;
 
+/** Something, an @, a domain with a dot: the confirmation link proves the rest. */
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export const EMAIL_MAX_LENGTH = 254;
+
 /** Usernames are case-insensitive: "Admin" and "admin" are the same user. */
 export function normalizeUsername(username: string): string {
   return username.trim().toLowerCase();
+}
+
+/** Addresses are stored and compared lowercase: nobody's provider tells the cases apart. */
+export function normalizeEmail(address: string): string {
+  const email = address.trim().toLowerCase();
+  if (email.length > EMAIL_MAX_LENGTH || !EMAIL_PATTERN.test(email)) {
+    throw new ValidationError('EMAIL_INVALID', `Invalid email "${address}"`);
+  }
+  return email;
 }
 
 export interface UserProps {
@@ -25,6 +38,10 @@ export interface UserProps {
   readonly expiresOn: LocalDate | null;
   /** Deactivated by the superadmin: it cannot sign in until reactivated. */
   readonly disabled: boolean;
+  /** The confirmed email, the only one the app writes to. */
+  readonly email: string | null;
+  /** Captured and waiting for its confirmation; the confirmed one keeps working meanwhile. */
+  readonly pendingEmail: string | null;
 }
 
 /** What the superadmin decides about someone's access. */
@@ -44,6 +61,10 @@ export interface UserAccess {
  * is created with one. Anyone but the superadmin can be given an expiry date (a temporary
  * user) and be deactivated. The password itself never reaches the domain: only its hash
  * (see `PasswordHasher`).
+ *
+ * Anyone may have an email (ADR-0033). A new address waits as `pendingEmail` until its owner
+ * confirms it, and only then replaces the confirmed one, so a typo never leaves the account
+ * without a way to recover it.
  */
 export class User {
   private constructor(
@@ -54,6 +75,8 @@ export class User {
     private mustChange: boolean,
     private access: UserAccess,
     private off: boolean,
+    private confirmedEmail: string | null,
+    private awaitingEmail: string | null,
   ) {}
 
   static createOwner(id: string, unit: UnitNumber): User {
@@ -66,6 +89,8 @@ export class User {
       mustChangePassword: false,
       expiresOn: null,
       disabled: false,
+      email: null,
+      pendingEmail: null,
     });
   }
 
@@ -79,6 +104,8 @@ export class User {
       mustChangePassword: false,
       expiresOn: null,
       disabled: false,
+      email: null,
+      pendingEmail: null,
     });
   }
 
@@ -104,6 +131,8 @@ export class User {
       mustChangePassword: true,
       expiresOn: access.expiresOn,
       disabled: false,
+      email: null,
+      pendingEmail: null,
     });
   }
 
@@ -132,6 +161,8 @@ export class User {
       props.mustChangePassword,
       { unit: props.unit, expiresOn: props.expiresOn },
       props.disabled,
+      props.email && normalizeEmail(props.email),
+      props.pendingEmail && normalizeEmail(props.pendingEmail),
     );
   }
 
@@ -159,6 +190,51 @@ export class User {
 
   get passwordHash(): string | null {
     return this.hash;
+  }
+
+  get email(): string | null {
+    return this.confirmedEmail;
+  }
+
+  get pendingEmail(): string | null {
+    return this.awaitingEmail;
+  }
+
+  /**
+   * An address to confirm, captured by the user or by the superadmin; returns it normalized.
+   * Asking again for the one already waiting is fine: the use case sends a new link.
+   */
+  requestEmail(address: string): string {
+    const email = normalizeEmail(address);
+    if (email === this.confirmedEmail) {
+      throw new ConflictError('EMAIL_ALREADY_CONFIRMED', `${email} is already confirmed`);
+    }
+    this.awaitingEmail = email;
+    return email;
+  }
+
+  /**
+   * Its owner followed the link sent to `email`: it becomes the confirmed address. Returns the
+   * one it replaces, which is told of the change. A link for an address captured before the
+   * one now waiting no longer counts.
+   */
+  confirmEmail(email: string): string | null {
+    if (email !== this.awaitingEmail) {
+      throw new ConflictError('EMAIL_LINK_INVALID', `${email} is not waiting for confirmation`);
+    }
+    const previous = this.confirmedEmail;
+    this.confirmedEmail = email;
+    this.awaitingEmail = null;
+    return previous;
+  }
+
+  /** No email at all: the confirmed one and the one waiting. */
+  removeEmail(): void {
+    if (!this.confirmedEmail && !this.awaitingEmail) {
+      throw new ConflictError('EMAIL_NONE', `${this.username} has no email`);
+    }
+    this.confirmedEmail = null;
+    this.awaitingEmail = null;
   }
 
   /** Set after a reset: the temporary password works once the user replaces it. */

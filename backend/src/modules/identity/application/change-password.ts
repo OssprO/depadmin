@@ -5,6 +5,8 @@ import {
   type AuditTrail,
   CLOCK,
   type Clock,
+  OUTBOX,
+  type Outbox,
   UNIT_OF_WORK,
   type UnitOfWork,
   trackChanges,
@@ -20,6 +22,7 @@ import {
 } from '../domain/index.js';
 import { findUser } from './find-user.js';
 import { type IssuedSession, SessionIssuer } from './session-issuer.js';
+import { notifyPasswordChange } from './password-recovery.js';
 import { USER_AUDIT, UserAuditAction } from './user-audit.js';
 
 export interface ChangePasswordCommand {
@@ -40,6 +43,7 @@ export class ChangePassword {
     @Inject(UNIT_OF_WORK) private readonly unitOfWork: UnitOfWork,
     @Inject(AUDIT_TRAIL) private readonly audit: AuditTrail,
     @Inject(CLOCK) private readonly clock: Clock,
+    @Inject(OUTBOX) private readonly outbox: Outbox,
     private readonly sessions: SessionIssuer,
   ) {}
 
@@ -59,6 +63,7 @@ export class ChangePassword {
       await this.users.save(user);
       await this.audit.record(actor, tracked.change(UserAuditAction.PASSWORD_CHANGED));
       await this.refreshTokens.revokeAllOf(user.id, this.clock.now());
+      await notifyPasswordChange(this.outbox, user, this.clock.now());
       return this.sessions.start(user);
     });
   }

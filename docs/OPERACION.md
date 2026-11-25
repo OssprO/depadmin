@@ -10,16 +10,17 @@ Este documento es para el día en que algo falla: un correo de aviso, la app que
 
 Aquí no va ningún secreto, solo dónde vive cada uno. **El gestor de contraseñas del superadmin tiene una copia de todos.** Sin la contraseña de `restic` no se puede restaurar ningún respaldo de B2.
 
-| Qué                                    | Para qué                                           | Dónde vive el secreto                                                                                             |
-| -------------------------------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| VPS (usuario propio y `deploy`)        | Corre la app                                       | La llave SSH en la computadora del superadmin; la de `deploy`, en los secretos de GitHub                          |
-| `/opt/depadmin/.env`                   | Contraseñas de la base, `JWT_SECRET`, `restic`, B2 | En el VPS (`chmod 600`) y en el gestor de contraseñas                                                             |
-| GitHub (repositorio `OssprO/depadmin`) | El código, CI, los despliegues y las versiones     | Cuenta del superadmin. _Settings → Secrets_: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS` |
-| Backblaze B2                           | La copia cifrada de los respaldos fuera del VPS    | Cuenta del superadmin. La llave `depadmin-restic` está en el `.env` (`B2_KEY_ID`, `B2_APPLICATION_KEY`)           |
-| healthchecks.io                        | Avisa si un respaldo o un job falla o no llega     | Cuenta del superadmin. La URL con la llave está en el `.env` (`HEALTHCHECKS_PING_URL`)                            |
-| UptimeRobot                            | Avisa si la app deja de responder                  | Cuenta del superadmin                                                                                             |
-| Namecheap                              | El dominio `osspro.site` y su DNS                  | Cuenta del superadmin                                                                                             |
-| Usuario superadmin de la app           | Reabrir meses, usuarios, contraseñas               | El superadmin                                                                                                     |
+| Qué                                    | Para qué                                                   | Dónde vive el secreto                                                                                             |
+| -------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| VPS (usuario propio y `deploy`)        | Corre la app                                               | La llave SSH en la computadora del superadmin; la de `deploy`, en los secretos de GitHub                          |
+| `/opt/depadmin/.env`                   | Contraseñas de la base, `JWT_SECRET`, `restic`, B2, Resend | En el VPS (`chmod 600`) y en el gestor de contraseñas                                                             |
+| GitHub (repositorio `OssprO/depadmin`) | El código, CI, los despliegues y las versiones             | Cuenta del superadmin. _Settings → Secrets_: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS` |
+| Backblaze B2                           | La copia cifrada de los respaldos fuera del VPS            | Cuenta del superadmin. La llave `depadmin-restic` está en el `.env` (`B2_KEY_ID`, `B2_APPLICATION_KEY`)           |
+| healthchecks.io                        | Avisa si un respaldo o un job falla o no llega             | Cuenta del superadmin. La URL con la llave está en el `.env` (`HEALTHCHECKS_PING_URL`)                            |
+| UptimeRobot                            | Avisa si la app deja de responder                          | Cuenta del superadmin                                                                                             |
+| Resend                                 | Manda los correos de la app (ADR-0033)                     | Cuenta del superadmin. La llave `depadmin-vps` está en el `.env` (`SMTP_PASSWORD`)                                |
+| Namecheap                              | El dominio `osspro.site` y su DNS                          | Cuenta del superadmin                                                                                             |
+| Usuario superadmin de la app           | Reabrir meses, usuarios, contraseñas                       | El superadmin                                                                                                     |
 
 ---
 
@@ -33,6 +34,23 @@ Aquí no va ningún secreto, solo dónde vive cada uno. **El gestor de contrase�
 | healthchecks.io: `open-current-month`     | El job no abrió el mes. Entra como superadmin y abre el mes desde el libro; luego busca la causa en `docker compose logs --since 24h api`. Si el aviso es que **no llegó**, la API no estuvo arriba a las 00:05: sigue la sección 3                               |
 | healthchecks.io: `purge-expired-sessions` | Las sesiones vencidas no se borraron. No es urgente: el job lo intenta cada noche. Revisa `docker compose logs api`                                                                                                                                               |
 | healthchecks.io: `restore-test`           | Pasaron 90 días sin probar la restauración. Corre `./restore-test.sh` **(como deploy)**                                                                                                                                                                           |
+| healthchecks.io: `deliver-emails`         | Un correo no salió, o el límite de 90 al día detuvo alguno. Sigue «Los correos de la app», abajo                                                                                                                                                                  |
+
+### Los correos de la app
+
+Cada correo espera en la tabla `email_outbox` hasta que Resend lo toma (ADR-0033). Si falla, se reintenta solo, con esperas cada vez más largas. Un enlace vencido nunca se manda. **(como deploy)**, para ver qué pasó en el último día, sin mostrar destinatarios:
+
+```bash
+docker compose exec db psql -U depadmin -d depadmin -c \
+  "SELECT kind, status, attempts, last_error, created_at FROM email_outbox
+   WHERE created_at > now() - interval '1 day' ORDER BY created_at DESC;"
+```
+
+- **`last_error` dice `EAUTH`:** Resend rechazó la llave. Revisa `SMTP_PASSWORD` en el `.env` y que la llave siga viva en Resend (**API Keys**). Corre `docker compose up -d api`. Los correos que esperaban salen solos.
+- **`last_error` habla de la conexión (`ETIMEDOUT`, `ECONNECTION`):** Resend o la red del VPS fallaron un momento. Se reintenta solo; si dura horas, revisa [status.resend.com](https://status.resend.com).
+- **`FAILED` con `EENVELOPE`:** Resend rechazó esa dirección. Pídele al vecino que revise su correo en _Mi cuenta_.
+- **El límite del día:** se mandaron 90 correos en 24 horas. Los demás salen cuando se libera cupo; la recuperación de contraseñas va primero. Si pasa seguido, sube `EMAIL_DAILY_LIMIT` en el `.env` sin pasar de 100, el tope del plan gratis.
+- **Un correo que nunca llegó al vecino aunque diga `SENT`:** Resend lo entregó. Busca en **Emails** de Resend si rebotó, y pide al vecino revisar su carpeta de spam.
 
 ### Las llaves de B2
 

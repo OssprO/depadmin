@@ -16,6 +16,7 @@ Navegador ──HTTPS──▶ nginx del VPS (certificado de Let's Encrypt; un v
 
 - **Cada versión nueva se publica sola.** Cuando un cambio llega a `main` y pasa CI, GitHub Actions le pone un número de versión (como `1.0.3`, [ADR-0027](adr/0027-versiones.md)), construye las imágenes, las sube a GHCR, las despliega en el VPS por SSH y anota la versión en **GitHub Releases**.
 - **Respaldo cifrado cada noche,** en el VPS y en Backblaze B2, y avisos por correo si algo falla: el respaldo, un job o la app entera ([ADR-0030](adr/0030-operacion.md)). Qué hacer cuando algo pasa está en [`OPERACION.md`](OPERACION.md).
+- **Correo propio, por Resend,** para confirmar los correos de los vecinos y recuperar contraseñas ([ADR-0033](adr/0033-correo-y-recuperacion.md), paso 10).
 
 **Convenciones de la guía:**
 
@@ -380,7 +381,75 @@ Los `.dump` sin cifrar de antes de `restic` se borran solos a las dos semanas. L
 
 ---
 
-## 10. El día a día
+## 10. Correo (Resend)
+
+Lo decide el [ADR-0033](adr/0033-correo-y-recuperacion.md): la app manda los enlaces para confirmar correos y recuperar contraseñas, y un aviso cuando una contraseña cambia.
+
+**Sin este paso la app funciona igual:**
+
+- los correos que se capturen esperan en la bandeja de salida;
+- el login no ofrece «¿Olvidaste tu contraseña?».
+
+Al terminarlo, lo que esperaba sale solo en menos de 10 minutos.
+
+Los correos salen de `avisos@depadmin.osspro.site`. El subdominio propio mantiene su reputación de envío aparte de la del dominio principal, y el registro `A` de la web no se toca.
+
+### 10.1 La cuenta y el dominio (en tu navegador, una vez)
+
+1. Crea una cuenta en [resend.com](https://resend.com/) y activa la verificación en dos pasos. El plan gratis da 100 correos al día y 3,000 al mes.
+2. En **Domains → Add Domain**, escribe `depadmin.osspro.site`. Resend te muestra los registros DNS:
+   - un `TXT` para DKIM (`resend._domainkey…`);
+   - un `MX` y un `TXT` para SPF (`send…`);
+   - uno opcional para DMARC.
+3. En Namecheap, entra a **Domain List → osspro.site → Advanced DNS → Add New Record**. Crea cada registro **copiando el valor que muestra Resend**. En **Host**, Namecheap ya agrega `.osspro.site`, así que escribe solo la parte de antes:
+
+   | Tipo  | Host                         | Valor                                                    |
+   | ----- | ---------------------------- | -------------------------------------------------------- |
+   | `TXT` | `resend._domainkey.depadmin` | La llave DKIM (empieza con `p=`)                         |
+   | `MX`  | `send.depadmin`              | El servidor de Resend, con la prioridad que indique (10) |
+   | `TXT` | `send.depadmin`              | `v=spf1 include:amazonses.com ~all` (o el que indique)   |
+   | `TXT` | `_dmarc.depadmin`            | `v=DMARC1; p=none;`                                      |
+   - **El `MX`:** si la lista de tipos no lo ofrece, va en **Mail Settings → Custom MX**.
+   - **DMARC empieza en `p=none`** (solo observa). Cuando los correos lleven dos semanas llegando bien, cámbialo a `v=DMARC1; p=reject;`. Así nadie puede mandar correos a nombre de la app.
+
+4. En Resend, toca **Verify DNS Records**. Puede tardar de minutos a unas horas. Sigue cuando los registros digan **Verified**.
+5. En **API Keys → Create API Key**, crea una llave llamada `depadmin-vps`:
+   - con permiso **Sending access**;
+   - solo para el dominio `depadmin.osspro.site`.
+
+   Cópiala a tu gestor de contraseñas; empieza con `re_` y se muestra una sola vez.
+
+### 10.2 La llave en el VPS (como deploy)
+
+```bash
+cd /opt/depadmin
+printf 'SMTP_HOST=smtp.resend.com\nSMTP_PASSWORD=TU_LLAVE_DE_RESEND\n' >> .env
+nano .env                   # reemplaza TU_LLAVE_DE_RESEND y revisa que no haya líneas repetidas
+docker compose up -d api    # la API toma las variables
+```
+
+`docker-compose.yml` ya trae lo demás:
+
+- el puerto 465 y el usuario `resend`;
+- el remitente, `DepAdmin <avisos@depadmin.osspro.site>`;
+- `APP_URL`, adonde llevan los enlaces;
+- el límite de 90 correos al día.
+
+Para cambiar de proveedor (Brevo, por ejemplo), basta con cambiar estas variables en el `.env`.
+
+### 10.3 Probar
+
+1. Entra a la app. En el login ya aparece «¿Olvidaste tu contraseña?».
+2. Entra a **Mi cuenta → Agregar correo** y escribe tu correo. En unos segundos llega «Confirma tu correo en DepAdmin».
+   - Si no llega, revisa la carpeta de spam y luego corre `docker compose logs --since 10m api | grep -i email`.
+3. Toca el botón del correo. La app dice que quedó confirmado.
+4. Abre el mensaje original (en Gmail, **⋮ → Mostrar original**). Debe decir `SPF: PASS`, `DKIM: PASS` y `DMARC: PASS`.
+
+Con el primer envío aparece en healthchecks.io una revisión nueva, `deliver-emails`. Te avisa si un correo no pudo salir o si el límite del día detuvo alguno.
+
+---
+
+## 11. El día a día
 
 Los comandos de esta sección se corren **como deploy** dentro de `/opt/depadmin`, salvo que se diga otra cosa.
 
@@ -402,20 +471,22 @@ Los comandos de esta sección se corren **como deploy** dentro de `/opt/depadmin
 
 ---
 
-## 11. Si algo falla
+## 12. Si algo falla
 
-| Síntoma                                                | Causa probable y solución                                                                                                                                      |
-| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Certbot falla al validar                               | El DNS todavía no apunta al VPS (`dig`), hay un `AAAA` que no responde, o el puerto 80 está cerrado en `ufw` o en el panel del proveedor                       |
-| **502 Bad Gateway**                                    | Los contenedores no están arriba (`docker compose ps`), o `WEB_PORT` del `.env` no coincide con el `proxy_pass` del virtual host                               |
-| Deploy: `Permission denied (publickey)`                | `DEPLOY_SSH_KEY` o `DEPLOY_USER` están mal, o la llave pública no quedó en `/home/deploy/.ssh/authorized_keys`                                                 |
-| Deploy: `Host key verification failed`                 | `DEPLOY_KNOWN_HOSTS` no corresponde al VPS: repite el `ssh-keyscan` del paso 3                                                                                 |
-| Deploy: `denied` al bajar las imágenes                 | Los paquetes de GHCR son privados (paso 6.4)                                                                                                                   |
-| Deploy: `dependency failed to start` o `migrate` falla | `docker compose logs migrate` dice qué migración falló. `deploy.sh` ya regresó a la versión anterior; su salida en el workflow trae los últimos logs           |
-| Deploy: `could not pull`                               | GHCR no respondió en 10 minutos, o la versión no existe. La versión anterior sigue corriendo; vuelve a lanzar el workflow                                      |
-| «Demasiados intentos» para todos a la vez              | El virtual host no envía `X-Forwarded-For` (paso 5), y la API cuenta a todos como una sola IP                                                                  |
-| El VPS se queda sin disco                              | `docker system df`; `docker image prune -a` borra las imágenes que ningún contenedor usa. Los logs de los contenedores ya tienen tope (30 MB por servicio)     |
-| Correo de healthchecks.io: `backup` falló              | Dice en qué paso (`failed at: copying to B2`). La copia del VPS ya está; revisa las llaves de B2 en el `.env` y corre `./backup.sh` a mano. Ver `OPERACION.md` |
-| Correo de healthchecks.io: `backup` no llegó           | El cron no corrió: revisa `crontab -l` y `tail /var/backups/depadmin/backup.log`                                                                               |
-| Correo de healthchecks.io: `open-current-month`        | La API no abrió el mes. Ábrelo desde la app como superadmin y revisa `docker compose logs api`                                                                 |
-| Correo de UptimeRobot                                  | La app no responde. Sigue «La app no abre» en `OPERACION.md`                                                                                                   |
+| Síntoma                                                | Causa probable y solución                                                                                                                                           |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Certbot falla al validar                               | El DNS todavía no apunta al VPS (`dig`), hay un `AAAA` que no responde, o el puerto 80 está cerrado en `ufw` o en el panel del proveedor                            |
+| **502 Bad Gateway**                                    | Los contenedores no están arriba (`docker compose ps`), o `WEB_PORT` del `.env` no coincide con el `proxy_pass` del virtual host                                    |
+| Deploy: `Permission denied (publickey)`                | `DEPLOY_SSH_KEY` o `DEPLOY_USER` están mal, o la llave pública no quedó en `/home/deploy/.ssh/authorized_keys`                                                      |
+| Deploy: `Host key verification failed`                 | `DEPLOY_KNOWN_HOSTS` no corresponde al VPS: repite el `ssh-keyscan` del paso 3                                                                                      |
+| Deploy: `denied` al bajar las imágenes                 | Los paquetes de GHCR son privados (paso 6.4)                                                                                                                        |
+| Deploy: `dependency failed to start` o `migrate` falla | `docker compose logs migrate` dice qué migración falló. `deploy.sh` ya regresó a la versión anterior; su salida en el workflow trae los últimos logs                |
+| Deploy: `could not pull`                               | GHCR no respondió en 10 minutos, o la versión no existe. La versión anterior sigue corriendo; vuelve a lanzar el workflow                                           |
+| «Demasiados intentos» para todos a la vez              | El virtual host no envía `X-Forwarded-For` (paso 5), y la API cuenta a todos como una sola IP                                                                       |
+| El VPS se queda sin disco                              | `docker system df`; `docker image prune -a` borra las imágenes que ningún contenedor usa. Los logs de los contenedores ya tienen tope (30 MB por servicio)          |
+| Correo de healthchecks.io: `backup` falló              | Dice en qué paso (`failed at: copying to B2`). La copia del VPS ya está; revisa las llaves de B2 en el `.env` y corre `./backup.sh` a mano. Ver `OPERACION.md`      |
+| Correo de healthchecks.io: `backup` no llegó           | El cron no corrió: revisa `crontab -l` y `tail /var/backups/depadmin/backup.log`                                                                                    |
+| Correo de healthchecks.io: `open-current-month`        | La API no abrió el mes. Ábrelo desde la app como superadmin y revisa `docker compose logs api`                                                                      |
+| Correo de healthchecks.io: `deliver-emails`            | Un correo no salió o el límite del día detuvo alguno. Ver `OPERACION.md`, sección 2                                                                                 |
+| No llegan los correos de la app                        | `SMTP_HOST` o `SMTP_PASSWORD` del `.env` (paso 10.2), o el dominio dejó de estar verificado en Resend. Revisa `docker compose logs --since 1h api \| grep -i email` |
+| Correo de UptimeRobot                                  | La app no responde. Sigue «La app no abre» en `OPERACION.md`                                                                                                        |

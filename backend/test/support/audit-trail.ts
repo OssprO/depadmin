@@ -21,6 +21,11 @@ export class FakeUnitOfWork implements UnitOfWork {
     this.pending.push(apply);
   }
 
+  afterCommit(effect: () => void): void {
+    if (this.pending) this.pending.push(effect);
+    else effect();
+  }
+
   async run<T>(work: () => Promise<T>): Promise<T> {
     if (this.pending) return work();
     this.pending = [];

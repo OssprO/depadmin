@@ -5,6 +5,8 @@ import {
   type AuditTrail,
   CLOCK,
   type Clock,
+  OUTBOX,
+  type Outbox,
   UNIT_OF_WORK,
   type UnitOfWork,
   trackChanges,
@@ -22,6 +24,7 @@ import {
   type UserRepository,
 } from '../domain/index.js';
 import { findUser } from './find-user.js';
+import { notifyPasswordChange } from './password-recovery.js';
 import { USER_AUDIT, UserAuditAction } from './user-audit.js';
 
 /**
@@ -41,6 +44,7 @@ export class ResetPassword {
     @Inject(UNIT_OF_WORK) private readonly unitOfWork: UnitOfWork,
     @Inject(AUDIT_TRAIL) private readonly audit: AuditTrail,
     @Inject(CLOCK) private readonly clock: Clock,
+    @Inject(OUTBOX) private readonly outbox: Outbox,
   ) {}
 
   async execute(actor: Actor, userId: string): Promise<{ temporaryPassword: string }> {
@@ -60,6 +64,7 @@ export class ResetPassword {
       await this.users.save(user);
       await this.audit.record(actor, tracked.change(UserAuditAction.PASSWORD_RESET));
       await this.refreshTokens.revokeAllOf(user.id, this.clock.now());
+      await notifyPasswordChange(this.outbox, user, this.clock.now());
     });
     return { temporaryPassword };
   }

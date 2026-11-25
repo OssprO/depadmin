@@ -62,6 +62,10 @@ export const sessionResponseSchema = z.object({
 export type SessionResponse = z.infer<typeof sessionResponseSchema>;
 
 export const userSummarySchema = currentUserSchema.extend({
+  /** The confirmed email (ADR-0033); null for none. */
+  email: z.string().nullable(),
+  /** Captured and waiting for its owner's confirmation. */
+  pendingEmail: z.string().nullable(),
   /** False until the superadmin gives the owner a first password. */
   hasPassword: z.boolean(),
   /** A temporary user's last day; null for no end. */

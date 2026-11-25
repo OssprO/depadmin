@@ -6,7 +6,13 @@ import { connectSession } from '@/lib/http';
 import { fakeApi, sessionFor, superadmin } from '@/test/fake-api';
 import { renderApp } from '@/test/render-app';
 
-const access = { expiresOn: null, disabled: false, expired: false };
+const access = {
+  expiresOn: null,
+  disabled: false,
+  expired: false,
+  email: null,
+  pendingEmail: null,
+};
 const OWNER_ID = '1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d';
 const TENANT_ID = '2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e';
 
@@ -155,5 +161,46 @@ describe('UsersPage', () => {
     await vi.waitFor(() =>
       expect(api.callsTo(`POST /api/users/${TENANT_ID}/disable`)).toHaveLength(1),
     );
+  });
+
+  it("captures an owner's email, which waits for its confirmation, and removes it", async () => {
+    const waiting = { ...users[1]!, pendingEmail: 'vecina@ejemplo.mx' };
+    let current = users;
+    const api = fakeApi({
+      'POST /api/auth/refresh': sessionFor(superadmin),
+      'GET /api/users': () => Response.json(current),
+      'GET /api/auth/password-recovery': () => Response.json({ available: false }),
+      [`PUT /api/users/${OWNER_ID}/email`]: ({ body }) => {
+        const { email } = body as { email: string | null };
+        const changed = email ? waiting : users[1]!;
+        current = [users[0]!, changed, users[2]!];
+        return Response.json(changed);
+      },
+    });
+    renderApp('/admin/users');
+
+    expect(
+      await screen.findByText(/El envío de correos aún no está configurado/),
+    ).toBeInTheDocument();
+    const owner = (await screen.findByText('Depto 501')).closest('li')!;
+    await userEvent.click(within(owner).getByRole('button', { name: 'Correo' }));
+    await userEvent.type(await screen.findByLabelText('Correo'), 'no es correo');
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar y enviar el enlace' }));
+    expect(await screen.findByText(/Escribe un correo válido/)).toBeInTheDocument();
+    expect(api.callsTo(`PUT /api/users/${OWNER_ID}/email`)).toHaveLength(0);
+
+    await userEvent.clear(screen.getByLabelText('Correo'));
+    await userEvent.type(screen.getByLabelText('Correo'), ' Vecina@Ejemplo.MX');
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar y enviar el enlace' }));
+    expect(await within(owner).findByText('Dueño · correo sin confirmar')).toBeInTheDocument();
+    expect(api.callsTo(`PUT /api/users/${OWNER_ID}/email`)[0]?.body).toEqual({
+      email: 'vecina@ejemplo.mx',
+    });
+
+    await userEvent.click(within(owner).getByRole('button', { name: 'Correo' }));
+    expect(await screen.findByLabelText('Correo')).toHaveValue('vecina@ejemplo.mx');
+    await userEvent.click(screen.getByRole('button', { name: 'Quitar el correo' }));
+    expect(await within(owner).findByText('Dueño')).toBeInTheDocument();
+    expect(api.callsTo(`PUT /api/users/${OWNER_ID}/email`)[1]?.body).toEqual({ email: null });
   });
 });

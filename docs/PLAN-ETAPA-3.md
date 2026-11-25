@@ -141,6 +141,17 @@ De la auditoría: hoy cada vecino ve su estado de cuenta, pero no tiene un papel
 
 ### Fase 24: Correo y recuperación de contraseña
 
+**Hecha (ADR-0033).** Lo que cambió del plan, decidido con el administrador:
+
+- **El dominio de envío es `depadmin.osspro.site`.**
+- **El enlace de recuperación dura 1 hora,** no 30 minutos; el de confirmación, 60 días.
+- **Límites:** 3 por hora por usuario y 5 por hora por IP, porque cada depto tiene su propio internet.
+- **Confirmar un correo exige entrar con la cuenta.**
+- **Avisos por correo** cuando cambia la contraseña y cuando cambia el correo.
+- **La bandeja de salida tiene un tope de 90 correos al día,** y la recuperación va primero.
+
+**Falta en producción:** la cuenta de Resend y los registros DNS (`docs/DESPLIEGUE.md` §10). Mientras tanto, los correos esperan en la bandeja de salida y el login no ofrece la recuperación.
+
 Reemplaza a la fase 17. La investigación está en la sección 4.
 
 - **Proveedor:** Resend, en su plan gratuito, por SMTP. El código no depende de él: un puerto `EMAIL_SENDER` con un adaptador SMTP, así que cambiar a Brevo u otro es cambiar cuatro variables de entorno.

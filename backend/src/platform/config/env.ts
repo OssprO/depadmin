@@ -22,6 +22,27 @@ const envSchema = z.object({
     .default('')
     .transform((url) => url.replace(/\/+$/, '')),
   /**
+   * The SMTP server emails go out through (ADR-0033): `smtp.resend.com` in production,
+   * `localhost` with Mailpit in development. Empty (the default) sends nothing: emails wait
+   * in the outbox, and «¿Olvidaste tu contraseña?» is hidden.
+   */
+  SMTP_HOST: z.string().trim().default(''),
+  /** 465 is TLS from the start; 587 (or any other) must upgrade with STARTTLS. */
+  SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(465),
+  /** Empty for a server without login (Mailpit). Resend's is `resend`. */
+  SMTP_USER: z.string().default(''),
+  /** Resend's API key. A secret: only in the VPS's `.env`. */
+  SMTP_PASSWORD: z.string().default(''),
+  /** Who the emails come from, as their recipients see it. */
+  EMAIL_FROM: z.string().min(3).default('DepAdmin <avisos@depadmin.localhost>'),
+  /** Where the links in the emails lead: the app's public address, without a final slash. */
+  APP_URL: z
+    .url({ protocol: /^https?$/ })
+    .default('http://localhost:5173')
+    .transform((url) => url.replace(/\/+$/, '')),
+  /** Emails sent in any 24 hours, at most: under Resend's free 100 a day. */
+  EMAIL_DAILY_LIMIT: z.coerce.number().int().min(1).max(10_000).default(90),
+  /**
    * The reverse proxies in front of the API, as Express' `trust proxy` list (addresses,
    * subnets or `loopback`, `linklocal`, `uniquelocal`), comma separated. The client's IP is
    * then the last address in X-Forwarded-For that none of them owns, which the login limit

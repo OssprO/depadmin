@@ -149,3 +149,13 @@ export function useSetOpeningBalance() {
       ),
   });
 }
+
+/** The superadmin captures someone's email (a confirmation link goes to it) or removes it. */
+export function useChangeUserEmail() {
+  const refresh = useRefreshUsers();
+  return useMutation({
+    mutationFn: ({ userId, email }: { userId: string; email: string | null }) =>
+      sendJson('PUT', `/users/${userId}/email`, { email }, userSummarySchema),
+    onSuccess: refresh,
+  });
+}

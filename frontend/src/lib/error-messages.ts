@@ -23,6 +23,18 @@ const MESSAGES: Record<string, string> = {
   CANNOT_RESET_OWN_PASSWORD: 'Cambia tu propia contraseña desde tu cuenta.',
   SESSION_INVALID: 'Tu sesión terminó. Vuelve a iniciar sesión.',
   REFRESH_TOKEN_REUSED: 'Tu sesión se cerró por seguridad. Vuelve a iniciar sesión.',
+  // Email and password recovery
+  EMAIL_INVALID: 'Escribe un correo válido, como nombre@ejemplo.com.',
+  EMAIL_ALREADY_CONFIRMED: 'Ese correo ya es el confirmado.',
+  EMAIL_NONE: 'Esa cuenta no tiene correo.',
+  EMAIL_CONFIRMATION_LIMIT:
+    'Ya enviamos 3 correos de confirmación en la última hora. Espera un poco antes de pedir otro.',
+  EMAIL_LINK_INVALID:
+    'Este enlace ya no sirve: venció o se pidió otro después. Pide uno nuevo desde Mi cuenta.',
+  EMAIL_LINK_OTHER_ACCOUNT:
+    'Este enlace es de otra cuenta. Cierra sesión y entra con la cuenta que dice el correo.',
+  RECOVERY_LINK_INVALID:
+    'Este enlace ya no sirve: venció, ya se usó o se pidió otro después. Pide uno nuevo.',
   AUDIT_CURSOR_INVALID:
     'No se pudo cargar esa página de la bitácora. Recarga e inténtalo de nuevo.',
   UNIT_NUMBER_INVALID: 'Ese depto no existe.',

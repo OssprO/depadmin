@@ -5,10 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatFullDate } from '@/lib/format';
 import { ROLES, userLabel } from '@/lib/user-label';
+import { recoveryAvailabilityQueryOptions } from '@/features/auth/api';
 import { usersQueryOptions } from '../api';
 import { NewReaderSheet } from '../components/NewReaderSheet';
 import { ResetPasswordDialog } from '../components/ResetPasswordDialog';
 import { UserAccessSheet } from '../components/UserAccessSheet';
+import { UserEmailSheet } from '../components/UserEmailSheet';
 
 /** Whether the user can get in now, and why not. */
 function AccessBadge({ user }: { user: UserSummary }) {
@@ -19,11 +21,13 @@ function AccessBadge({ user }: { user: UserSummary }) {
   return <Badge>Activa</Badge>;
 }
 
-/** "Solo lectura · Depto 302 · vence el 31 de diciembre de 2026". */
+/** "Solo lectura · Depto 302 · vence el 31 de diciembre de 2026 · correo sin confirmar". */
 function details(user: UserSummary): string {
   const parts = [ROLES[user.role]];
   if (user.role === 'READER') parts.push(user.unit === null ? 'sin depto' : `Depto ${user.unit}`);
   if (user.expiresOn) parts.push(`vence el ${formatFullDate(user.expiresOn)}`);
+  if (user.pendingEmail) parts.push('correo sin confirmar');
+  else if (user.email) parts.push('correo confirmado');
   return parts.join(' · ');
 }
 
@@ -33,6 +37,7 @@ function details(user: UserSummary): string {
  */
 export function UsersPage() {
   const users = useQuery(usersQueryOptions);
+  const email = useQuery(recoveryAvailabilityQueryOptions);
 
   return (
     <div className="flex flex-col gap-4">
@@ -43,8 +48,15 @@ export function UsersPage() {
           <CardTitle>Quién puede entrar</CardTitle>
           <CardDescription>
             Da a cada persona una contraseña temporal; al entrar, elige la suya. Los usuarios de
-            solo lectura ven todo y nunca cambian nada.
+            solo lectura ven todo y nunca cambian nada. Con un correo confirmado, cada quien
+            recupera su contraseña sin ti.
           </CardDescription>
+          {email.data?.available === false && (
+            <p className="text-muted-foreground">
+              El envío de correos aún no está configurado: los enlaces de confirmación esperan y
+              salen en cuanto lo esté.
+            </p>
+          )}
         </CardHeader>
         <CardContent>
           {users.isPending && <p className="text-muted-foreground">Cargando…</p>}
@@ -70,8 +82,10 @@ export function UsersPage() {
                     </span>
                     <span className="text-muted-foreground">{details(user)}</span>
                   </span>
+                  {/* The superadmin's own email is in Mi cuenta, like its password. */}
                   {user.role !== 'SUPERADMIN' && (
-                    <span className="flex gap-2">
+                    <span className="flex flex-wrap gap-2">
+                      <UserEmailSheet user={user} />
                       <UserAccessSheet user={user} />
                       <ResetPasswordDialog user={user} />
                     </span>

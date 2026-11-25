@@ -55,6 +55,25 @@
 
 **Configurado en producción el 24 de noviembre de 2026** (`docs/DESPLIEGUE.md` §9): las cuentas de B2, healthchecks.io y UptimeRobot, y `RESTIC_PASSWORD`, que debe estar también en el gestor de contraseñas del superadmin. Se probó restaurar desde B2. Los `.dump` sin cifrar de antes se borran solos a las dos semanas.
 
+## Resuelto en la fase 24 (ADR-0033)
+
+- **Recuperar la contraseña sin el superadmin, sin revelar quién tiene cuenta:**
+  - «¿Olvidaste tu contraseña?» responde lo mismo para un usuario que no existe, uno sin correo y uno que ya pidió 3 enlaces en la hora.
+  - Tiene un límite de 5 por hora por IP, y uno de 3 por usuario contado en la base.
+  - El enlace dura 1 hora y sirve una vez (se marca usado con un _compare-and-set_). Pedir otro anula el anterior.
+  - Al usarlo se cierran todas las sesiones, queda en la bitácora y llega un aviso al correo.
+- **Enlaces que no se filtran:**
+  - **Solo se guarda su SHA-256** (256 bits al azar, como los tokens de sesión).
+  - **Viajan después del `#`,** que el navegador no manda al servidor: no quedan en los logs de nginx ni en el `Referer`. Comprobarlos y usarlos va por POST.
+  - **La bandeja de salida vacía cada correo al enviarlo,** así que un respaldo no trae enlaces vivos.
+- **Un correo mal escrito no da acceso a nadie:** confirmar un correo exige entrar con la cuenta. Hasta que se confirma, la app no le escribe nada más.
+- **Lo mínimo en cada correo:**
+  - no llevan importes, nombres ni el nombre del edificio;
+  - no llevan `Reply-To`;
+  - el dominio de envío se autentica con SPF, DKIM y DMARC.
+- **Las direcciones no van a la bitácora,** que es para siempre: solo queda que el correo cambió.
+- **Riesgo aceptado:** pedir la recuperación tarda unos milisegundos más cuando el usuario tiene correo. Con el límite por IP, y con usuarios que son números de depto, no se considera explotable.
+
 ## Rendimiento y accesibilidad (Lighthouse 13.5, móvil simulado)
 
 Medido en la pantalla de login, con la API compilada.

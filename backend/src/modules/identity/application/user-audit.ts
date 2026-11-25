@@ -9,9 +9,16 @@ export const UserAuditAction = {
   ACCESS_CHANGED: 'USER_ACCESS_CHANGED',
   DISABLED: 'USER_DISABLED',
   ENABLED: 'USER_ENABLED',
+  EMAIL_REQUESTED: 'USER_EMAIL_REQUESTED',
+  EMAIL_CONFIRMED: 'USER_EMAIL_CONFIRMED',
+  EMAIL_REMOVED: 'USER_EMAIL_REMOVED',
+  PASSWORD_RECOVERED: 'USER_PASSWORD_RECOVERED',
 } as const;
 
-/** A user in the audit log. The password hash is compared, never stored. */
+/**
+ * A user in the audit log. The password hash is compared, never stored, and so are the
+ * addresses: the log lasts forever, and old personal data has no place in it (ADR-0033).
+ */
 export const USER_AUDIT: AuditSubject<User> = {
   entity: 'user',
   id: (user) => user.id,
@@ -24,5 +31,7 @@ export const USER_AUDIT: AuditSubject<User> = {
     mustChangePassword: user.mustChangePassword,
     expiresOn: user.expiresOn && String(user.expiresOn),
     disabled: user.disabled,
+    email: new Redacted(user.email),
+    pendingEmail: new Redacted(user.pendingEmail),
   }),
 };

@@ -66,6 +66,21 @@ test('every main screen meets WCAG 2.1 AA as far as axe can tell', async ({ page
       'contador de efectivo',
       (p) => expect(p.getByLabel('Billetes de $1,000')).toBeVisible(),
     ],
+    [
+      '/account',
+      'mi cuenta',
+      (p) => expect(p.getByRole('heading', { name: 'Correo' })).toBeVisible(),
+    ],
+    [
+      '/forgot-password',
+      'recuperar contraseña',
+      (p) => expect(p.getByRole('button', { name: 'Enviar enlace' })).toBeVisible(),
+    ],
+    [
+      '/reset-password#vencido',
+      'nueva contraseña',
+      (p) => expect(p.getByText(/Este enlace ya no sirve/)).toBeVisible(),
+    ],
     ['/admin/users', 'usuarios', (p) => expect(p.getByText('501').first()).toBeVisible()],
     ['/admin/units', 'deptos', (p) => expect(p.getByText('Depto 101')).toBeVisible()],
     [

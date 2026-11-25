@@ -52,6 +52,15 @@ services:
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
       LOGIN_ATTEMPTS_PER_MINUTE: ${LOGIN_ATTEMPTS_PER_MINUTE:-5}
       HEALTHCHECKS_PING_URL: ${HEALTHCHECKS_PING_URL:-}
+      # Email through Resend (ADR-0033, docs/DESPLIEGUE.md §10). Without SMTP_HOST nothing
+      # goes out: emails wait in the outbox.
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_USER: ${SMTP_USER:-resend}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAIL_FROM: ${EMAIL_FROM:-DepAdmin <avisos@depadmin.osspro.site>}
+      APP_URL: ${APP_URL:-https://depadmin.osspro.site}
+      EMAIL_DAILY_LIMIT: ${EMAIL_DAILY_LIMIT:-90}
       # Both proxies (the VPS's nginx and the web container) reach the API from private
       # addresses; the client's IP is the last public one they forward.
       TRUST_PROXY: loopback, uniquelocal

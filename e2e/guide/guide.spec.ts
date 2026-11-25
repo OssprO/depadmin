@@ -3,6 +3,7 @@ import { basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { type APIRequestContext, expect, type Locator, type Page, test } from '@playwright/test';
 import { BASE_URL, SUPERADMIN } from '../support/accounts.js';
+import { emailTo, linkIn } from '../support/mailbox.js';
 
 // Takes the guide's screenshots and prints it to a PDF (frontend/src/features/help/).
 // It walks each step with the button names the guide quotes, so a renamed button fails
@@ -16,6 +17,7 @@ import { BASE_URL, SUPERADMIN } from '../support/accounts.js';
 const HELP = fileURLToPath(new URL('../../frontend/public/help/', import.meta.url));
 const PDF = fileURLToPath(new URL('../../frontend/public/guia-depadmin.pdf', import.meta.url));
 const OWNER = { username: '401', password: 'la casa del 401' };
+const OWNER_EMAIL = 'depto401@ejemplo.mx';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -205,6 +207,23 @@ test('takes the screenshots, step by step', async ({ page, request }) => {
   await expect(phone.getByLabel('Contraseña actual')).toBeVisible();
   await shoot(phone.locator('main'), 'change-password');
 
+  // Its email, confirmed from the link in Mailpit.
+  await phone.goto('/account');
+  await phone.getByRole('button', { name: 'Agregar correo' }).click();
+  const emailForm = phone.getByRole('dialog');
+  await emailForm.getByLabel('Correo', { exact: true }).fill(OWNER_EMAIL);
+  await shoot(emailForm, 'email-add');
+  await emailForm.getByRole('button', { name: 'Guardar y enviar el enlace' }).click();
+  await expect(emailForm).toBeHidden();
+  const confirmation = await emailTo(OWNER_EMAIL, 'Confirma tu correo en DepAdmin');
+  expect(confirmation.html).toContain('Confirmar mi correo');
+  await phone.goto(linkIn(confirmation));
+  await expect(phone.getByText(/quedó confirmado/)).toBeVisible();
+  await phone.getByRole('link', { name: 'Ir a Mi cuenta' }).click();
+  const emailCard = phone.locator('[data-slot="card"]').filter({ hasText: 'Correo' });
+  await expect(emailCard.getByText('Confirmado')).toBeVisible();
+  await shoot(emailCard, 'email-confirmed');
+
   await phone.getByRole('link', { name: 'Libro' }).click();
   const month = phone.getByRole('region', { name: 'El mes' });
   await expect(month.getByText('Saldo actual')).toBeVisible();
@@ -223,6 +242,25 @@ test('takes the screenshots, step by step', async ({ page, request }) => {
   await expect(phone.getByRole('heading', { name: 'Depto 401' })).toBeVisible();
   await expect(phone.getByText('Cargos')).toBeVisible();
   await shoot(phone, 'statement');
+
+  // A forgotten password, recovered from the email.
+  await phone.goto('/account');
+  await phone.getByRole('button', { name: 'Cerrar sesión' }).click();
+  await phone.getByRole('link', { name: '¿Olvidaste tu contraseña?' }).click();
+  // The screen loads apart: until it shows, «Usuario» is still the login's field.
+  await expect(phone.getByRole('heading', { name: 'Recuperar tu contraseña' })).toBeVisible();
+  await phone.getByLabel('Usuario').fill(OWNER.username);
+  await shoot(phone.locator('main [data-slot="card"]'), 'forgot-password');
+  await phone.getByRole('button', { name: 'Enviar enlace' }).click();
+  await expect(phone.getByRole('status')).toBeVisible();
+  const recovery = await emailTo(OWNER_EMAIL, 'Recupera tu contraseña de DepAdmin');
+  expect(recovery.html).toContain('Elegir una contraseña nueva');
+  await phone.goto(linkIn(recovery));
+  await phone.getByLabel('Nueva contraseña', { exact: true }).fill(OWNER.password);
+  await phone.getByLabel('Repite la nueva contraseña').fill(OWNER.password);
+  await shoot(phone.locator('main [data-slot="card"]'), 'reset-password');
+  await phone.getByRole('button', { name: 'Guardar contraseña' }).click();
+  await expect(phone.getByRole('link', { name: 'Iniciar sesión' })).toBeVisible();
 });
 
 test('prints the guide to a PDF', async ({ browser }) => {

@@ -53,6 +53,48 @@ describe('PrismaDatabase (unit of work)', () => {
     expect(new Set(names.map((unit) => unit.ownerName)).size).toBe(1);
   });
 
+  it('runs what waits for the commit once it commits, and never after a rollback', async () => {
+    const effects: string[] = [];
+    await ctx.database.run(async () => {
+      ctx.database.afterCommit(() => effects.push('outer'));
+      await ctx.database.run(() => {
+        ctx.database.afterCommit(() => effects.push('nested'));
+        expect(effects).toEqual([]);
+        return Promise.resolve();
+      });
+    });
+    expect(effects).toEqual(['outer', 'nested']);
+
+    await expect(
+      ctx.database.run(() => {
+        ctx.database.afterCommit(() => effects.push('rolled back'));
+        throw new Error('boom');
+      }),
+    ).rejects.toThrow('boom');
+    ctx.database.afterCommit(() => effects.push('outside'));
+    expect(effects).toEqual(['outer', 'nested', 'outside']);
+  });
+
+  it('forgets what an attempt aborted for a deadlock registered', async () => {
+    let arrived = 0;
+    let bothHoldOne!: () => void;
+    const holding = new Promise<void>((resolve) => (bothHoldOne = resolve));
+    const effects: number[] = [];
+    const rename = (first: number, second: number) =>
+      ctx.database.run(async () => {
+        ctx.database.afterCommit(() => effects.push(first));
+        const { db } = ctx.database;
+        await db.$executeRaw`UPDATE unit SET owner_name = 'x' WHERE number = ${first}`;
+        if (++arrived === 2) bothHoldOne();
+        await holding;
+        await db.$executeRaw`UPDATE unit SET owner_name = 'x' WHERE number = ${second}`;
+      });
+
+    await Promise.all([rename(101, 102), rename(102, 101)]);
+
+    expect(effects.sort()).toEqual([101, 102]);
+  });
+
   it('uses the shared client outside a transaction', () => {
     expect(ctx.database.db).toBe(ctx.database.client);
   });

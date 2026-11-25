@@ -73,8 +73,10 @@ test('gives an owner access with a temporary password they must replace', async 
 
   // Both changes are in the audit log, which owners can read too, with no password in it.
   await page.getByRole('link', { name: 'Bitácora' }).click();
-  const changed = page.getByRole('listitem').filter({ hasText: 'Contraseña cambiada' });
-  const reset = page.getByRole('listitem').filter({ hasText: 'Contraseña temporal generada' });
+  // Other specs change passwords too (email.spec's own user): these are 501's.
+  const of501 = page.getByRole('listitem').filter({ hasText: 'Usuario 501' });
+  const changed = of501.filter({ hasText: 'Contraseña cambiada' });
+  const reset = of501.filter({ hasText: 'Contraseña temporal generada' });
   await expect(changed).toContainText('Depto 501 · Usuario 501');
   await expect(reset).toContainText('Superadmin · Usuario 501');
   await expect(page.locator('main')).not.toContainText(temporaryPassword);

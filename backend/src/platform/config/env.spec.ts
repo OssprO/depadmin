@@ -17,8 +17,22 @@ describe('validateEnv', () => {
       LOGIN_ATTEMPTS_PER_MINUTE: 5,
       JOBS_ENABLED: true,
       HEALTHCHECKS_PING_URL: '',
+      SMTP_HOST: '',
+      SMTP_PORT: 465,
+      SMTP_USER: '',
+      SMTP_PASSWORD: '',
+      EMAIL_FROM: 'DepAdmin <avisos@depadmin.localhost>',
+      APP_URL: 'http://localhost:5173',
+      EMAIL_DAILY_LIMIT: 90,
       TRUST_PROXY: [],
     });
+  });
+
+  it('takes the app address for email links without its trailing slash', () => {
+    expect(validateEnv({ ...required, APP_URL: 'https://depadmin.osspro.site/' }).APP_URL).toBe(
+      'https://depadmin.osspro.site',
+    );
+    expect(() => validateEnv({ ...required, APP_URL: 'depadmin.osspro.site' })).toThrow(/APP_URL/);
   });
 
   it('reads TRUST_PROXY as a list of proxies', () => {

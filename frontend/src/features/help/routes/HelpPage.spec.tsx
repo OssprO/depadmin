@@ -40,7 +40,7 @@ describe('the user guide', () => {
     expect(steps).toHaveLength(4);
     expect(within(steps[2]!).getByRole('img')).toHaveAttribute('src', '/help/choose-password.png');
     expect(screen.getByRole('complementary', { name: 'Consejos' })).toHaveTextContent(
-      /Pídele al administrador una temporal/,
+      /recupérala tú: ve «Si olvidaste tu contraseña»\. Si no, pídele al administrador una temporal/,
     );
 
     await userEvent.click(screen.getByRole('link', { name: /Siguiente: Cambiar tu contraseña/ }));

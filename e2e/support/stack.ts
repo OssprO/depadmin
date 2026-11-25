@@ -2,7 +2,8 @@ import { type ChildProcess, execFileSync, spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
-import { API_PORT, SUPERADMIN, WEB_PORT } from './accounts.js';
+import { GenericContainer, Wait } from 'testcontainers';
+import { API_PORT, BASE_URL, SUPERADMIN, WEB_PORT } from './accounts.js';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const backend = `${root}backend`;
@@ -11,7 +12,8 @@ const frontend = `${root}frontend`;
 /**
  * The whole system as it runs in production: PostgreSQL 18 with the real migrations and
  * seed, the compiled API, and the built SPA served by `vite preview` (which proxies /api,
- * as nginx does in production). Returns a function that tears it all down.
+ * as nginx does in production). Its emails go to a Mailpit, whose API the tests read at
+ * `MAILPIT_URL` (support/mailbox.ts). Returns a function that tears it all down.
  */
 export async function startStack({
   apiPort = API_PORT,
@@ -21,7 +23,15 @@ export async function startStack({
     if (!existsSync(build)) throw new Error(`Missing ${build}: run "pnpm build" first.`);
   }
 
-  const database = await new PostgreSqlContainer('postgres:18-alpine').start();
+  const [database, mailpit] = await Promise.all([
+    new PostgreSqlContainer('postgres:18-alpine').start(),
+    new GenericContainer('axllent/mailpit:v1.34')
+      .withExposedPorts(1025, 8025)
+      .withWaitStrategy(Wait.forHttp('/livez', 8025))
+      .start(),
+  ]);
+  // The tests' workers inherit it from the global setup.
+  process.env['MAILPIT_URL'] = `http://${mailpit.getHost()}:${mailpit.getMappedPort(8025)}`;
   const env = {
     ...process.env,
     NODE_ENV: 'production',
@@ -35,6 +45,9 @@ export async function startStack({
     SUPERADMIN_USERNAME: SUPERADMIN.username,
     SUPERADMIN_PASSWORD: SUPERADMIN.password,
     API_URL: `http://localhost:${apiPort}`,
+    SMTP_HOST: mailpit.getHost(),
+    SMTP_PORT: String(mailpit.getMappedPort(1025)),
+    APP_URL: webPort === WEB_PORT ? BASE_URL : `http://localhost:${webPort}`,
   };
   execFileSync('pnpm', ['exec', 'prisma', 'migrate', 'deploy'], {
     cwd: backend,
@@ -55,7 +68,7 @@ export async function startStack({
   const stop = async () => {
     for (const child of processes) child.kill();
     await Promise.all(processes.map(exited));
-    await database.stop();
+    await Promise.all([database.stop(), mailpit.stop()]);
   };
   try {
     await waitFor(`http://localhost:${apiPort}/api/health`);

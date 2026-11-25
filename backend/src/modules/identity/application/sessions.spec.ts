@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { withCode } from '../../../../test/support/domain-error.js';
 import { UnitNumber } from '../../../shared-kernel/index.js';
-import { REFRESH_REUSE_GRACE_SECONDS, REFRESH_TOKEN_LIFETIME_DAYS } from '../domain/index.js';
+import {
+  REFRESH_REUSE_GRACE_SECONDS,
+  REFRESH_TOKEN_LIFETIME_DAYS,
+  UserToken,
+} from '../domain/index.js';
 import { PurgeExpiredSessions } from './purge-expired-sessions.js';
 import { RefreshSession } from './refresh-session.js';
 import { SignIn } from './sign-in.js';
@@ -185,15 +189,18 @@ describe('sessions', () => {
   });
 
   describe('PurgeExpiredSessions', () => {
-    it('deletes only the refresh tokens that have expired', async () => {
-      const purge = new PurgeExpiredSessions(fx.refreshTokens, fx.clock);
+    it('deletes only the refresh tokens and email links that have expired', async () => {
+      const purge = new PurgeExpiredSessions(fx.refreshTokens, fx.links, fx.clock);
       await signIn.execute({ username: '501', password: 'correct horse' });
+      await fx.links.add(
+        UserToken.passwordRecovery({ id: 'l-1', tokenHash: 'sha:l-1' }, 'u-501', fx.clock.now()),
+      );
       fx.clock.advanceDays(REFRESH_TOKEN_LIFETIME_DAYS - 1);
       await signIn.execute({ username: '501', password: 'correct horse' });
 
-      expect(await purge.execute()).toBe(0);
+      expect(await purge.execute()).toEqual({ refreshTokens: 0, links: 1 });
       fx.clock.advanceDays(2);
-      expect(await purge.execute()).toBe(1);
+      expect(await purge.execute()).toEqual({ refreshTokens: 1, links: 0 });
       expect(fx.refreshTokens.rows.size).toBe(1);
     });
   });
