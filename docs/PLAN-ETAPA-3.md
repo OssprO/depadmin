@@ -280,7 +280,7 @@ Ampliada con dos ideas del administrador que llegaron con `PLAN-ETAPA-4.md` (sec
 
 - **Vista:**
   - El ciclo de 20 meses como línea de tiempo, con el edificio (el _blueprint_) marcando a quién le toca.
-  - **El ciclo se ve completo:** los 10 turnos, del actual en adelante, y los anteriores cuando se piden. Hoy _Turnos_ muestra 12 meses desde el turno actual (seis turnos), y «Ver turnos anteriores» agrega 12 hacia atrás; al tercer toque pide 48 meses y la API, que acepta hasta 36 (`MAX_CALENDAR_MONTHS`), responde con error. La vista nueva lo corrige.
+  - **El ciclo se ve completo:** los 10 turnos, del actual en adelante, y los anteriores cuando se piden. Hoy _Turnos_ muestra 12 meses desde el turno actual (seis turnos), y «Ver turnos anteriores» agrega 12 hacia atrás; al tercer toque pide 48 meses y la API, que acepta hasta 36 (`MAX_CALENDAR_MONTHS`), responde con error. Ese error se corrige antes, junto con la fase 36 de `PLAN-ETAPA-4.md`.
   - Para cada dueño, **«tu próximo turno: octubre y noviembre 2027»**.
   - Las delegaciones y las multas, marcadas.
 - **Calendario de actividades:** un mes como cuadrícula de días, con lo que pasa en el edificio cada día.

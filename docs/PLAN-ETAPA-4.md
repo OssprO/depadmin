@@ -1,6 +1,6 @@
 # Plan de trabajo — Etapa 4
 
-**Versión:** 1.1 (borrador para aprobar) · **Fecha:** 2026-11-25 · **Base:** `PLAN-ETAPA-3.md` (empieza al terminar la fase 30)
+**Versión:** 1.2 (aprobado, con las preguntas 6 a 15 respondidas) · **Fecha:** 2026-11-25 · **Base:** `PLAN-ETAPA-3.md` (empieza al terminar la fase 30)
 
 La Etapa 3 deja estable la operación y el 1 de diciembre de 2026 el turno pasa a 401. Esta etapa recoge las mejoras y correcciones que el administrador ha detectado con el uso de la app. Sirve de guía para Claude Code: cada fase se implementa en su propio PR, con su porqué, sus pruebas y la aprobación del administrador antes de seguir.
 
@@ -26,11 +26,11 @@ El modo de trabajo no cambia: **una fase por PR**, con las decisiones registrada
 
 | Fase | Qué                                                                             | Origen        | Prioridad | Peso | Depende de                                                |
 | ---- | ------------------------------------------------------------------------------- | ------------- | --------- | ---- | --------------------------------------------------------- |
-| 36   | Aviso de basura desde el domingo siguiente al pago                              | Administrador | 🔴 Alta   | S    | Ninguna (corrige algo que ya existe)                      |
+| 36   | Aviso de basura desde el domingo siguiente al pago (se adelanta)                | Administrador | 🔴 Alta   | S    | Ninguna (corrige algo que ya existe)                      |
 | 31   | Recibos de pago con el diseño de los recibos reales                             | Administrador | 🔴 Alta   | M    | 23 (hecha), muestra del recibo real                       |
 | 35   | Delegación temporal de la administración, que acepta otro dueño                 | Administrador | 🔴 Alta   | L    | 24 (correo); 25 (avisos), si ya está                      |
 | 32   | Firma digital de los recibos (hash + firma del servidor + verificación)         | Administrador | 🔴 Alta   | L    | 31                                                        |
-| 37   | Cuenta con sesión siempre a la vista                                            | Administrador | 🟠 Media  | S    | Ninguna                                                   |
+| 37   | Cuenta con sesión siempre a la vista (se adelanta)                              | Administrador | 🟠 Media  | S    | Ninguna                                                   |
 | 33   | Sesiones activas: ver y cerrar las propias                                      | Administrador | 🟠 Media  | M    | Ninguna                                                   |
 | 34   | Agenda de contactos por depto y servicios comunes                               | Administrador | 🟠 Media  | M    | Ninguna (incluye un cambio de lectura en la autorización) |
 | 38   | Contador de efectivo: cuenta del administrador, total de caja y estado guardado | Administrador | 🟠 Media  | M    | Ninguna (el contador empieza a usar la API)               |
@@ -40,7 +40,7 @@ El modo de trabajo no cambia: **una fase por PR**, con las decisiones registrada
 
 El orden va por color y, dentro de cada color, lo chico primero. Los números no son el orden de trabajo: las fases 35 a 38 llegaron después de escribir las primeras.
 
-- **La 36 es chica y corrige algo que ya se usa.** Puede adelantarse como arreglo, antes de terminar la Etapa 3 (pregunta 6). La 37 también es chica y puede ir junto con ella, cada una en su PR.
+- **La 36 y la 37 se adelantan como arreglos,** antes de terminar la Etapa 3, cada una en su PR (pregunta 6). La 36 lleva también el arreglo de «Ver turnos anteriores» en _Turnos_, que falla al tercer toque.
 - **La 31 espera la muestra del recibo real** (pregunta 1). Si no llega, la 35 puede ir antes.
 - **La 32 necesita la 31.**
 - **La 35 necesita el correo (fase 24)** para avisarle al otro dueño, y usa los avisos (fase 25) si ya existen. Cambia una regla del dominio, así que lleva un ADR.
@@ -119,12 +119,12 @@ Una sección **Agenda** con dos partes:
 
 **Reglas:**
 
-- **Lectura: solo los dueños.** Los usuarios de solo lectura (inquilinos y familiares) no ven la agenda. Esto exige un cambio en la autorización: hoy un lector lee lo mismo que un dueño (las únicas lecturas cerradas son las del superadmin, como la lista de usuarios), así que hay que agregar un permiso de lectura para la agenda.
+- **Lectura: los dueños, y el superadmin para consultarla,** porque da soporte. Los usuarios de solo lectura (inquilinos y familiares) no ven la agenda. Esto exige un cambio en la autorización: hoy un lector lee lo mismo que un dueño (las únicas lecturas cerradas son las del superadmin, como la lista de usuarios), así que hay que agregar un permiso de lectura para la agenda.
 - **Edición: solo el administrador en turno.** El superadmin es auxiliar y no edita la agenda. Cada cambio queda en la bitácora.
 - **Acciones de contacto:** el teléfono abre la llamada o WhatsApp (`tel:` y `wa.me`), según el celular.
 - **Privacidad:** los teléfonos y correos de los vecinos no salen de la app. No se incluyen en PDF ni en correos.
 
-**Pruebas:** un lector no ve la agenda; un dueño que no está en turno no puede editarla; el administrador en turno sí; un cambio queda en la bitácora; y el superadmin recibe rechazo al editarla.
+**Pruebas:** un lector no ve la agenda; un dueño que no está en turno no puede editarla; el administrador en turno sí; un cambio queda en la bitácora; y el superadmin la ve, pero recibe rechazo al editarla.
 
 **Conceptos:** directorio de contactos, autorización por tipo de usuario, datos personales de terceros.
 
@@ -203,7 +203,7 @@ Al recolector se le paga el sábado en la mañana. Hoy la app pide confirmar el 
 
 - **Una semana queda pendiente desde el domingo que sigue a su sábado de pago** (el último día de esa semana, que va de lunes a domingo), con el día del edificio (`Clock.today()`, en la zona de la Ciudad de México). Antes es «próxima».
 - **La fecha que propone «Confirmar» es siempre el sábado.** «Hoy, si es antes del sábado» queda solo para el formulario.
-- **El sábado mismo** se puede registrar con «Agregar» → Basura: el formulario propone la primera semana pendiente o, si no hay, la próxima, que es la de ese sábado.
+- **El sábado mismo** se puede registrar con «Agregar» → Basura: el formulario propone la primera semana pendiente o, si no hay, la próxima, que es la de ese sábado. Es lo normal: el administrador registra el gasto en cuanto le paga al recolector, y el aviso del domingo queda como recordatorio para cuando se le olvidó, sin ruido antes del pago.
 
 **El caso del fin de mes.** Una semana es del mes de su sábado. Cuando el sábado es el último día del mes, su domingo cae en el mes siguiente: la semana del 26 de octubre de 2026 es de octubre y queda pendiente hasta el domingo 1 de noviembre. Pasa una o dos veces al año (octubre de 2026, julio de 2027).
 
@@ -212,17 +212,19 @@ Al recolector se le paga el sábado en la mañana. Hoy la app pide confirmar el 
 - **El cierre no cambia:** un mes se cierra desde el día 1 del siguiente, y para entonces todas sus semanas ya llegaron a su domingo, así que el aviso de «semanas de basura sin registrar» sigue completo.
 - **El PDF no cambia:** lista las semanas sin pagar según su renglón, no según si están pendientes.
 
-**Puede adelantarse.** Es chica (una función del dominio con su prueba, la tarjeta de _Pendientes_ y una línea de la guía) y corrige algo que hoy invita a registrar un pago antes de hacerlo. Puede ir como arreglo en su propio PR, antes de terminar la Etapa 3; lo decide el administrador (pregunta 6).
+**Se adelanta** como arreglo en su propio PR, antes de terminar la Etapa 3 (pregunta 6). Es chica (una función del dominio con su prueba, la tarjeta de _Pendientes_ y una línea de la guía) y corrige algo que hoy invita a registrar un pago antes de hacerlo.
+
+**Lleva también el arreglo de _Turnos_.** «Ver turnos anteriores» agrega 12 meses hacia atrás en cada toque: al tercero pide 48 meses, la API acepta hasta 36 (`MAX_CALENDAR_MONTHS`) y el calendario falla. El botón deja de ofrecer más de lo que la API acepta, y una prueba lo cubre. La vista completa del ciclo sigue en la fase 29.
 
 **Guía:** el paso que dice «Cada semana de basura aparece en «Basura por confirmar»» pasa a decir que aparece el domingo, después del pago. Su captura es de un mes ya terminado, así que no cambia.
 
-**Pruebas:** el sábado la semana es próxima y el domingo pendiente; el domingo empieza a la medianoche del edificio, no a la de UTC; la semana del 26 de octubre de 2026 aparece el 1 de noviembre en el Libro de octubre y en _Pendientes_ de quien puede escribir octubre; y «Confirmar» registra el sábado.
+**Pruebas:** el sábado la semana es próxima y el domingo pendiente; el domingo empieza a la medianoche del edificio, no a la de UTC; la semana del 26 de octubre de 2026 aparece el 1 de noviembre en el Libro de octubre y en _Pendientes_ de quien puede escribir octubre; «Confirmar» registra el sábado; y «Ver turnos anteriores» tocado varias veces nunca pide más de lo que la API acepta.
 
 **Conceptos:** reglas de calendario en el dominio, zona horaria del negocio, estados calculados (nada se guarda, así que corregir la regla no migra datos).
 
 ### Fase 37: Cuenta con sesión, siempre a la vista
 
-🟠 **Media · Peso S**
+🟠 **Media · Peso S** · Se adelanta como arreglo, en su propio PR (pregunta 6).
 
 El administrador es el depto 501 y también tiene la cuenta del superadmin. Necesita saber en todo momento con cuál entró: lo que hace como superadmin queda en la bitácora a nombre del superadmin y no de 501, y algunas acciones solo funcionan con una de las dos (las tarifas, por ejemplo, solo las cambia el administrador en turno).
 
@@ -298,40 +300,46 @@ Al pasarlas se revisaron contra el código. La app no sabe qué días pasa la re
 
 ## 4. Decisiones tomadas
 
-| Tema                      | Decisión                                                                                                                                     |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Firma digital de recibos  | Hash del contenido + firma del servidor PAdES + confirmación del administrador en turno en la bitácora. Sin e.firma del SAT.                 |
-| Agenda: quién la ve       | Solo los dueños. Los usuarios de solo lectura no la ven.                                                                                     |
-| Agenda: quién la edita    | Solo el administrador en turno, registrado en la bitácora. El superadmin no edita.                                                           |
-| Sesiones activas: alcance | Cada usuario ve y cierra solo las suyas. El superadmin no ve ni cierra las de otros.                                                         |
-| Ciclo de turnos           | Se incorpora a la fase 29 de la Etapa 3 (ya escrito en `PLAN-ETAPA-3.md`).                                                                   |
-| Calendario de actividades | Visible para todos los usuarios. Se incorpora a la fase 29 (ya escrito en `PLAN-ETAPA-3.md`).                                                |
-| Inicio de la Etapa 4      | Al terminar la fase 30.                                                                                                                      |
-| Delegación temporal       | La pide el administrador en turno, para una emergencia, a otro dueño, que la acepta en la app. No genera multa.                              |
-| Aviso de basura           | Aparece el domingo siguiente al sábado en que se le paga al recolector, no antes.                                                            |
-| Cuenta con sesión         | Siempre a la vista; en el menú lateral, como un círculo con el número o como texto.                                                          |
-| Contador de efectivo      | Suma también el dinero en la cuenta del administrador, muestra el total de caja para comparar y guarda su estado, privado para cada usuario. |
+| Tema                                       | Decisión                                                                                                                                                                                                 |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Firma digital de recibos                   | Hash del contenido + firma del servidor PAdES + confirmación del administrador en turno en la bitácora. Sin e.firma del SAT.                                                                             |
+| Agenda: quién la ve                        | Los dueños, y el superadmin para consultarla. Los usuarios de solo lectura no la ven.                                                                                                                    |
+| Agenda: quién la edita                     | Solo el administrador en turno, registrado en la bitácora. El superadmin no edita.                                                                                                                       |
+| Sesiones activas: alcance                  | Cada usuario ve y cierra solo las suyas. El superadmin no ve ni cierra las de otros.                                                                                                                     |
+| Ciclo de turnos                            | Se incorpora a la fase 29 de la Etapa 3 (ya escrito en `PLAN-ETAPA-3.md`).                                                                                                                               |
+| Calendario de actividades                  | Visible para todos los usuarios. Se incorpora a la fase 29 (ya escrito en `PLAN-ETAPA-3.md`).                                                                                                            |
+| Inicio de la Etapa 4                       | Al terminar la fase 30.                                                                                                                                                                                  |
+| Delegación temporal                        | La pide el administrador en turno, para una emergencia, a otro dueño, que la acepta en la app. No genera multa.                                                                                          |
+| Aviso de basura                            | Aparece el domingo siguiente al sábado en que se le paga al recolector, no antes.                                                                                                                        |
+| Cuenta con sesión                          | Siempre a la vista: el círculo con el número en el celular, y el círculo con «Depto 501 · Dueño» en el menú lateral.                                                                                     |
+| Arreglos adelantados                       | La 36 (con el arreglo de «Ver turnos anteriores») y la 37 se hacen antes de terminar la Etapa 3, cada una en su PR.                                                                                      |
+| Delegación temporal: quién escribe         | Los dos: el administrador sigue escribiendo mientras otro lo cubre.                                                                                                                                      |
+| Delegación temporal: qué puede quien cubre | Todo lo del administrador, también gobernar, salvo delegar a su vez y registrar o cancelar la entrega del turno siguiente. Termina a más tardar el último día del turno, sin cubrir los días de entrega. |
+| Delegación temporal: el superadmin         | No la pide ni la acepta. Solo termina una activa en un caso especial, y queda en la bitácora.                                                                                                            |
+| Delegación temporal: sin respuesta         | La solicitud vence a las 48 horas; antes, quien la envió puede retirarla y pedírsela a otro dueño.                                                                                                       |
+| Contador de efectivo                       | Suma también el dinero en la cuenta del administrador, muestra el total de caja para comparar y guarda su estado, privado para cada usuario.                                                             |
+| Contador: de quién es                      | De uso personal: cada dueño guarda lo suyo en el servidor y nadie más lo ve, ni el superadmin. No pasa por la bitácora. La cuenta del administrador es un solo importe.                                  |
 
 ---
 
 ## 5. Preguntas abiertas
 
-Cada una tiene un valor por defecto para no bloquear el avance.
+Cada una tiene un valor por defecto para no bloquear el avance. El administrador respondió las preguntas 6 a 15 el 25 de noviembre de 2026.
 
-| #   | Pregunta                                                                                             | Valor por defecto                                                                                                                                                | Fase   |
-| --- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| 1   | ¿Quién proporciona la foto o escaneo de un recibo real y su talón?                                   | El administrador en turno, antes de empezar la fase                                                                                                              | 31     |
-| 2   | ¿El reglamento exige firma autógrafa en los recibos?                                                 | No: la firma del servidor es la constancia; si la asamblea exige otra, se decide allí                                                                            | 32     |
-| 3   | ¿La agenda incluye correo además de teléfono?                                                        | Sí, correo opcional por depto                                                                                                                                    | 34     |
-| 4   | ¿Qué servicios comunes faltan en la lista inicial?                                                   | La lista propuesta en la fase 34; se amplía desde la app                                                                                                         | 34     |
-| 5   | ¿El calendario de actividades muestra también las visitas de limpieza con su nombre o solo la fecha? | **Movida** a la pregunta 32 de `PLAN-ETAPA-3.md`, junto con la fase 29                                                                                           | 29     |
-| 6   | ¿Las fases 36 y 37 se adelantan como arreglos, antes de terminar la Etapa 3?                         | Sí: son chicas y corrigen o aclaran algo que ya se usa. Cada una en su PR                                                                                        | 36, 37 |
-| 7   | Mientras dura una delegación temporal, ¿el administrador sigue pudiendo escribir?                    | Sí, como en las delegaciones de hoy: escriben los dos, y así puede volver antes sin pedir nada                                                                   | 35     |
-| 8   | ¿Qué puede hacer quien cubre?                                                                        | Todo lo del administrador esos días, salvo delegar a su vez y registrar o cancelar la entrega del turno siguiente (puede cobrarle multas a otro depto)           | 35     |
-| 9   | ¿Una delegación temporal puede cubrir los días de entrega, después del periodo?                      | No: termina a más tardar el último día del periodo. Si el saliente no puede cerrar sus meses, los cierra el superadmin como auxiliar                             | 35     |
-| 10  | ¿Qué hace el superadmin con las delegaciones temporales?                                             | No las pide ni las acepta (no decide, ADR-0031). Solo termina una activa en un caso especial, como un administrador que perdió el acceso, y queda en la bitácora | 35     |
-| 11  | ¿Cuánto espera una solicitud sin respuesta?                                                          | 48 horas, o menos si antes llega su último día. Mientras tanto, el administrador puede retirarla y pedírsela a otro                                              | 35     |
-| 12  | El estado del contador, ¿lo guarda solo el administrador en turno o cualquier dueño?                 | Cualquier dueño: todos administran por turno y el saliente cuadra en su entrega. Los lectores y el superadmin cuentan sin guardar                                | 38     |
-| 13  | ¿Dónde se guarda el estado del contador?                                                             | En el servidor, uno por usuario: sigue al usuario entre celular y computadora, y nadie más lo lee                                                                | 38     |
-| 14  | El dinero en la cuenta del administrador, ¿es un solo importe o una línea por transferencia?         | Un solo importe; se separa por transferencia si en el uso hace falta                                                                                             | 38     |
-| 15  | ¿La cuenta con sesión se muestra como un círculo con el número o como texto?                         | Los dos: el círculo en el celular, y el círculo con «Depto 501 · Dueño» en el menú lateral                                                                       | 37     |
+| #   | Pregunta                                                                                             | Valor por defecto                                                                                                                                    | Fase   |
+| --- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| 1   | ¿Quién proporciona la foto o escaneo de un recibo real y su talón?                                   | El administrador en turno, antes de empezar la fase                                                                                                  | 31     |
+| 2   | ¿El reglamento exige firma autógrafa en los recibos?                                                 | No: la firma del servidor es la constancia; si la asamblea exige otra, se decide allí                                                                | 32     |
+| 3   | ¿La agenda incluye correo además de teléfono?                                                        | Sí, correo opcional por depto                                                                                                                        | 34     |
+| 4   | ¿Qué servicios comunes faltan en la lista inicial?                                                   | La lista propuesta en la fase 34; se amplía desde la app                                                                                             | 34     |
+| 5   | ¿El calendario de actividades muestra también las visitas de limpieza con su nombre o solo la fecha? | **Movida** a la pregunta 32 de `PLAN-ETAPA-3.md`, junto con la fase 29                                                                               | 29     |
+| 6   | ¿Las fases 36 y 37 se adelantan como arreglos, antes de terminar la Etapa 3?                         | **Respondida:** sí, la 36 y la 37, cada una en su PR. La 36 lleva también el arreglo de «Ver turnos anteriores»                                      | 36, 37 |
+| 7   | Mientras dura una delegación temporal, ¿el administrador sigue pudiendo escribir?                    | **Respondida:** sí, escriben los dos                                                                                                                 | 35     |
+| 8   | ¿Qué puede hacer quien cubre?                                                                        | **Respondida:** todo lo del administrador esos días, también gobernar, salvo delegar a su vez y registrar o cancelar la entrega del turno siguiente  | 35     |
+| 9   | ¿Una delegación temporal puede cubrir los días de entrega, después del periodo?                      | **Respondida:** no; termina a más tardar el último día del periodo. Si el saliente no puede cerrar sus meses, los cierra el superadmin como auxiliar | 35     |
+| 10  | ¿Qué hace el superadmin con las delegaciones temporales?                                             | **Respondida:** no las pide ni las acepta. Solo termina una activa en un caso especial, y queda en la bitácora                                       | 35     |
+| 11  | ¿Cuánto espera una solicitud sin respuesta?                                                          | **Respondida:** 48 horas; mientras tanto, el administrador puede retirarla y pedírsela a otro                                                        | 35     |
+| 12  | El estado del contador, ¿lo guarda solo el administrador en turno o cualquier dueño?                 | **Respondida:** cualquier dueño, cada uno lo suyo. Los lectores y el superadmin cuentan sin guardar                                                  | 38     |
+| 13  | ¿Dónde se guarda el estado del contador?                                                             | **Respondida:** en el servidor, uno por usuario. Es de uso personal: nadie más lo ve, ni el superadmin                                               | 38     |
+| 14  | El dinero en la cuenta del administrador, ¿es un solo importe o una línea por transferencia?         | **Respondida:** un solo importe, para cuadrar las cuentas propias                                                                                    | 38     |
+| 15  | ¿La cuenta con sesión se muestra como un círculo con el número o como texto?                         | **Respondida:** los dos: el círculo en el celular, y el círculo con «Depto 501 · Dueño» en el menú lateral                                           | 37     |
