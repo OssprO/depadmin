@@ -32,7 +32,7 @@ El modo de trabajo no cambia: una fase por PR, con el porqué de cada decisión,
 | 26   | Reglamento y ley de acuerdos, con sus versiones                    | Administrador | La base de las reformas: primero el texto vigente                                                                      |
 | 27   | Reformas y votaciones                                              | Administrador | Necesita el reglamento (26), los parámetros (21), los avisos (25) y la sección Pendientes                              |
 | 28   | Reporte anual con gráficas                                         | Administrador | Independiente; va después de lo que cambia la operación diaria                                                         |
-| 29   | Turnos: vista renovada y PDF del calendario                        | Administrador | Independiente                                                                                                          |
+| 29   | Turnos: ciclo completo, calendario de actividades y PDF            | Administrador | Independiente; amplía lo que pidió el administrador en `PLAN-ETAPA-4.md` (sección 3)                                   |
 | 30   | Calendario del libro y paletas por fecha                           | Administrador | Mejoras visuales, al final                                                                                             |
 
 Las fases 22 y 23 no dependen entre sí, y tampoco 28, 29 y 30: se pueden reordenar. La 25 depende de la 24; la 16, de la 20; la 27, de la 21, la 25 y la 26.
@@ -274,16 +274,28 @@ Segunda mitad, «tipo Git»: una reforma es una propuesta de versión nueva que 
 
 **Conceptos:** agregación de datos, visualización accesible, gráficas en PDF.
 
-### Fase 29: Turnos: vista renovada y PDF
+### Fase 29: Turnos: ciclo completo, calendario de actividades y PDF
+
+Ampliada con dos ideas del administrador que llegaron con `PLAN-ETAPA-4.md` (sección 3): el ciclo completo en pantalla y un calendario de actividades para todos.
 
 - **Vista:**
   - El ciclo de 20 meses como línea de tiempo, con el edificio (el _blueprint_) marcando a quién le toca.
+  - **El ciclo se ve completo:** los 10 turnos, del actual en adelante, y los anteriores cuando se piden. Hoy _Turnos_ muestra 12 meses desde el turno actual (seis turnos), y «Ver turnos anteriores» agrega 12 hacia atrás; al tercer toque pide 48 meses y la API, que acepta hasta 36 (`MAX_CALENDAR_MONTHS`), responde con error. La vista nueva lo corrige.
   - Para cada dueño, **«tu próximo turno: octubre y noviembre 2027»**.
   - Las delegaciones y las multas, marcadas.
+- **Calendario de actividades:** un mes como cuadrícula de días, con lo que pasa en el edificio cada día.
+  - **Lo ven todos los usuarios, incluidos los de solo lectura.** Solo se lee: no tiene acciones.
+  - **Turnos y entregas:** el primer día de cada turno y sus días de entrega (los 5 días después de que termina, `WRITE_GRACE_DAYS`).
+  - **Fecha límite de cierre de cada mes:** el último día de la ventana de su administrador (`windowFor`, que ya cuenta las delegaciones). Los dos meses de un turno tienen la misma: octubre y noviembre de 502 se cierran a más tardar el 5 de diciembre.
+  - **Basura:** los sábados de pago (`GARBAGE_PAYDAY`), con la semana pagada o por confirmar.
+  - **Limpieza:** las visitas ya registradas en el libro, sin el nombre de quien limpia (pregunta 32).
+  - **Lo que la app no sabe, no lo muestra:** qué días pasa la recolección y qué días viene la limpieza no están en los datos. Verlos por adelantado sería un dato nuevo, fuera de esta fase.
+  - **Se calcula, no se guarda:** un caso de uso de lectura en `reports`, que ya lee los turnos y el libro, lo arma con el calendario de turnos, las semanas de basura y las visitas de limpieza.
+  - **No es el calendario del libro (fase 30),** que marca los días con movimientos y abre sus renglones. Son dos vistas distintas; pueden compartir la cuadrícula.
 - **PDF del calendario** para el rango que se elija (desde y hasta), con delegaciones y multas, para compartir.
-- **Pruebas:** el PDF de un rango con una delegación y un depto inactivo.
+- **Pruebas:** el PDF de un rango con una delegación y un depto inactivo; el calendario de un mes con una delegación y un depto inactivo; la fecha límite de cierre de un turno de dos meses; los 20 meses en pantalla, y los anteriores sin error; y un lector que ve el calendario sin acciones.
 
-**Conceptos:** visualización de calendarios, documentos derivados del dominio.
+**Conceptos:** visualización de calendarios, documentos derivados del dominio, vistas calculadas.
 
 ### Fase 30: Calendario del libro y paletas por fecha
 
@@ -382,3 +394,4 @@ Cada una tiene un valor por defecto para no bloquear el avance.
 | 29  | ¿Los otros egresos llevan una etiqueta para el reporte anual (mantenimiento, reparaciones…)?                                           | Sí, opcional y de una lista corta que administra el superadmin                                                                     | 28   |
 | 30  | ¿Cambiar la mayoría o el plazo de las votaciones necesita una reforma?                                                                 | **Respondida:** sí, se vota, como las tarifas: lo propone el administrador en turno (ADR-0031)                                     | 27   |
 | 31  | ¿El reglamento se puede leer sin sesión, como la guía?                                                                                 | No: es del edificio, se lee con sesión                                                                                             | 26   |
+| 32  | ¿El calendario de actividades muestra las visitas de limpieza con el nombre de quien limpia, o solo la fecha?                          | Solo la fecha y el servicio. El nombre no está en los datos: llegaría con la agenda de servicios (fase 34 de `PLAN-ETAPA-4.md`)    | 29   |
