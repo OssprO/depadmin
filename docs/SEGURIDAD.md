@@ -53,9 +53,7 @@
 - **Fallas que avisan:** healthchecks.io recibe el resultado de cada respaldo y de cada job, y UptimeRobot revisa `/api/health/ready`. Los avisos no llevan datos de los vecinos.
 - **Errores del navegador:** `POST /api/client-errors` es público para que lleguen también los del login. Por eso valida tamaños con un esquema compartido, se limita a 30 por minuto por IP y no guarda usuario ni la parte de la dirección después del `?`. Solo escribe en el log.
 
-## Pendiente
-
-- **Configurar en producción lo de la fase 20** (`docs/DESPLIEGUE.md` §9): las cuentas de B2, healthchecks.io y UptimeRobot, y `RESTIC_PASSWORD`. Mientras no se haga, los respaldos del VPS siguen sin cifrar (solo los lee el usuario `deploy`), no hay copia fuera del VPS y ninguna falla avisa.
+**Configurado en producción el 24 de noviembre de 2026** (`docs/DESPLIEGUE.md` §9): las cuentas de B2, healthchecks.io y UptimeRobot, y `RESTIC_PASSWORD`, que debe estar también en el gestor de contraseñas del superadmin. Se probó restaurar desde B2. Los `.dump` sin cifrar de antes se borran solos a las dos semanas.
 
 ## Rendimiento y accesibilidad (Lighthouse 13.5, móvil simulado)
 

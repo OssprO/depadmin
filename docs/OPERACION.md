@@ -25,14 +25,45 @@ Aquí no va ningún secreto, solo dónde vive cada uno. **El gestor de contrase�
 
 ## 2. Llegó un correo de aviso
 
-| Aviso                                     | Qué significa y qué hacer                                                                                                                                                                                                                                 |
-| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| UptimeRobot: la app está caída            | Nadie puede entrar. Sigue la sección 3                                                                                                                                                                                                                    |
-| healthchecks.io: `backup` falló           | El correo dice en qué paso (`failed at: …`). Si fue al copiar a B2, la copia del VPS sí está: revisa la cuenta y las llaves de B2 y corre `./backup.sh` a mano **(como deploy)**. Si fue al sacar la copia, la base tiene un problema: sigue la sección 3 |
-| healthchecks.io: `backup` no llegó        | El cron no corrió o el VPS estuvo apagado a las 3:30. Revisa `crontab -l` y `tail /var/backups/depadmin/backup.log`, y corre `./backup.sh` a mano                                                                                                         |
-| healthchecks.io: `open-current-month`     | El job no abrió el mes. Entra como superadmin y abre el mes desde el libro; luego busca la causa en `docker compose logs --since 24h api`. Si el aviso es que **no llegó**, la API no estuvo arriba a las 00:05: sigue la sección 3                       |
-| healthchecks.io: `purge-expired-sessions` | Las sesiones vencidas no se borraron. No es urgente: el job lo intenta cada noche. Revisa `docker compose logs api`                                                                                                                                       |
-| healthchecks.io: `restore-test`           | Pasaron 90 días sin probar la restauración. Corre `./restore-test.sh` **(como deploy)**                                                                                                                                                                   |
+| Aviso                                     | Qué significa y qué hacer                                                                                                                                                                                                                                         |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| UptimeRobot: la app está caída            | Nadie puede entrar. Sigue la sección 3                                                                                                                                                                                                                            |
+| healthchecks.io: `backup` falló           | El correo dice en qué paso (`failed at: …`). Si fue al copiar a B2, la copia del VPS sí está: revisa la cuenta y las llaves de B2 (abajo) y corre `./backup.sh` a mano **(como deploy)**. Si fue al sacar la copia, la base tiene un problema: sigue la sección 3 |
+| healthchecks.io: `backup` no llegó        | El cron no corrió o el VPS estuvo apagado a las 3:30. Revisa `crontab -l` y `tail /var/backups/depadmin/backup.log`, y corre `./backup.sh` a mano                                                                                                                 |
+| healthchecks.io: `open-current-month`     | El job no abrió el mes. Entra como superadmin y abre el mes desde el libro; luego busca la causa en `docker compose logs --since 24h api`. Si el aviso es que **no llegó**, la API no estuvo arriba a las 00:05: sigue la sección 3                               |
+| healthchecks.io: `purge-expired-sessions` | Las sesiones vencidas no se borraron. No es urgente: el job lo intenta cada noche. Revisa `docker compose logs api`                                                                                                                                               |
+| healthchecks.io: `restore-test`           | Pasaron 90 días sin probar la restauración. Corre `./restore-test.sh` **(como deploy)**                                                                                                                                                                           |
+
+### Las llaves de B2
+
+Si B2 rechaza la llave (`Signature validation failed`, `Access Denied`, `403`), revisa en este orden **(como deploy)**. Ningún comando muestra el secreto.
+
+1. **¿Está completa en el `.env`?**
+
+   ```bash
+   for v in B2_KEY_ID B2_APPLICATION_KEY; do
+     val="$(sed -n "s/^$v=//p" .env | tail -n 1)"
+     printf '%s: %s caracteres, empieza con %s' "$v" "${#val}" "${val:0:4}"
+     [[ "$val" =~ [[:space:]\"\'] ]] && printf '  ⚠ tiene espacios, comillas o un fin de línea de Windows'
+     echo
+   done
+   grep -cE '^B2_(KEY_ID|APPLICATION_KEY)=' .env    # 2: sin líneas repetidas
+   ```
+
+   El `keyID` tiene 25 caracteres (el de producción empieza con `005`); el `applicationKey`, 31 y empieza con `K00`. Si `keyID` empieza con `K`, están al revés. «Signature validation failed» es casi siempre un `applicationKey` cortado: B2 reconoce el `keyID` y la firma no coincide. Pasó al configurarlo: se pegó con 14 caracteres.
+
+2. **¿La acepta Backblaze?** Sin `restic` de por medio:
+
+   ```bash
+   printf 'user = "%s:%s"\n' \
+     "$(sed -n 's/^B2_KEY_ID=//p' .env | tail -n 1)" \
+     "$(sed -n 's/^B2_APPLICATION_KEY=//p' .env | tail -n 1)" |
+     curl -s -K - -o /dev/null -w '%{http_code}\n' https://api.backblazeb2.com/b2api/v3/b2_authorize_account
+   ```
+
+   `200` es que sí; el problema está en `RESTIC_REMOTE_REPOSITORY` (el endpoint o el bucket). `401` es que no: corrige el `applicationKey` desde el gestor de contraseñas, o, si ahí tampoco está completo, crea otra llave en **Application Keys** (solo ese bucket, _Read and Write_), borra la vieja y pon la nueva en el `.env`.
+
+3. **Vuelve a intentar:** `./backup.sh init` si fue al configurar (crea solo el repositorio que falta), o `./backup.sh` si fue un respaldo.
 
 ---
 
@@ -52,8 +83,6 @@ Ve en orden, y para en cuanto encuentres la causa. Los comandos son **(como depl
 ## 4. Restaurar un respaldo
 
 Solo si los datos se perdieron o se dañaron. Para comprobar que los respaldos sirven, basta `./restore-test.sh`, que no toca la base de la app.
-
-**Si `restic` todavía no está configurado** (`DESPLIEGUE.md` §9 pendiente), no hay copia en B2: los respaldos son los `depadmin-*.dump` de `/var/backups/depadmin`, sin cifrar. Salta los pasos 1 y 2 y usa en el paso 3 el más reciente (`ls -t /var/backups/depadmin/*.dump | head -1`) en lugar de `restaurar.dump`, sin borrarlo al final.
 
 1. **(como deploy)** Elige la copia. `./backup.sh list` muestra las del VPS y las de B2, con la hora en UTC. La más reciente es `latest`. Para otra, usa su ID.
 2. **(como deploy)** Sácala a un archivo. Desde el VPS:
