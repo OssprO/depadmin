@@ -356,7 +356,8 @@ describe('GetMonthlyReport', () => {
     const before = await fx.view.execute(owner(502), m('2026-10'));
     expect(before.garbageWeeks.map((w) => [String(w.week), w.status])).toEqual([
       ['2026-09-28', 'PENDING'],
-      ['2026-10-05', 'PENDING'],
+      // Friday the 9th: its Saturday comes tomorrow.
+      ['2026-10-05', 'UPCOMING'],
       ['2026-10-12', 'UPCOMING'],
       ['2026-10-19', 'UPCOMING'],
       ['2026-10-26', 'UPCOMING'],

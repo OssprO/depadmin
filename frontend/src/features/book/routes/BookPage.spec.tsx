@@ -11,7 +11,7 @@ const october =
   () =>
     Response.json(report);
 
-// The week of 28 September is paid by `garbageRow`; the next two are pending.
+// The week of 28 September is paid by `garbageRow`; the next one is pending.
 const paidFirstWeek = (() => {
   const report = octoberReport({ movements: [paymentRow, garbageRow] });
   const [first, ...rest] = report.garbageWeeks;
@@ -347,7 +347,7 @@ describe('BookPage', () => {
     renderApp('/book/2026-10');
 
     const pending = await screen.findByRole('region', { name: 'Basura por confirmar' });
-    expect(within(pending).getAllByRole('listitem')).toHaveLength(2);
+    expect(within(pending).getAllByRole('listitem')).toHaveLength(1);
     expect(within(pending).getByText('$150.00 el 10 oct')).toBeInTheDocument();
     // A confirmed row says which week it paid.
     expect(screen.getByText('semana 28 sep – 4 oct')).toBeInTheDocument();

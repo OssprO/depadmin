@@ -30,7 +30,10 @@ export function suggestedAmount(category: MovementCategory, rates: SuggestionRat
 }
 
 // Garbage: one fixed payment per calendar week (spec 4.3). Weeks run Monday to Sunday and the
-// suggested payday is the Saturday (PLAN question 4); the user adjusts the real date.
+// suggested payday is the Saturday (PLAN question 4); the user adjusts the real date. A week
+// asks to be confirmed only from the Sunday after its payday (phase 36): the shift
+// administrator records the payment on the Saturday itself, and the reminder is for when
+// they forgot, never ahead of a payment that has not happened.
 
 /** ISO day of the week the garbage is paid: Saturday. */
 export const GARBAGE_PAYDAY = 6;
@@ -46,10 +49,16 @@ export interface GarbageWeek {
   readonly week: LocalDate;
   /** Saturday, the suggested payday; it decides which month lists the week. */
   readonly payday: LocalDate;
-  /** Paid by a live row (in any month); pending once the week has begun; upcoming before. */
+  /**
+   * Paid by a live row (in any month); pending from the Sunday after its payday, in the
+   * building's day; upcoming before.
+   */
   readonly status: GarbageWeekStatus;
   readonly paidBy: CashMovement | null;
-  /** The date a one-tap confirmation records: the payday, or today if that comes first. */
+  /**
+   * The date a new row for the week proposes: the payday, or today if that comes first. A
+   * pending week's payday has passed, so confirming it records the Saturday.
+   */
   readonly suggestedDate: LocalDate;
 }
 
@@ -91,9 +100,9 @@ export function garbageSchedule(
       garbageRows.find((row) => !row.isRemoved && row.details.week?.equals(week)) ?? null;
     const status: GarbageWeekStatus = paidBy
       ? 'PAID'
-      : week.isAfter(today)
-        ? 'UPCOMING'
-        : 'PENDING';
+      : today.isAfter(payday)
+        ? 'PENDING'
+        : 'UPCOMING';
     return {
       week,
       payday,

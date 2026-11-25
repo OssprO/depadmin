@@ -60,19 +60,37 @@ describe('garbage weeks', () => {
     expect(garbageWeeksOf(YearMonth.of(2026, 8)).map(String)[0]).toBe('2026-07-27');
   });
 
-  it('marks each week paid, pending once it has begun, or upcoming', () => {
+  it('marks each week paid, pending once its payday is over, or upcoming', () => {
     const paidLate = CashMovement.record('g1', garbage('2026-10-06', '2026-09-28'));
     const removed = CashMovement.record('g2', garbage('2026-10-11', '2026-10-05'));
     removed.remove();
 
+    // Wednesday 14 October: the week of the 12th has begun, but its Saturday has not come.
     const weeks = garbageSchedule(october, d('2026-10-14'), [paidLate, removed]);
     expect(weeks.map((w) => [String(w.week), w.status, w.paidBy?.id ?? null])).toEqual([
       ['2026-09-28', 'PAID', 'g1'],
       ['2026-10-05', 'PENDING', null],
-      ['2026-10-12', 'PENDING', null],
+      ['2026-10-12', 'UPCOMING', null],
       ['2026-10-19', 'UPCOMING', null],
       ['2026-10-26', 'UPCOMING', null],
     ]);
+  });
+
+  it('asks to confirm a week from the Sunday after its payday, not on the Saturday', () => {
+    const weekOf12 = (today: string) => garbageSchedule(october, d(today), [])[2]!;
+    for (const day of ['2026-10-12', '2026-10-16', '2026-10-17']) {
+      expect(weekOf12(day).status, day).toBe('UPCOMING');
+    }
+    expect(weekOf12('2026-10-18').status).toBe('PENDING');
+  });
+
+  it('keeps the last week of a month that ends on its payday for the Sunday, in the next month', () => {
+    // Saturday 31 October 2026 pays the week of the 26th, which October lists.
+    expect(garbageSchedule(october, d('2026-10-31'), []).at(-1)?.status).toBe('UPCOMING');
+    expect(garbageSchedule(october, d('2026-11-01'), []).at(-1)).toMatchObject({
+      status: 'PENDING',
+      suggestedDate: d('2026-10-31'),
+    });
   });
 
   it('suggests paying on Saturday, or today if Saturday has not come yet', () => {
@@ -84,6 +102,17 @@ describe('garbage weeks', () => {
       ['2026-10-24', '2026-10-14'],
       ['2026-10-31', '2026-10-14'],
     ]);
+    // On the Saturday itself, the form proposes that day.
+    expect(String(garbageSchedule(october, d('2026-10-17'), [])[2]!.suggestedDate)).toBe(
+      '2026-10-17',
+    );
+  });
+
+  it('confirms every pending week on its Saturday', () => {
+    const pending = garbageSchedule(october, d('2026-11-04'), []);
+    expect(pending.every((w) => w.status === 'PENDING' && w.suggestedDate.equals(w.payday))).toBe(
+      true,
+    );
   });
 
   it('counts a week as paid by a row dated in another month', () => {

@@ -197,7 +197,8 @@ describe('garbage weeks', () => {
     expect(weeks.map((w) => [String(w.week), w.status])).toEqual([
       ['2026-09-28', 'PAID'],
       ['2026-10-05', 'PENDING'],
-      ['2026-10-12', 'PENDING'],
+      // Wednesday the 14th: this week's Saturday has not come yet.
+      ['2026-10-12', 'UPCOMING'],
       ['2026-10-19', 'UPCOMING'],
       ['2026-10-26', 'UPCOMING'],
     ]);

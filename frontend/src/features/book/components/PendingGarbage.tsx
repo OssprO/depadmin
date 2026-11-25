@@ -15,8 +15,10 @@ interface PendingGarbageProps {
 }
 
 /**
- * The weeks of garbage that have begun and are not recorded yet. They are suggestions, not
- * rows: they count nowhere until confirmed, which records the real row in one tap.
+ * The weeks of garbage whose Saturday has passed and are not recorded yet: they show from the
+ * Sunday, a reminder of a payment the administrator usually records that Saturday. They are
+ * suggestions, not rows: they count nowhere until confirmed, which records the real row, dated
+ * on its Saturday, in one tap.
  */
 export function PendingGarbage({ report, onAdjust }: PendingGarbageProps) {
   const add = useAddMovement();

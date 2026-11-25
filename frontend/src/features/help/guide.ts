@@ -248,7 +248,7 @@ export const GUIDE: readonly GuideTopic[] = [
             alt: 'El formulario «Agregar movimiento» con un pago de depto.',
           },
           {
-            text: 'Cada semana de basura aparece en «Basura por confirmar». Cuando la pagues, toca «Confirmar». Si cambió el importe o la fecha, toca la semana para ajustarla antes.',
+            text: 'Al recolector se le paga el sábado. Ese mismo día, toca «Agregar» y elige «Basura»: la app propone la semana y la fecha. Si se te pasa, desde el domingo la semana aparece en «Basura por confirmar»: toca «Confirmar» y queda registrada el sábado. Si cambió el importe o la fecha, toca la semana para ajustarla antes.',
             shot: 'garbage',
             alt: 'La lista «Basura por confirmar», con una semana y su botón Confirmar.',
           },

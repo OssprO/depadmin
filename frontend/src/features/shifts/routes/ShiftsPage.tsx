@@ -1,4 +1,4 @@
-import type { ShiftMonth } from '@depadmin/shared';
+import { MAX_CALENDAR_MONTHS, type ShiftMonth } from '@depadmin/shared';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,8 @@ import { PeriodCard } from '../components/PeriodCard';
 /** Months shown ahead of the current period, and how many more each "earlier" step adds. */
 const MONTHS_AHEAD = 12;
 const STEP_BACK = 12;
+/** As far back as the API answers: it gives at most `MAX_CALENDAR_MONTHS` months at once. */
+const MAX_BACK = MAX_CALENDAR_MONTHS - MONTHS_AHEAD;
 
 function byPeriod(months: readonly ShiftMonth[]): ShiftMonth[][] {
   const periods: ShiftMonth[][] = [];
@@ -61,8 +63,11 @@ export function ShiftsPage() {
       )}
       {calendar.data && (
         <>
-          {monthsBack < 36 && (
-            <Button variant="outline" onClick={() => setMonthsBack((back) => back + STEP_BACK)}>
+          {monthsBack < MAX_BACK && (
+            <Button
+              variant="outline"
+              onClick={() => setMonthsBack((back) => Math.min(back + STEP_BACK, MAX_BACK))}
+            >
               Ver turnos anteriores
             </Button>
           )}
