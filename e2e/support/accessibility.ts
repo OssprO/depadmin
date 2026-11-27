@@ -15,6 +15,17 @@ export async function expectAccessible(page: Page, screen: string, part?: string
 }
 
 /**
+ * Switches the color scheme on the page as it is, and waits out the transitions that starts
+ * (a badge's colors fade): axe would otherwise measure them halfway, in a fast CI.
+ */
+export async function switchColorScheme(page: Page, colorScheme: 'light' | 'dark') {
+  await page.emulateMedia({ colorScheme });
+  await page.waitForFunction(() =>
+    document.getAnimations().every((animation) => animation.playState !== 'running'),
+  );
+}
+
+/**
  * The account badge (phase 37) in light and dark: each role has its own colors, and
  * screens-accessibility.spec only signs in as the superadmin.
  */
@@ -22,7 +33,7 @@ export async function expectAccountBadgeAccessible(page: Page, account: string) 
   const badge = '[data-slot="account-badge"]';
   await expect(page.locator(badge)).toBeVisible();
   await expectAccessible(page, account, badge);
-  await page.emulateMedia({ colorScheme: 'dark' });
+  await switchColorScheme(page, 'dark');
   await expectAccessible(page, `${account} (oscuro)`, badge);
-  await page.emulateMedia({ colorScheme: 'light' });
+  await switchColorScheme(page, 'light');
 }

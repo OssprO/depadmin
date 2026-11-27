@@ -1,13 +1,12 @@
 import { type APIRequestContext, expect, type Page, test } from '@playwright/test';
 import { BASE_URL, SUPERADMIN } from '../support/accounts.js';
-import { expectAccessible } from '../support/accessibility.js';
+import { expectAccessible, switchColorScheme } from '../support/accessibility.js';
 import { emailTo, headersOf, linkIn } from '../support/mailbox.js';
 
 // Notices (phase 25, ADR-0034), against a real SMTP server (Mailpit): the superadmin
 // publishes one (who holds the shift depends on the day the suite runs), a reader sees it new
-// on the home and gets it by email, and stops the notices from the email's link. The notice
-// is withdrawn at the end, so the specs after this one find the home as before. Each attempt
-// has its own reader and notice: a retry in CI finds the first one's still there.
+// on the home and gets it by email, and stops the notices from the email's link. Each attempt
+// has its own reader and notice: a retry in CI finds the first one's reader still there.
 
 const PASSWORD = 'la contraseña de siempre';
 
@@ -48,11 +47,26 @@ async function givenReader(request: APIRequestContext, username: string, address
   expect(confirmed.ok()).toBe(true);
 }
 
+/** Withdraws every notice standing, as the superadmin: the ones a failed attempt left too. */
+async function withdrawAll(request: APIRequestContext) {
+  const admin = await accessTokenOf(request, SUPERADMIN.username, SUPERADMIN.password);
+  const board = (await (await request.get('/api/notices', { headers: bearer(admin) })).json()) as {
+    notices: { id: string }[];
+  };
+  for (const { id } of board.notices) {
+    const withdrawn = await request.delete(`/api/notices/${id}`, { headers: bearer(admin) });
+    expect(withdrawn.ok()).toBe(true);
+  }
+}
+
 async function signIn(page: Page, username: string, password: string) {
   await page.getByLabel('Usuario').fill(username);
   await page.getByLabel('Contraseña').fill(password);
   await page.getByRole('button', { name: 'Entrar' }).click();
 }
+
+// The specs that follow find the home as before, even when this one fails halfway.
+test.afterEach(({ request }) => withdrawAll(request));
 
 test('a notice reaches everyone in the app and by email, and its email lets one stop them', async ({
   page,
@@ -86,9 +100,9 @@ test('a notice reaches everyone in the app and by email, and its email lets one 
   await expect(notice).toContainText('Superadmin ·');
   await expect(notice).toContainText('Llenen sus tinacos.');
   await expectAccessible(page, 'avisos');
-  await page.emulateMedia({ colorScheme: 'dark' });
+  await switchColorScheme(page, 'dark');
   await expectAccessible(page, 'avisos (oscuro)');
-  await page.emulateMedia({ colorScheme: 'light' });
+  await switchColorScheme(page, 'light');
   await page.getByRole('link', { name: 'Inicio' }).click();
   await expect(page.getByRole('heading', { name: `Hola, ${reader}` })).toBeVisible();
   await expect(card).toBeHidden();
@@ -120,15 +134,4 @@ test('a notice reaches everyone in the app and by email, and its email lets one 
   await page.goto('/account');
   await signIn(page, reader, PASSWORD);
   await expect(page.getByRole('switch', { name: 'Avisos del edificio' })).not.toBeChecked();
-
-  // Withdrawn, for the specs that follow.
-  const admin = await accessTokenOf(request, SUPERADMIN.username, SUPERADMIN.password);
-  const board = (await (await request.get('/api/notices', { headers: bearer(admin) })).json()) as {
-    notices: { id: string; title: string }[];
-  };
-  for (const { id } of board.notices.filter((n) => n.title === title)) {
-    expect((await request.delete(`/api/notices/${id}`, { headers: bearer(admin) })).ok()).toBe(
-      true,
-    );
-  }
 });
