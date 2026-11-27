@@ -27,9 +27,11 @@ import {
 import { type ReactNode, useEffect, useState } from 'react';
 import { Brand } from '@/components/Brand';
 import { Button } from '@/components/ui/button';
+import { AccountBadge } from '@/features/account/components/AccountBadge';
 import { SystemStatus } from '@/features/system-status/SystemStatus';
 import { buildingToday } from '@/lib/format';
 import { useWideScreen } from '@/lib/use-media-query';
+import { useAccountTitle } from '@/lib/use-account-title';
 import { useSessionState } from '@/lib/use-session';
 import { cn } from '@/lib/utils';
 import { parentOf } from './back-navigation';
@@ -139,13 +141,21 @@ function Shell({ user }: { user: CurrentUser }) {
   const showNav = !user.mustChangePassword;
   // One menu at a time, so there is a single main navigation for assistive technology.
   const wide = useWideScreen();
+  useAccountTitle(user);
 
   return (
     <div className={cn('min-h-svh', showNav && 'md:pl-56 lg:pl-64')}>
       {showNav && wide && (
         <aside className="fixed inset-y-0 left-0 hidden w-56 flex-col gap-6 overflow-y-auto border-r bg-sidebar px-3 pt-[max(1.5rem,env(safe-area-inset-top))] pb-6 text-sidebar-foreground md:flex lg:w-64">
-          <div className="px-3">
-            <Brand compact />
+          <div className="flex flex-col gap-3">
+            <div className="px-3">
+              <Brand compact />
+            </div>
+            <AccountBadge
+              user={user}
+              withText
+              className="px-3 py-2 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            />
           </div>
           <nav aria-label="Principal" className="flex flex-col gap-1">
             <SideItem to="/" icon={<HouseIcon />} label="Inicio" />
@@ -174,8 +184,12 @@ function Shell({ user }: { user: CurrentUser }) {
         )}
       >
         <header className="flex flex-col gap-2 px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-4 md:px-8">
-          <div className={cn(showNav && 'md:hidden')}>
+          <div className={cn('flex items-start justify-between gap-3', showNav && 'md:hidden')}>
             <Brand />
+            {/* One badge at a time too: from a tablet up it is in the side menu. */}
+            {!(showNav && wide) && (
+              <AccountBadge user={user} link={showNav} className="rounded-full" />
+            )}
           </div>
           {showNav && <BackButton />}
         </header>

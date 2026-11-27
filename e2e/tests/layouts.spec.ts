@@ -10,6 +10,8 @@ import { SUPERADMIN } from '../support/accounts.js';
 type Box = { x: number; y: number; width: number; height: number };
 const bottom = (box: Box) => box.y + box.height;
 const right = (box: Box) => box.x + box.width;
+const overlap = (a: Box, b: Box) =>
+  a.x < right(b) && b.x < right(a) && a.y < bottom(b) && b.y < bottom(a);
 
 test('adapts the menu, the book and the forms to the size of the screen', async ({
   page,
@@ -62,6 +64,33 @@ test('adapts the menu, the book and the forms to the size of the screen', async 
     await expect(page.getByText('Depto 101')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Atrás' })).toBeHidden();
   }
+
+  // Who is signed in, on every screen (phase 37): beside the name on the phone, with just
+  // the circle, and under it in the side menu, with the account and its role.
+  const badge = page.getByRole('link', { name: 'Cuenta: admin, superadmin' });
+  const building = page.getByText('Edificio Correspondencia 63').filter({ visible: true });
+  await expect(badge).toHaveCount(1);
+  const [badgeBox, buildingBox] = [(await badge.boundingBox())!, (await building.boundingBox())!];
+  if (project === 'mobile-chrome') {
+    // Just the circle, with the wrench of «Administración».
+    await expect(badge.locator('[data-slot="account-circle"] svg')).toBeVisible();
+    expect(badgeBox.width).toBeLessThanOrEqual(48);
+    expect(badgeBox.x).toBeGreaterThanOrEqual(right(buildingBox));
+    // On a narrow phone too.
+    const size = page.viewportSize()!;
+    await page.setViewportSize({ width: 360, height: size.height });
+    const narrow = [(await badge.boundingBox())!, (await building.boundingBox())!] as const;
+    expect(overlap(...narrow)).toBe(false);
+    expect(right(narrow[0])).toBeLessThanOrEqual(360);
+    await page.setViewportSize(size);
+  } else {
+    const side = page.getByRole('complementary').locator(badge);
+    await expect(side.getByText('admin', { exact: true })).toBeVisible();
+    await expect(side.getByText('Superadmin', { exact: true })).toBeVisible();
+    expect(badgeBox.y).toBeGreaterThanOrEqual(bottom(buildingBox));
+  }
+  await badge.click();
+  await expect(page.getByRole('heading', { name: 'Mi cuenta' })).toBeVisible();
 
   await page.goto('/book');
   const month = page.getByRole('region', { name: 'El mes' });

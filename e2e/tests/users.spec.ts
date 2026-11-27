@@ -1,5 +1,6 @@
 import { expect, type Page, test } from '@playwright/test';
 import { SUPERADMIN } from '../support/accounts.js';
+import { expectAccountBadgeAccessible } from '../support/accessibility.js';
 
 // Read-only users (phase 14): the superadmin creates a tenant, who sees the books and can
 // change nothing; switching the tenant off ends their way in. Runs after books.spec, so the
@@ -39,6 +40,12 @@ test('the superadmin creates a read-only tenant, who sees the books and changes 
   await page.getByLabel('Repite la nueva contraseña').fill('el depto 302 renta');
   await page.getByRole('button', { name: 'Guardar contraseña' }).click();
   await expect(page.getByRole('heading', { name: 'Hola, inquilino.302' })).toBeVisible();
+  await expect(
+    page
+      .getByRole('link', { name: 'Cuenta: inquilino.302, solo lectura' })
+      .locator('[data-slot="account-circle"]'),
+  ).toHaveText('I');
+  await expectAccountBadgeAccessible(page, 'solo lectura');
 
   // The book in full, with nothing to add or change.
   await page.goto('/book');
