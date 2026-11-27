@@ -13,6 +13,8 @@ export const UserAuditAction = {
   EMAIL_CONFIRMED: 'USER_EMAIL_CONFIRMED',
   EMAIL_REMOVED: 'USER_EMAIL_REMOVED',
   PASSWORD_RECOVERED: 'USER_PASSWORD_RECOVERED',
+  EMAIL_TOPICS_CHANGED: 'USER_EMAIL_TOPICS_CHANGED',
+  UNSUBSCRIBED: 'USER_UNSUBSCRIBED',
 } as const;
 
 /**
@@ -33,5 +35,6 @@ export const USER_AUDIT: AuditSubject<User> = {
     disabled: user.disabled,
     email: new Redacted(user.email),
     pendingEmail: new Redacted(user.pendingEmail),
+    noticesByEmail: user.wants('NOTICES'),
   }),
 };

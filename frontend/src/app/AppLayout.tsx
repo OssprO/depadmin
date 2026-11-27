@@ -6,6 +6,7 @@ import {
   DotsThreeOutlineIcon,
   HouseIcon,
   ListBulletsIcon,
+  MegaphoneIcon,
   QuestionIcon,
   ReceiptIcon,
   SlidersHorizontalIcon,
@@ -14,6 +15,7 @@ import {
   WrenchIcon,
 } from '@phosphor-icons/react';
 import type { CurrentUser } from '@depadmin/shared';
+import { useQuery } from '@tanstack/react-query';
 import {
   Link,
   type LinkProps,
@@ -28,6 +30,8 @@ import { type ReactNode, useEffect, useState } from 'react';
 import { Brand } from '@/components/Brand';
 import { Button } from '@/components/ui/button';
 import { AccountBadge } from '@/features/account/components/AccountBadge';
+import { noticesQueryOptions } from '@/features/notices/api';
+import { UnreadBadge } from '@/features/notices/components/UnreadBadge';
 import { SystemStatus } from '@/features/system-status/SystemStatus';
 import { buildingToday } from '@/lib/format';
 import { useWideScreen } from '@/lib/use-media-query';
@@ -42,6 +46,8 @@ interface NavItemProps {
   readonly label: string;
   /** Other sections reached from this tab, which keep it highlighted. */
   readonly sections?: readonly string[];
+  /** Beside the label in the side menu (what waits to be read). */
+  readonly badge?: ReactNode;
 }
 
 function NavItem({ to, icon, label, sections = [] }: NavItemProps) {
@@ -61,7 +67,7 @@ function NavItem({ to, icon, label, sections = [] }: NavItemProps) {
 }
 
 /** On a wide screen these are in the side menu, so they need no "Atrás" there. */
-const SIDE_MENU_ROOTS = ['/history', '/accounts', '/tools', '/admin', '/account'];
+const SIDE_MENU_ROOTS = ['/notices', '/history', '/accounts', '/tools', '/admin', '/account'];
 
 /**
  * "Atrás" on every screen the menu does not open: back to the previous screen of the app,
@@ -90,7 +96,7 @@ function BackButton() {
   );
 }
 
-function SideItem({ to, icon, label, sections = [] }: NavItemProps) {
+function SideItem({ to, icon, label, sections = [], badge }: NavItemProps) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const inSection = sections.some((section) => pathname.startsWith(section));
   return (
@@ -102,7 +108,21 @@ function SideItem({ to, icon, label, sections = [] }: NavItemProps) {
     >
       {icon}
       <span>{label}</span>
+      {badge}
     </Link>
+  );
+}
+
+/** «Avisos», with how many wait to be read; on its own, so only the side menu asks. */
+function NoticesSideItem() {
+  const unread = useQuery(noticesQueryOptions).data?.unread ?? 0;
+  return (
+    <SideItem
+      to="/notices"
+      icon={<MegaphoneIcon />}
+      label="Avisos"
+      badge={<UnreadBadge count={unread} />}
+    />
   );
 }
 
@@ -159,6 +179,7 @@ function Shell({ user }: { user: CurrentUser }) {
           </div>
           <nav aria-label="Principal" className="flex flex-col gap-1">
             <SideItem to="/" icon={<HouseIcon />} label="Inicio" />
+            <NoticesSideItem />
             <SideItem to="/book" icon={<BookOpenTextIcon />} label="Libro" sections={['/book/']} />
             <SideItem to="/history" icon={<ListBulletsIcon />} label="Histórico" />
             <SideItem to="/shifts" icon={<CalendarDotsIcon />} label="Turnos" />

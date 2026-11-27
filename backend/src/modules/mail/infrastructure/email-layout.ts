@@ -4,6 +4,9 @@ import type { EmailToSend } from '../domain/index.js';
 export const FOOTER =
   'Este correo lo envió DepAdmin, la app de tu edificio. No respondas: nadie lee este buzón. Si tienes dudas, habla con el administrador en turno.';
 
+/** The way out of an optional email (ADR-0034). */
+export const UNSUBSCRIBE = 'Dejar de recibir estos correos';
+
 const escapeHtml = (text: string) =>
   text.replace(
     /[&<>"']/g,
@@ -16,11 +19,13 @@ const escapeHtml = (text: string) =>
  */
 export function layOut(email: EmailToSend, appUrl: string): { text: string; html: string } {
   const url = email.action && `${appUrl}${email.action.path}`;
+  const unsubscribe = email.unsubscribe && `${appUrl}${email.unsubscribe.page}`;
   const text = [
     ...email.paragraphs,
     ...(email.action && url ? [`${email.action.label}: ${url}`] : []),
     '—',
     FOOTER,
+    ...(unsubscribe ? [`${UNSUBSCRIBE}: ${unsubscribe}`] : []),
   ].join('\n\n');
 
   const paragraph = (words: string) =>
@@ -39,7 +44,11 @@ export function layOut(email: EmailToSend, appUrl: string): { text: string; html
 ${email.paragraphs.map(paragraph).join('\n')}
 ${button}
 <hr style="margin:32px 0 16px;border:none;border-top:1px solid #d9e2ec">
-<p style="margin:0;font-size:12px;line-height:1.5;color:#7b8794">${escapeHtml(FOOTER)}</p>
+<p style="margin:0;font-size:12px;line-height:1.5;color:#7b8794">${escapeHtml(FOOTER)}</p>${
+    unsubscribe
+      ? `\n<p style="margin:12px 0 0;font-size:12px;line-height:1.5"><a href="${escapeHtml(unsubscribe)}" style="color:#52606d">${UNSUBSCRIBE}</a></p>`
+      : ''
+  }
 </div>
 </body>
 </html>`;

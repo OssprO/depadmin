@@ -14,6 +14,8 @@ interface RawOutboxRow {
   paragraphs: unknown;
   action_label: string | null;
   action_path: string | null;
+  unsubscribe_page: string | null;
+  unsubscribe_post: string | null;
   urgent: boolean;
   status: OutboxRow['status'];
   attempts: number;
@@ -36,7 +38,12 @@ export class PrismaOutboxRepository implements OutboxRepository {
    * SKIP LOCKED leaves alone what another courier is claiming right now, and `claimed_until`
    * what it claimed a moment ago and is still sending.
    */
-  async claimDue(now: Instant, limit: number, until: Instant): Promise<OutboxMessage[]> {
+  async claimDue(
+    now: Instant,
+    limit: number,
+    until: Instant,
+    urgentOnly = false,
+  ): Promise<OutboxMessage[]> {
     const at = toDbInstant(now);
     const rows = await this.database.db.$queryRaw<RawOutboxRow[]>`
       UPDATE email_outbox SET claimed_until = ${toDbInstant(until)}
@@ -44,6 +51,7 @@ export class PrismaOutboxRepository implements OutboxRepository {
         SELECT id FROM email_outbox
         WHERE status = 'PENDING' AND next_attempt_at <= ${at}
           AND (claimed_until IS NULL OR claimed_until <= ${at})
+          AND (urgent OR NOT ${urgentOnly})
         ORDER BY urgent DESC, created_at
         LIMIT ${limit}
         FOR UPDATE SKIP LOCKED
@@ -81,6 +89,8 @@ export class PrismaOutboxRepository implements OutboxRepository {
         paragraphs: [],
         actionLabel: null,
         actionPath: null,
+        unsubscribePage: null,
+        unsubscribePost: null,
         finishedAt: at,
       },
     });
@@ -108,6 +118,8 @@ function toRow(message: OutboxMessage) {
     paragraphs: [...props.paragraphs],
     actionLabel: props.action?.label ?? null,
     actionPath: props.action?.path ?? null,
+    unsubscribePage: props.unsubscribe?.page ?? null,
+    unsubscribePost: props.unsubscribe?.oneClick ?? null,
     urgent: props.urgent,
     status: props.status,
     attempts: props.attempts,
@@ -130,6 +142,10 @@ function fromRaw(row: RawOutboxRow): OutboxMessage {
     action:
       row.action_label && row.action_path
         ? { label: row.action_label, path: row.action_path }
+        : null,
+    unsubscribe:
+      row.unsubscribe_page && row.unsubscribe_post
+        ? { page: row.unsubscribe_page, oneClick: row.unsubscribe_post }
         : null,
     urgent: row.urgent,
     status: row.status,

@@ -89,31 +89,42 @@ model Unit {
 
 /// "user" is a reserved word in PostgreSQL, hence app_user.
 model User {
-  id                 String    @id @db.Uuid
-  username           String    @unique
+  id                 String       @id @db.Uuid
+  username           String       @unique
   role               Role
   /// An owner's depto (one owner per depto), or a read-only user's (any number); null for
   /// the superadmin and for a read-only user tied to no depto.
-  unitNumber         Int?      @map("unit_number")
+  unitNumber         Int?         @map("unit_number")
   /// Null until the superadmin gives the owner a first (temporary) password.
-  passwordHash       String?   @map("password_hash")
-  mustChangePassword Boolean   @default(false) @map("must_change_password")
+  passwordHash       String?      @map("password_hash")
+  mustChangePassword Boolean      @default(false) @map("must_change_password")
   /// A temporary user's last day; null for no end.
-  expiresOn          DateTime? @map("expires_on") @db.Date
+  expiresOn          DateTime?    @map("expires_on") @db.Date
   /// Deactivated by the superadmin: it cannot sign in until reactivated.
-  disabled           Boolean   @default(false)
+  disabled           Boolean      @default(false)
   /// The confirmed email, the only one the app writes to (ADR-0033); lowercase.
   email              String?
   /// An email captured and waiting for its confirmation; the confirmed one keeps working.
-  pendingEmail       String?   @map("pending_email")
-  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  pendingEmail       String?      @map("pending_email")
+  /// The optional emails it does not want (phase 25); security notices always go out.
+  emailOptOuts       EmailTopic[] @default([]) @map("email_opt_outs")
+  createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime     @updatedAt @map("updated_at") @db.Timestamptz
 
   unit          Unit?          @relation(fields: [unitNumber], references: [number], onDelete: Restrict)
   refreshTokens RefreshToken[]
   tokens        UserToken[]
+  notices       Notice[]
+  noticeReads   NoticeRead[]
 
   @@map("app_user")
+}
+
+/// The optional emails a user may turn off (ADR-0034).
+enum EmailTopic {
+  NOTICES
+
+  @@map("email_topic")
 }
 
 enum UserTokenPurpose {
@@ -349,28 +360,73 @@ enum EmailStatus {
 /// One email of the outbox. Once it leaves (or is given up), its words and link are wiped and
 /// only this record stays, for 30 days.
 model EmailOutbox {
-  id            String      @id @db.Uuid
-  kind          String
-  recipient     String
-  subject       String
+  id              String      @id @db.Uuid
+  kind            String
+  recipient       String
+  subject         String
   /// The paragraphs, as a JSON array of strings; empty once it leaves.
-  paragraphs    Json
-  actionLabel   String?     @map("action_label")
-  actionPath    String?     @map("action_path")
-  urgent        Boolean
-  status        EmailStatus @default(PENDING)
-  attempts      Int         @default(0)
-  nextAttemptAt DateTime    @map("next_attempt_at") @db.Timestamptz
-  sendBy        DateTime    @map("send_by") @db.Timestamptz
+  paragraphs      Json
+  actionLabel     String?     @map("action_label")
+  actionPath      String?     @map("action_path")
+  /// Where to stop getting emails like it (ADR-0034): the app's page, and the one-click
+  /// address the mail apps post to. Wiped with the rest once it leaves.
+  unsubscribePage String?     @map("unsubscribe_page")
+  unsubscribePost String?     @map("unsubscribe_post")
+  urgent          Boolean
+  status          EmailStatus @default(PENDING)
+  attempts        Int         @default(0)
+  nextAttemptAt   DateTime    @map("next_attempt_at") @db.Timestamptz
+  sendBy          DateTime    @map("send_by") @db.Timestamptz
   /// While a courier sends it, nobody else takes it; after this, someone may.
-  claimedUntil  DateTime?   @map("claimed_until") @db.Timestamptz
-  lastError     String?     @map("last_error")
-  createdAt     DateTime    @map("created_at") @db.Timestamptz
-  sentAt        DateTime?   @map("sent_at") @db.Timestamptz
+  claimedUntil    DateTime?   @map("claimed_until") @db.Timestamptz
+  lastError       String?     @map("last_error")
+  createdAt       DateTime    @map("created_at") @db.Timestamptz
+  sentAt          DateTime?   @map("sent_at") @db.Timestamptz
   /// When it stopped being pending (sent, failed or expired): the purge counts from here.
-  finishedAt    DateTime?   @map("finished_at") @db.Timestamptz
+  finishedAt      DateTime?   @map("finished_at") @db.Timestamptz
 
   @@index([status, urgent, nextAttemptAt])
   @@index([sentAt])
   @@map("email_outbox")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Notices (phase 25, ADR-0034): what the shift administrator or the superadmin tells everyone.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A notice. It is never edited (its email already went out); withdrawing hides it.
+model Notice {
+  id          String    @id @db.Uuid
+  title       String
+  /// Plain text; its line breaks are kept.
+  body        String
+  /// Its last day among the current ones; null for none.
+  expiresOn   DateTime? @map("expires_on") @db.Date
+  authorId    String    @map("author_id") @db.Uuid
+  /// Who published it, as the actor was then: the shift administrator or the superadmin.
+  authorRole  Role      @map("author_role")
+  authorUnit  Int?      @map("author_unit")
+  publishedAt DateTime  @map("published_at") @db.Timestamptz
+  withdrawnAt DateTime? @map("withdrawn_at") @db.Timestamptz
+  withdrawnBy String?   @map("withdrawn_by") @db.Uuid
+
+  author User         @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  reads  NoticeRead[]
+
+  @@index([publishedAt])
+  @@map("notice")
+}
+
+/// Who has read which notice: each account its own.
+model NoticeRead {
+  noticeId String   @map("notice_id") @db.Uuid
+  userId   String   @map("user_id") @db.Uuid
+  readAt   DateTime @map("read_at") @db.Timestamptz
+
+  notice Notice @relation(fields: [noticeId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([noticeId, userId])
+  @@index([userId])
+  @@map("notice_read")
 }

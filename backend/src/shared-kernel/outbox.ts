@@ -11,6 +11,15 @@ export interface EmailAction {
  * An email as a use case writes it: the words only. The mail module lays it out (HTML and
  * plain text) when it sends it.
  */
+/**
+ * Where to stop getting emails like one (ADR-0034), as paths of the app: the page the link
+ * at its foot opens, and the address mail apps post to for their own button (RFC 8058).
+ */
+export interface EmailUnsubscribe {
+  readonly page: string;
+  readonly oneClick: string;
+}
+
 export interface OutgoingEmail {
   /** What it is, as a stable code (e.g. `PASSWORD_RECOVERY`), for the log. */
   readonly kind: string;
@@ -22,6 +31,8 @@ export interface OutgoingEmail {
   readonly urgent: boolean;
   /** After this it is useless (its link expired), so it is dropped instead of sent. */
   readonly sendBy: Instant;
+  /** An optional email carries a way out; security notices do not. */
+  readonly unsubscribe?: EmailUnsubscribe;
 }
 
 /**

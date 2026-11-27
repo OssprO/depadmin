@@ -46,6 +46,7 @@ export class PrismaUserRepository implements UserRepository {
       disabled: user.disabled,
       email: user.email,
       pendingEmail: user.pendingEmail,
+      emailOptOuts: user.emailOptOuts,
     };
     return translateViolations(
       async () => {
@@ -76,5 +77,6 @@ function toDomain(row: UserRow): User {
     disabled: row.disabled,
     email: row.email,
     pendingEmail: row.pendingEmail,
+    emailOptOuts: row.emailOptOuts,
   });
 }

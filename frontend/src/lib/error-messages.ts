@@ -33,6 +33,8 @@ const MESSAGES: Record<string, string> = {
     'Este enlace ya no sirve: venció o se pidió otro después. Pide uno nuevo desde Mi cuenta.',
   EMAIL_LINK_OTHER_ACCOUNT:
     'Este enlace es de otra cuenta. Cierra sesión y entra con la cuenta que dice el correo.',
+  UNSUBSCRIBE_LINK_INVALID:
+    'Este enlace ya no sirve: puede que la cuenta tenga otro correo. Elige qué correos recibes en Mi cuenta.',
   RECOVERY_LINK_INVALID:
     'Este enlace ya no sirve: venció, ya se usó o se pidió otro después. Pide uno nuevo.',
   AUDIT_CURSOR_INVALID:
@@ -52,6 +54,12 @@ const MESSAGES: Record<string, string> = {
   DELEGATION_MONTH_CLOSED:
     'Ese mes ya está cerrado, y con él quién lo cubrió. El superadmin tendría que reabrirlo.',
   CALENDAR_RANGE_INVALID: 'Ese rango de meses no es válido.',
+  // Notices
+  NOTICE_TITLE_INVALID: 'El título lleva de 1 a 100 caracteres.',
+  NOTICE_BODY_INVALID: 'El aviso lleva de 1 a 2,000 caracteres.',
+  NOTICE_EXPIRY_PAST: 'El último día no puede ser una fecha pasada.',
+  NOTICE_WITHDRAWN: 'Ese aviso ya estaba retirado.',
+  NOTICE_NOT_FOUND: 'Ese aviso ya no existe: quizá alguien lo retiró.',
   // Deptos and rates
   UNIT_NOT_FOUND: 'Ese depto no existe.',
   UNIT_ALREADY_INACTIVE: 'El depto ya está inactivo en esos meses.',

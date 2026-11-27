@@ -17,12 +17,18 @@ export class InMemoryOutboxRepository implements OutboxRepository {
     return Promise.resolve();
   }
 
-  claimDue(now: Instant, limit: number, until: Instant): Promise<OutboxMessage[]> {
+  claimDue(
+    now: Instant,
+    limit: number,
+    until: Instant,
+    urgentOnly = false,
+  ): Promise<OutboxMessage[]> {
     const due = [...this.rows.values()]
       .filter(({ props, id }) => {
         const claim = this.claims.get(id);
         return (
           props.status === 'PENDING' &&
+          (props.urgent || !urgentOnly) &&
           !props.nextAttemptAt.isAfter(now) &&
           (!claim || !claim.isAfter(now))
         );

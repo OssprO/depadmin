@@ -7,6 +7,7 @@ export * from './client-errors.js';
 export * from './email.js';
 export * from './health.js';
 export * from './history.js';
+export * from './notices.js';
 export * from './problem.js';
 export * from './rates.js';
 export * from './shifts.js';

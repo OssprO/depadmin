@@ -6,8 +6,14 @@ export interface OutboxRepository {
   /**
    * Takes up to `limit` pending emails due at `now`, urgent first and then oldest, and holds
    * them until `until`: another courier (a second API during a deploy) skips them meanwhile.
+   * `urgentOnly` leaves the rest waiting.
    */
-  claimDue(now: Instant, limit: number, until: Instant): Promise<OutboxMessage[]>;
+  claimDue(
+    now: Instant,
+    limit: number,
+    until: Instant,
+    urgentOnly?: boolean,
+  ): Promise<OutboxMessage[]>;
   /** Stores what became of it, and releases its claim. */
   save(message: OutboxMessage): Promise<void>;
   /** Emails the provider took since `since`, for the daily limit. */

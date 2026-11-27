@@ -16,6 +16,14 @@ const CLAIM_SECONDS = 5 * 60;
 /** Records of what went out stay this long, then go. */
 const KEEP_DAYS = 30;
 
+/**
+ * Of the daily limit, what only urgent emails (a password recovery) may use, so a notice to
+ * everyone never leaves someone locked out until tomorrow (ADR-0034): 10 of the 90.
+ */
+export function urgentReserve(dailyLimit: number): number {
+  return Math.min(10, Math.floor(dailyLimit / 4));
+}
+
 /** What one delivery run did. */
 export interface DeliveryReport {
   readonly sent: number;
@@ -32,9 +40,9 @@ export interface DeliveryReport {
 
 /**
  * Sends what is due in the outbox (ADR-0033), urgent first, without going over the daily
- * limit in any 24 hours. Drops what would arrive expired, retries what the provider did not
- * take, and forgets, after 30 days, what stopped being pending. Without a provider it only
- * drops the expired ones.
+ * limit in any 24 hours; the last emails of that limit are kept for the urgent ones. Drops
+ * what would arrive expired, retries what the provider did not take, and forgets, after 30
+ * days, what stopped being pending. Without a provider it only drops the expired ones.
  */
 @Injectable()
 export class DeliverEmails {
@@ -60,8 +68,11 @@ export class DeliverEmails {
         limited = (await this.outbox.countPending()) > 0;
         break;
       }
-      const limit = Math.min(room, BATCH_SIZE);
-      const batch = await this.outbox.claimDue(now, limit, now.plusSeconds(CLAIM_SECONDS));
+      const reserve = urgentReserve(this.settings.dailyLimit);
+      const urgentOnly = room <= reserve;
+      const limit = Math.min(urgentOnly ? room : room - reserve, BATCH_SIZE);
+      const until = now.plusSeconds(CLAIM_SECONDS);
+      const batch = await this.outbox.claimDue(now, limit, until, urgentOnly);
       for (const message of batch) {
         if (message.isLateAt(this.clock.now())) {
           await this.outbox.save(message.expired(this.clock.now()));
@@ -82,7 +93,11 @@ export class DeliverEmails {
           else expired++;
         }
       }
-      if (batch.length < limit) break;
+      if (batch.length < limit) {
+        // Whatever the reserve holds back, the limit stopped.
+        if (urgentOnly) limited = (await this.outbox.countPending()) > 0;
+        break;
+      }
     }
     const waiting = await this.outbox.countPending();
     return { sent, retrying, failed, expired, waiting, limited };

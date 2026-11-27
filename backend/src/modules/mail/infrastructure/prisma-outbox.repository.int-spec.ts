@@ -38,6 +38,23 @@ describe('PrismaOutboxRepository', () => {
     expect(claimed[1]?.props).toEqual(first.props);
   });
 
+  it('round-trips the way out of an optional email, and claims only urgent ones when asked', async () => {
+    const unsubscribe = { page: '/email/unsubscribe#t', oneClick: '/api/email/unsubscribe/t' };
+    const notice = await enqueue('aviso@e.mx', now, { kind: 'NOTICE', unsubscribe });
+    await enqueue('urgente@e.mx', now, { urgent: true });
+
+    const urgent = await repository().claimDue(now, 10, now.plusSeconds(300), true);
+    expect(urgent.map((m) => m.content.to)).toEqual(['urgente@e.mx']);
+    const [claimed] = await repository().claimDue(now, 10, now.plusSeconds(300));
+    expect(claimed?.props).toEqual(notice.props);
+
+    await repository().save(claimed!.sent(now));
+    const row = await ctx.database.client.emailOutbox.findUniqueOrThrow({
+      where: { id: notice.id },
+    });
+    expect(row).toMatchObject({ unsubscribePage: null, unsubscribePost: null });
+  });
+
   it('skips what another courier holds, until its claim runs out', async () => {
     await enqueue('a@e.mx', now);
     await enqueue('b@e.mx', now);

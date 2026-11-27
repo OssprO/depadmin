@@ -1,5 +1,6 @@
 export * from './account-email.js';
 export * from './change-password.js';
+export * from './email-topics.js';
 export * from './manage-users.js';
 export * from './password-recovery.js';
 export * from './purge-expired-sessions.js';

@@ -19,6 +19,18 @@ const PDF = fileURLToPath(new URL('../../frontend/public/guia-depadmin.pdf', imp
 const OWNER = { username: '401', password: 'la casa del 401' };
 const OWNER_EMAIL = 'depto401@ejemplo.mx';
 
+/** In a week: a notice that is over soon, as most are. */
+function inAWeek(): string {
+  const day = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(day);
+}
+
+const NOTICE = {
+  title: 'Corte de agua el jueves',
+  body: 'El jueves de 9 a 14 no habrá agua por la reparación de la bomba.\nLlenen sus tinacos el miércoles.',
+  expiresOn: inAWeek(),
+};
+
 test.describe.configure({ mode: 'serial' });
 
 /** The current month in the building, as "YYYY-MM". */
@@ -177,6 +189,20 @@ test('takes the screenshots, step by step', async ({ page, request }) => {
   await confirm.getByRole('button', { name: 'Cerrar el mes' }).click();
   await expect(page.getByText('Cerrado', { exact: true })).toBeVisible();
 
+  // The form of a notice, as the shift administrator sees it (not published here: 401 gets
+  // one later, after the home's screenshot).
+  await page.getByRole('link', { name: 'Más' }).click();
+  await page.getByRole('link', { name: /^Avisos/ }).click();
+  await page.getByRole('button', { name: 'Publicar aviso' }).click();
+  const noticeForm = page.getByRole('dialog', { name: 'Publicar aviso' });
+  await noticeForm.getByLabel('Título').fill(NOTICE.title);
+  await noticeForm.getByLabel('Aviso').fill(NOTICE.body);
+  await noticeForm.getByLabel(/^Vigente hasta/).fill(NOTICE.expiresOn);
+  await noticeForm.getByLabel(/^Vigente hasta/).blur();
+  await shoot(noticeForm, 'notice-publish');
+  await page.keyboard.press('Escape');
+  await expect(noticeForm).toBeHidden();
+
   // The rest as depto 401, from its first sign-in.
   await page.goto('/account');
   await page.getByRole('button', { name: 'Cerrar sesión' }).click();
@@ -220,7 +246,9 @@ test('takes the screenshots, step by step', async ({ page, request }) => {
   await phone.goto(linkIn(confirmation));
   await expect(phone.getByText(/quedó confirmado/)).toBeVisible();
   await phone.getByRole('link', { name: 'Ir a Mi cuenta' }).click();
-  const emailCard = phone.locator('[data-slot="card"]').filter({ hasText: 'Correo' });
+  const emailCard = phone
+    .locator('[data-slot="card"]')
+    .filter({ has: phone.getByRole('heading', { name: 'Correo', exact: true }) });
   await expect(emailCard.getByText('Confirmado')).toBeVisible();
   await shoot(emailCard, 'email-confirmed');
 
@@ -242,6 +270,15 @@ test('takes the screenshots, step by step', async ({ page, request }) => {
   await expect(phone.getByRole('heading', { name: 'Depto 401' })).toBeVisible();
   await expect(phone.getByText('Cargos')).toBeVisible();
   await shoot(phone, 'statement');
+
+  // A notice for everyone, new on 401's home.
+  await api.send('POST', '/api/notices', NOTICE);
+  await phone.getByRole('link', { name: 'Inicio' }).click();
+  const newNotice = phone.getByRole('region', { name: 'Aviso nuevo' });
+  await expect(newNotice).toContainText(NOTICE.title);
+  await shoot(newNotice, 'notices-home');
+  await newNotice.getByRole('link').click();
+  await expect(phone.getByRole('article', { name: `${NOTICE.title} Nuevo` })).toBeVisible();
 
   // A forgotten password, recovered from the email.
   await phone.goto('/account');

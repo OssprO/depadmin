@@ -9,6 +9,7 @@ interface Summary {
 }
 
 export interface Email {
+  readonly id: string;
   readonly subject: string;
   readonly text: string;
   readonly html: string;
@@ -39,7 +40,13 @@ export async function emailTo(to: string, subject: string): Promise<Email> {
     Text: string;
     HTML: string;
   };
-  return { subject: message.Subject, text: message.Text, html: message.HTML };
+  return { id: found!.ID, subject: message.Subject, text: message.Text, html: message.HTML };
+}
+
+/** An email's headers as it left, each with its values. */
+export async function headersOf(email: Email): Promise<Record<string, readonly string[]>> {
+  const response = await fetch(api(`/message/${email.id}/headers`));
+  return (await response.json()) as Record<string, string[]>;
 }
 
 /** The link an email carries, as its text writes it out. */

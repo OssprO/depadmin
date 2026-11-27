@@ -6,7 +6,7 @@ import { connectSession } from '@/lib/http';
 import { fakeApi, owner501, problem, sessionFor, superadmin } from '@/test/fake-api';
 import { renderApp } from '@/test/render-app';
 
-const none: AccountEmail = { email: null, pendingEmail: null };
+const none: AccountEmail = { email: null, pendingEmail: null, optOuts: [] };
 
 describe('email in Mi cuenta', () => {
   afterEach(() => {
@@ -20,7 +20,7 @@ describe('email in Mi cuenta', () => {
       'POST /api/auth/refresh': sessionFor(owner501),
       'GET /api/account/email': () => Response.json(current),
       'PUT /api/account/email': ({ body }) => {
-        current = { email: null, pendingEmail: (body as { email: string }).email };
+        current = { ...none, pendingEmail: (body as { email: string }).email };
         return Response.json(current);
       },
     });
@@ -46,7 +46,7 @@ describe('email in Mi cuenta', () => {
     fakeApi({
       'POST /api/auth/refresh': sessionFor(owner501),
       'GET /api/account/email': () =>
-        Response.json({ email: 'antes@ejemplo.mx', pendingEmail: 'nueva@ejemplo.mx' }),
+        Response.json({ ...none, email: 'antes@ejemplo.mx', pendingEmail: 'nueva@ejemplo.mx' }),
       'PUT /api/account/email': () => problem(409, 'EMAIL_CONFIRMATION_LIMIT'),
     });
     renderApp('/account');
@@ -62,8 +62,7 @@ describe('email in Mi cuenta', () => {
   it('removes it after asking', async () => {
     const api = fakeApi({
       'POST /api/auth/refresh': sessionFor(owner501),
-      'GET /api/account/email': () =>
-        Response.json({ email: 'vecina@ejemplo.mx', pendingEmail: null }),
+      'GET /api/account/email': () => Response.json({ ...none, email: 'vecina@ejemplo.mx' }),
       'DELETE /api/account/email': () => Response.json(none),
     });
     renderApp('/account');
@@ -86,7 +85,7 @@ describe('email in Mi cuenta', () => {
         return sessionFor(owner501)();
       },
       'POST /api/account/email/confirm': () =>
-        Response.json({ email: 'vecina@ejemplo.mx', pendingEmail: null }),
+        Response.json({ ...none, email: 'vecina@ejemplo.mx' }),
     });
     renderApp('/account/email/confirm#secreto_123');
 

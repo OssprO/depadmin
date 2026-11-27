@@ -87,6 +87,10 @@ const HistoryPage = lazyRouteComponent(
   'HistoryPage',
 );
 const MorePage = lazyRouteComponent(() => import('@/features/more/routes/MorePage'), 'MorePage');
+const NoticesPage = lazyRouteComponent(
+  () => import('@/features/notices/routes/NoticesPage'),
+  'NoticesPage',
+);
 const OpeningBalancesPage = lazyRouteComponent(
   () => import('@/features/admin/routes/OpeningBalancesPage'),
   'OpeningBalancesPage',
@@ -106,6 +110,10 @@ const CashCounterPage = lazyRouteComponent(
 const ToolsPage = lazyRouteComponent(
   () => import('@/features/tools/routes/ToolsPage'),
   'ToolsPage',
+);
+const UnsubscribePage = lazyRouteComponent(
+  () => import('@/features/account/routes/UnsubscribePage'),
+  'UnsubscribePage',
 );
 const ShiftsPage = lazyRouteComponent(
   () => import('@/features/shifts/routes/ShiftsPage'),
@@ -152,6 +160,13 @@ const resetPasswordRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/reset-password',
   component: ResetPasswordPage,
+});
+
+/** The link at the foot of an optional email: public, it works without signing in (ADR-0034). */
+const unsubscribeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/email/unsubscribe',
+  component: UnsubscribePage,
 });
 
 /** The user guide: public, so it also helps whoever cannot sign in. */
@@ -294,6 +309,13 @@ const accountStatementRoute = createRoute({
   },
 });
 
+/** The building's notices (ADR-0034): everyone reads them, the shift administrator writes them. */
+const noticesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/notices',
+  component: NoticesPage,
+});
+
 const moreRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/more',
@@ -402,6 +424,7 @@ const routeTree = rootRoute.addChildren([
   loginRoute,
   forgotPasswordRoute,
   resetPasswordRoute,
+  unsubscribeRoute,
   helpRoute.addChildren([helpIndexRoute, helpPrintRoute, helpTopicRoute]),
   appRoute.addChildren([
     homeRoute,
@@ -410,6 +433,7 @@ const routeTree = rootRoute.addChildren([
     historyRoute,
     accountsRoute,
     accountStatementRoute,
+    noticesRoute,
     moreRoute,
     shiftsRoute,
     auditRoute,
