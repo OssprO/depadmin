@@ -17,7 +17,8 @@ export function toCurrentUser(user: User): CurrentUser {
 export function toUserSummary(user: User, today: LocalDate): UserSummary {
   return {
     ...toCurrentUser(user),
-    ...toAccountEmail(user),
+    email: user.email,
+    pendingEmail: user.pendingEmail,
     hasPassword: user.canSignIn,
     expiresOn: user.expiresOn && String(user.expiresOn),
     disabled: user.disabled,
@@ -35,5 +36,5 @@ export function toSessionResponse(session: IssuedSession): SessionResponse {
 }
 
 export function toAccountEmail(user: User): AccountEmail {
-  return { email: user.email, pendingEmail: user.pendingEmail };
+  return { email: user.email, pendingEmail: user.pendingEmail, optOuts: user.emailOptOuts };
 }

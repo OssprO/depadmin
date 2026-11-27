@@ -14,6 +14,7 @@ const owner: UserProps = {
   disabled: false,
   email: null,
   pendingEmail: null,
+  emailOptOuts: [],
 };
 
 describe('User', () => {
@@ -189,6 +190,25 @@ describe('User', () => {
       expect(User.restore({ ...owner, pendingEmail: 'B@Ejemplo.mx' }).pendingEmail).toBe(
         'b@ejemplo.mx',
       );
+    });
+  });
+
+  describe('optional emails (ADR-0034)', () => {
+    it('wants every optional email until it turns one off', () => {
+      const user = User.createOwner('u-501', UnitNumber.of(501));
+
+      expect(user.wants('NOTICES')).toBe(true);
+      expect(user.receive('NOTICES', false)).toBe(true);
+      expect(user.wants('NOTICES')).toBe(false);
+      expect(user.emailOptOuts).toEqual(['NOTICES']);
+    });
+
+    it('says when turning an email on or off changes nothing', () => {
+      const user = User.restore({ ...owner, emailOptOuts: ['NOTICES'] });
+
+      expect(user.receive('NOTICES', false)).toBe(false);
+      expect(user.receive('NOTICES', true)).toBe(true);
+      expect(user.emailOptOuts).toEqual([]);
     });
   });
 });

@@ -53,6 +53,13 @@ export class SmtpEmailSender implements EmailSender, OnModuleDestroy {
         subject: email.subject,
         text,
         html,
+        // The mail app's own button posts to the API (RFC 8058); an optional email only.
+        ...(email.unsubscribe && {
+          headers: {
+            'List-Unsubscribe': `<${this.appUrl}${email.unsubscribe.oneClick}>`,
+            'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+          },
+        }),
       });
     } catch (error) {
       const { code, responseCode, message } = (error ?? {}) as SmtpError;

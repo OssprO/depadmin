@@ -27,6 +27,13 @@ export function normalizeEmail(address: string): string {
   return email;
 }
 
+/**
+ * The emails a user may turn off (ADR-0034). The security notices (a password or an address
+ * changed) are not among them: they always go out.
+ */
+export const EMAIL_TOPICS = ['NOTICES'] as const;
+export type EmailTopic = (typeof EMAIL_TOPICS)[number];
+
 export interface UserProps {
   readonly id: string;
   readonly username: string;
@@ -42,6 +49,8 @@ export interface UserProps {
   readonly email: string | null;
   /** Captured and waiting for its confirmation; the confirmed one keeps working meanwhile. */
   readonly pendingEmail: string | null;
+  /** The optional emails it turned off. */
+  readonly emailOptOuts: readonly EmailTopic[];
 }
 
 /** What the superadmin decides about someone's access. */
@@ -77,6 +86,7 @@ export class User {
     private off: boolean,
     private confirmedEmail: string | null,
     private awaitingEmail: string | null,
+    private optOuts: ReadonlySet<EmailTopic>,
   ) {}
 
   static createOwner(id: string, unit: UnitNumber): User {
@@ -91,6 +101,7 @@ export class User {
       disabled: false,
       email: null,
       pendingEmail: null,
+      emailOptOuts: [],
     });
   }
 
@@ -106,6 +117,7 @@ export class User {
       disabled: false,
       email: null,
       pendingEmail: null,
+      emailOptOuts: [],
     });
   }
 
@@ -133,6 +145,7 @@ export class User {
       disabled: false,
       email: null,
       pendingEmail: null,
+      emailOptOuts: [],
     });
   }
 
@@ -163,6 +176,7 @@ export class User {
       props.disabled,
       props.email && normalizeEmail(props.email),
       props.pendingEmail && normalizeEmail(props.pendingEmail),
+      new Set(props.emailOptOuts),
     );
   }
 
@@ -235,6 +249,26 @@ export class User {
     }
     this.confirmedEmail = null;
     this.awaitingEmail = null;
+  }
+
+  /** The optional emails it turned off, in a fixed order. */
+  get emailOptOuts(): EmailTopic[] {
+    return EMAIL_TOPICS.filter((topic) => this.optOuts.has(topic));
+  }
+
+  /** Whether it wants those emails; it gets them only with a confirmed address. */
+  wants(topic: EmailTopic): boolean {
+    return !this.optOuts.has(topic);
+  }
+
+  /** Turns those emails on or off; returns whether that changed anything. */
+  receive(topic: EmailTopic, wanted: boolean): boolean {
+    if (this.wants(topic) === wanted) return false;
+    const optOuts = new Set(this.optOuts);
+    if (wanted) optOuts.delete(topic);
+    else optOuts.add(topic);
+    this.optOuts = optOuts;
+    return true;
   }
 
   /** Set after a reset: the temporary password works once the user replaces it. */

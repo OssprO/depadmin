@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FakeUnitOfWork } from '../../../../test/support/audit-trail.js';
 import { FixedClock } from '../../../../test/support/clock.js';
 import type { OutgoingEmail } from '../../../shared-kernel/index.js';
-import { DeliverEmails, describeDelivery } from './deliver-emails.js';
+import { DeliverEmails, describeDelivery, urgentReserve } from './deliver-emails.js';
 import { EmailCourier } from './email-courier.js';
 import { OutboxService } from './outbox-service.js';
 import { DeliveryFailure, FakeEmailSender, InMemoryOutboxRepository } from './testing.js';
@@ -86,19 +86,37 @@ describe('the outbox', () => {
 
       const report = await deliver.execute();
 
+      // The last of the 5 waits for an urgent email.
       expect(sender.sent.map((sent) => sent.to)).toEqual([
         'urgente@e.mx',
         '1@e.mx',
         '2@e.mx',
         '3@e.mx',
-        '4@e.mx',
       ]);
-      expect(report).toMatchObject({ sent: 5, waiting: 2, limited: true });
-      expect(describeDelivery(report)).toBe('Emails: sent 5; the daily limit holds 2 back');
+      expect(report).toMatchObject({ sent: 4, waiting: 3, limited: true });
+      expect(describeDelivery(report)).toBe('Emails: sent 4; the daily limit holds 3 back');
 
       clock.advanceDays(1);
       await deliver.execute();
       expect(sender.sent).toHaveLength(7);
+    });
+
+    it('keeps the last emails of the day for the urgent ones (ADR-0034)', async () => {
+      for (const to of ['1@e.mx', '2@e.mx', '3@e.mx', '4@e.mx', '5@e.mx']) {
+        await enqueue(email(to));
+        await courier.idle();
+      }
+      expect(sender.sent).toHaveLength(4);
+
+      await enqueue(email('recuperacion@e.mx', { urgent: true }));
+      await courier.idle();
+
+      expect(sender.sent.map((sent) => sent.to).at(-1)).toBe('recuperacion@e.mx');
+      expect(await deliver.execute()).toMatchObject({ sent: 0, waiting: 1, limited: true });
+    });
+
+    it('reserves 10 of the 90 a day for them, less under a smaller limit', () => {
+      expect([90, 20, 5, 3].map(urgentReserve)).toEqual([10, 5, 1, 0]);
     });
 
     it('keeps everything waiting without a provider, except what expires', async () => {

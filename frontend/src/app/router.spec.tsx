@@ -82,6 +82,7 @@ describe('navigation and session', () => {
         .map((link) => link.textContent),
     ).toEqual([
       'Inicio',
+      'Avisos',
       'Libro',
       'Histórico',
       'Turnos',

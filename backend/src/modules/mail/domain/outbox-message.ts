@@ -1,4 +1,9 @@
-import type { EmailAction, Instant, OutgoingEmail } from '../../../shared-kernel/index.js';
+import type {
+  EmailAction,
+  EmailUnsubscribe,
+  Instant,
+  OutgoingEmail,
+} from '../../../shared-kernel/index.js';
 
 /**
  * - `PENDING`: waits to go out, now or at `nextAttemptAt`.
@@ -25,6 +30,8 @@ export interface OutboxMessageProps {
   /** Empty once it stops being pending: a sent email keeps no link. */
   readonly paragraphs: readonly string[];
   readonly action: EmailAction | null;
+  /** The way out of an optional email (ADR-0034); wiped with the words. */
+  readonly unsubscribe: EmailUnsubscribe | null;
   readonly urgent: boolean;
   readonly status: EmailStatus;
   readonly attempts: number;
@@ -42,12 +49,13 @@ export interface EmailToSend {
   readonly subject: string;
   readonly paragraphs: readonly string[];
   readonly action: EmailAction | null;
+  readonly unsubscribe: EmailUnsubscribe | null;
 }
 
 /**
  * One email of the outbox (ADR-0033). It waits until the provider takes it, is retried with
  * longer and longer waits when the provider fails, and is dropped once its link would arrive
- * expired. When it stops being pending its words and link are wiped, so the record left
+ * expired. When it stops being pending its words and links are wiped, so the record left
  * holds no working link.
  */
 export class OutboxMessage {
@@ -62,6 +70,7 @@ export class OutboxMessage {
       subject: email.subject,
       paragraphs: [...email.paragraphs],
       action: email.action,
+      unsubscribe: email.unsubscribe ?? null,
       urgent: email.urgent,
       status: 'PENDING',
       attempts: 0,
@@ -91,8 +100,8 @@ export class OutboxMessage {
   }
 
   get content(): EmailToSend {
-    const { recipient, subject, paragraphs, action } = this.props;
-    return { to: recipient, subject, paragraphs, action };
+    const { recipient, subject, paragraphs, action, unsubscribe } = this.props;
+    return { to: recipient, subject, paragraphs, action, unsubscribe };
   }
 
   /** Its link would arrive expired: it is dropped instead of sent. */
@@ -138,6 +147,7 @@ export class OutboxMessage {
       status,
       paragraphs: [],
       action: null,
+      unsubscribe: null,
       finishedAt: now,
     });
   }

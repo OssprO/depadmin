@@ -1,4 +1,4 @@
-import type { Instant, OutgoingEmail } from '../../../shared-kernel/index.js';
+import type { EmailUnsubscribe, Instant, OutgoingEmail } from '../../../shared-kernel/index.js';
 import type { User } from '../domain/index.js';
 
 // What the identity module writes to people (ADR-0033). The bare minimum: emails go through
@@ -18,6 +18,13 @@ export const EmailKind = {
 /** Where the confirmation link leads; its secret goes after the `#`, which no server sees. */
 export const CONFIRM_EMAIL_PATH = '/account/email/confirm';
 export const RESET_PASSWORD_PATH = '/reset-password';
+/** The page that stops an optional email (ADR-0034); its link goes after the `#` too. */
+export const UNSUBSCRIBE_PATH = '/email/unsubscribe';
+
+/** The page, and the API address mail apps post to for their own button (RFC 8058). */
+export function unsubscribeFor(token: string): EmailUnsubscribe {
+  return { page: `${UNSUBSCRIBE_PATH}#${token}`, oneClick: `/api/email/unsubscribe/${token}` };
+}
 
 const account = (user: User) => `«${user.username}»`;
 

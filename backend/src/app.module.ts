@@ -6,6 +6,7 @@ import { CashbookModule } from './modules/cashbook/cashbook.module.js';
 import { HistoryModule } from './modules/history/history.module.js';
 import { IdentityModule } from './modules/identity/identity.module.js';
 import { MailModule } from './modules/mail/mail.module.js';
+import { NoticesModule } from './modules/notices/notices.module.js';
 import { ReportsModule } from './modules/reports/reports.module.js';
 import { SettingsModule } from './modules/settings/settings.module.js';
 import { ShiftsModule } from './modules/shifts/shifts.module.js';
@@ -41,6 +42,7 @@ import { PrismaModule } from './platform/prisma/prisma.module.js';
     BillingModule,
     ReportsModule,
     HistoryModule,
+    NoticesModule,
   ],
 })
 export class AppModule {}

@@ -50,7 +50,7 @@ export class InMemoryUserRepository implements UserRepository {
     if (!user) return null;
     const { id, username, role, unit, passwordHash, mustChangePassword, expiresOn, disabled } =
       user;
-    const { email, pendingEmail } = user;
+    const { email, pendingEmail, emailOptOuts } = user;
     return User.restore({
       id,
       username,
@@ -62,6 +62,7 @@ export class InMemoryUserRepository implements UserRepository {
       disabled,
       email,
       pendingEmail,
+      emailOptOuts,
     });
   }
 }

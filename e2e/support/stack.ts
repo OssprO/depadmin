@@ -30,7 +30,10 @@ export async function startStack({
       .withWaitStrategy(Wait.forHttp('/livez', 8025))
       .start(),
   ]);
-  // The tests' workers inherit it from the global setup.
+  // The tests' workers inherit it from the global setup. A spec's own stack (history.spec)
+  // sets it in the worker while it runs, and gives the suite's back when it stops: otherwise
+  // the specs after it would read a Mailpit that is gone.
+  const suiteMailpit = process.env['MAILPIT_URL'];
   process.env['MAILPIT_URL'] = `http://${mailpit.getHost()}:${mailpit.getMappedPort(8025)}`;
   const env = {
     ...process.env,
@@ -69,6 +72,8 @@ export async function startStack({
     for (const child of processes) child.kill();
     await Promise.all(processes.map(exited));
     await Promise.all([database.stop(), mailpit.stop()]);
+    if (suiteMailpit === undefined) delete process.env['MAILPIT_URL'];
+    else process.env['MAILPIT_URL'] = suiteMailpit;
   };
   try {
     await waitFor(`http://localhost:${apiPort}/api/health`);

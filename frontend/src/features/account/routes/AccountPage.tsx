@@ -8,6 +8,7 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/componen
 import { useCurrentUser, useSessionStore } from '@/lib/use-session';
 import { ROLES, userLabel } from '@/lib/user-label';
 import { EmailCard } from '../components/EmailCard';
+import { EmailTopicsCard } from '../components/EmailTopicsCard';
 
 export function AccountPage() {
   const user = useCurrentUser();
@@ -40,6 +41,7 @@ export function AccountPage() {
         </CardContent>
       </Card>
       <EmailCard />
+      <EmailTopicsCard />
       <Link to="/account/password" className={buttonVariants({ variant: 'outline', size: 'lg' })}>
         <KeyIcon />
         Cambiar contraseña

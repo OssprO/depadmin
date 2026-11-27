@@ -39,6 +39,11 @@ test('every main screen meets WCAG 2.1 AA as far as axe can tell', async ({ page
       (p) => expect(p.getByRole('heading', { name: 'Bitácora' })).toBeVisible(),
     ],
     ['/more', 'más', (p) => expect(p.getByRole('heading', { name: 'Más' })).toBeVisible()],
+    [
+      '/notices',
+      'avisos',
+      (p) => expect(p.getByRole('heading', { name: 'Vigentes' })).toBeVisible(),
+    ],
     ['/accounts', 'cuentas', (p) => expect(p.getByText('Depto 101')).toBeVisible()],
     [
       '/accounts/101',
@@ -59,7 +64,7 @@ test('every main screen meets WCAG 2.1 AA as far as axe can tell', async ({ page
     [
       '/account',
       'mi cuenta',
-      (p) => expect(p.getByRole('heading', { name: 'Correo' })).toBeVisible(),
+      (p) => expect(p.getByRole('heading', { name: 'Correo', exact: true })).toBeVisible(),
     ],
     [
       '/forgot-password',

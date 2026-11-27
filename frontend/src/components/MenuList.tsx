@@ -8,15 +8,20 @@ interface MenuEntryProps {
   readonly icon: ReactNode;
   readonly title: string;
   readonly description: string;
+  /** Beside the title (what waits to be read). */
+  readonly badge?: ReactNode;
 }
 
-export function MenuEntry({ to, icon, title, description }: MenuEntryProps) {
+export function MenuEntry({ to, icon, title, description, badge }: MenuEntryProps) {
   return (
     <li>
       <Link to={to} className="flex items-center gap-3 py-3 [&>svg]:size-6">
         {icon}
         <span className="flex flex-1 flex-col">
-          <span className="font-medium">{title}</span>
+          <span className="flex items-center gap-2 font-medium">
+            {title}
+            {badge}
+          </span>
           <span className="text-muted-foreground">{description}</span>
         </span>
         <CaretRightIcon className="text-muted-foreground" />

@@ -100,7 +100,7 @@ export const GUIDE: readonly GuideTopic[] = [
     title: 'Agregar tu correo',
     summary: 'Para recuperar tu contraseña tú solo, si la olvidas',
     intro:
-      'La app solo te escribe lo necesario: el enlace para confirmar tu correo, el de recuperar tu contraseña y un aviso cuando tu contraseña cambia.',
+      'La app solo te escribe lo necesario: el enlace para confirmar tu correo, el de recuperar tu contraseña, un aviso cuando tu contraseña cambia y los avisos del edificio, si no los apagas.',
     sections: [
       {
         steps: [
@@ -232,6 +232,36 @@ export const GUIDE: readonly GuideTopic[] = [
     ],
     tips: [
       'Abajo de tus cuotas están tus pagos, cada uno con su folio y su «Recibo» en PDF, y tu estado de cuenta en PDF, al día de hoy o al cierre de un mes. Los puedes ver antes con «Vista previa» y compartir por WhatsApp.',
+    ],
+  },
+  {
+    slug: 'notices',
+    title: 'Leer y publicar avisos',
+    summary: 'Lo que la administración le avisa al edificio',
+    intro:
+      'Los avisos los publica quien lleva la administración del mes: un corte de agua, una junta, una reparación. Los ven todos en la app, y les llegan por correo a quienes lo tienen confirmado.',
+    sections: [
+      {
+        steps: [
+          {
+            text: 'Cuando hay un aviso nuevo, aparece en «Inicio». Tócalo para leerlo. Todos los avisos están en «Más» → «Avisos».',
+            shot: 'notices-home',
+            alt: 'La tarjeta «Aviso nuevo» en Inicio, con el título del aviso.',
+          },
+          {
+            text: 'Si llevas la administración del mes, en «Avisos» toca «Publicar aviso». Escribe el título y el aviso. Si solo sirve hasta cierto día, elígelo en «Vigente hasta». Toca «Publicar».',
+            shot: 'notice-publish',
+            alt: 'El formulario «Publicar aviso», con el título, el aviso y el día en que deja de estar vigente.',
+          },
+          {
+            text: 'Un aviso no se edita, porque su correo ya salió. Si te equivocaste, toca «Retirar» y publícalo de nuevo.',
+          },
+        ],
+      },
+    ],
+    tips: [
+      'No escribas importes ni nombres en un aviso: el correo pasa por un servicio externo.',
+      'Para no recibir los avisos por correo, apaga «Avisos del edificio» en «Mi cuenta», o toca «Dejar de recibir estos correos» al final del correo. Los sigues viendo en la app.',
     ],
   },
   {

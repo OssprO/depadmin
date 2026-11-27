@@ -75,6 +75,7 @@ describe('email in Mi cuenta', () => {
     expect(accountEmailSchema.parse(captured.body)).toEqual({
       email: null,
       pendingEmail: 'vecina.501@ejemplo.mx',
+      optOuts: [],
     });
     const [confirmation] = await sent();
     expect(confirmation).toMatchObject({
@@ -94,7 +95,11 @@ describe('email in Mi cuenta', () => {
       .auth(owner, { type: 'bearer' })
       .send({ token: link })
       .expect(200);
-    expect(confirmed.body).toEqual({ email: 'vecina.501@ejemplo.mx', pendingEmail: null });
+    expect(confirmed.body).toEqual({
+      email: 'vecina.501@ejemplo.mx',
+      pendingEmail: null,
+      optOuts: [],
+    });
     const current = await http()
       .get('/api/account/email')
       .auth(owner, { type: 'bearer' })
@@ -143,7 +148,7 @@ describe('email in Mi cuenta', () => {
       .delete('/api/account/email')
       .auth(owner, { type: 'bearer' })
       .expect(200);
-    expect(removed.body).toEqual({ email: null, pendingEmail: null });
+    expect(removed.body).toEqual({ email: null, pendingEmail: null, optOuts: [] });
   });
 });
 

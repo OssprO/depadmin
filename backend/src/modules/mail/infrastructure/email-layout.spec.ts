@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FOOTER, layOut } from './email-layout.js';
+import { FOOTER, layOut, UNSUBSCRIBE } from './email-layout.js';
 
 describe('layOut', () => {
   const email = {
@@ -7,6 +7,7 @@ describe('layOut', () => {
     subject: 'Recupera tu contraseña de DepAdmin',
     paragraphs: ['Alguien pidió cambiar la contraseña de la cuenta «501».', 'Vence en 1 hora.'],
     action: { label: 'Elegir una contraseña nueva', path: '/reset-password#abc_123' },
+    unsubscribe: null,
   };
 
   it('writes the link out in the text, after the paragraphs, and the footer last', () => {
@@ -40,5 +41,21 @@ describe('layOut', () => {
     expect(html).toContain('&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt; &amp; más');
     expect(html).not.toContain('<script>');
     expect(html).not.toContain('<a ');
+  });
+
+  it('ends an optional email with its way out, in the text and the HTML (ADR-0034)', () => {
+    const notice = {
+      ...email,
+      unsubscribe: { page: '/email/unsubscribe#u.NOTICES.firma', oneClick: '/api/email/x' },
+    };
+    const { text, html } = layOut(notice, 'https://depadmin.osspro.site');
+
+    expect(text.split('\n\n').at(-1)).toBe(
+      `${UNSUBSCRIBE}: https://depadmin.osspro.site/email/unsubscribe#u.NOTICES.firma`,
+    );
+    expect(html).toContain(
+      `<a href="https://depadmin.osspro.site/email/unsubscribe#u.NOTICES.firma" style="color:#52606d">${UNSUBSCRIBE}</a>`,
+    );
+    expect(layOut(email, 'https://depadmin.osspro.site').html).not.toContain(UNSUBSCRIBE);
   });
 });

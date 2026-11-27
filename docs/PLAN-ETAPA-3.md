@@ -177,6 +177,18 @@ Reemplaza a la fase 17. La investigación está en la sección 4.
 
 Idea del administrador. En capas: la que siempre funciona primero.
 
+**Se divide en tres PR:** 25a, avisos en la app y por correo, con las preferencias de correo; 25b, recordatorios automáticos; 25c, push (opcional).
+
+**25a hecha (ADR-0034).** Lo que cambió del plan, decidido con el administrador:
+
+- **El correo lleva el título y el texto completo** del aviso. El formulario advierte que no lleve importes ni nombres.
+- **También reciben avisos los usuarios de solo lectura,** como los inquilinos o el contador. Cada quien los puede apagar.
+- **Un aviso no se edita:** se retira y se publica otro, porque su correo ya salió.
+- **Un correo por dirección:** las cuentas 501 y de superadmin del administrador, si comparten correo, reciben uno.
+- **«Dejar de recibir estos correos»** abre una página sin sesión con un botón, más los encabezados `List-Unsubscribe` para el botón del propio Gmail. El enlace va firmado y no se guarda.
+- **Los últimos 10 de los 90 correos del día** quedan para los urgentes, como la recuperación de contraseña.
+- **El correo de un aviso sale en 3 días o se descarta.** Mientras Resend no esté configurado, los avisos se ven en la app pero sus correos vencen.
+
 - **Avisos dentro de la app:**
   - Una sección _Avisos_ y una tarjeta en Inicio. Los publican el administrador en turno y el superadmin (como pidió el administrador), con título, texto y, si se quiere, fecha de vencimiento.
   - Cada usuario ve cuáles no ha leído.

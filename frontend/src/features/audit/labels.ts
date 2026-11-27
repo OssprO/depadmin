@@ -33,6 +33,8 @@ const ACTIONS: Record<string, string> = {
   USER_EMAIL_CONFIRMED: 'Correo confirmado',
   USER_EMAIL_REMOVED: 'Correo quitado',
   USER_PASSWORD_RECOVERED: 'Contraseña recuperada por correo',
+  USER_EMAIL_TOPICS_CHANGED: 'Correos que recibe',
+  USER_UNSUBSCRIBED: 'Dejó de recibir avisos desde el correo',
   UNIT_DEACTIVATED: 'Depto marcado inactivo',
   UNIT_REACTIVATED: 'Depto reactivado',
   UNIT_OWNER_RENAMED: 'Propietario actualizado',
@@ -51,6 +53,8 @@ const ACTIONS: Record<string, string> = {
   REPORTING_START_SET: 'Inicio de la contabilidad',
   RATE_CHANGE_SCHEDULED: 'Cambio de tarifa',
   RATE_CHANGE_WITHDRAWN: 'Cambio de tarifa quitado',
+  NOTICE_PUBLISHED: 'Aviso publicado',
+  NOTICE_WITHDRAWN: 'Aviso retirado',
 };
 
 /** The kinds of entity, in the order the filter offers them. */
@@ -64,6 +68,7 @@ export const ENTITIES: Record<string, string> = {
   reporting_start: 'Inicio',
   opening_balance: 'Saldo inicial del depto',
   rate_change: 'Tarifa',
+  notice: 'Aviso',
 };
 
 const FIELDS: Record<string, Record<string, string>> = {
@@ -77,6 +82,7 @@ const FIELDS: Record<string, Record<string, string>> = {
     disabled: 'Desactivado',
     email: 'Correo',
     pendingEmail: 'Correo por confirmar',
+    noticesByEmail: 'Avisos por correo',
   },
   unit: { ownerName: 'Propietario', inactivePeriods: 'Inactivo' },
   opening_balance: { debts: 'Adeudos', credit: 'Adelanto' },
@@ -111,6 +117,7 @@ const FIELDS: Record<string, Record<string, string>> = {
     agreedOn: 'Fecha del acuerdo',
     agreement: 'Acuerdo',
   },
+  notice: { title: 'Título', body: 'Texto', expiresOn: 'Vigente hasta', withdrawn: 'Retirado' },
 };
 
 const MONTH_STATUS: Record<string, string> = { OPEN: 'Abierto', CLOSED: 'Cerrado' };
@@ -183,12 +190,14 @@ const VALUES: Record<string, Record<string, (value: string | number) => string>>
     amount: money,
     agreedOn: (v) => formatFullDate(String(v)),
   },
+  notice: { expiresOn: (v) => formatFullDate(String(v)) },
 };
 
 /** Entity labels that read better than their stored form. */
 const SUBJECTS: Record<string, (label: string) => string> = {
   // A rate change is labelled by the month it applies from.
   rate_change: (label) => `desde ${formatMonth(label)}`,
+  notice: (label) => `«${label}»`,
 };
 
 export interface ChangeLine {

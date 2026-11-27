@@ -24,18 +24,22 @@ describe('OutboxMessage', () => {
       subject: 'Recupera tu contraseña',
       paragraphs: ['Toca el botón.'],
       action: email.action,
+      unsubscribe: null,
     });
   });
 
   it('keeps no words or link once it goes out', () => {
-    const sent = OutboxMessage.enqueue('m-1', email, now).sent(now);
+    const unsubscribe = { page: '/email/unsubscribe#t', oneClick: '/api/email/unsubscribe/t' };
+    const enqueued = OutboxMessage.enqueue('m-1', { ...email, unsubscribe }, now);
+    expect(enqueued.content.unsubscribe).toEqual(unsubscribe);
 
-    expect(sent.props).toMatchObject({
+    expect(enqueued.sent(now).props).toMatchObject({
       status: 'SENT',
       sentAt: now,
       finishedAt: now,
       paragraphs: [],
       action: null,
+      unsubscribe: null,
       recipient: 'vecina@ejemplo.mx',
     });
   });
